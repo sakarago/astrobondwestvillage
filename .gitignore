@@ -1,0 +1,10 @@
+.DS_Store
+xcuserdata/
+*.xcuserstate
+build/
+DerivedData/
+**/.build/
+.swiftpm/xcode/package.xcworkspace/xcuserdata/
+.env
+.env.*
+*.pem
