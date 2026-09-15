@@ -24,6 +24,7 @@ final class MatchViewModel {
     var showPrefs = false
     var showDetail = false
     var mySun: ZodiacSign?
+    var openingRecordId: String?
 
     private let matches = MatchService()
     private let messaging = MessagingService()
@@ -134,6 +135,29 @@ final class MatchViewModel {
             // Instant inbox update — the Messages tab view stays mounted in
             // the background (see MainTabView), so it won't re-run its own
             // load on its own; push the result to the shared store instead.
+            ConversationsStore.shared.upsert(conversation)
+        } catch {
+            message = error.localizedDescription
+        }
+    }
+
+    /// Tapping a face in "Bugünün kararları" used to do nothing at all. If it
+    /// was an accept, it's an actual match — take them straight to that chat
+    /// (creating the conversation if it somehow doesn't exist yet). If it was
+    /// a pass, there's no conversation to open, so say so instead of just
+    /// silently eating the tap.
+    func openChat(for record: MatchDecisionsStore.Record) async {
+        guard record.accepted else {
+            message = "\(record.displayName) kişisini geçtin — mesajlaşma yok."
+            return
+        }
+        guard openingRecordId == nil else { return }
+        openingRecordId = record.id
+        message = nil
+        defer { openingRecordId = nil }
+        do {
+            let conversation = try await messaging.getOrCreateConversation(otherUserId: record.id)
+            openChat = conversation
             ConversationsStore.shared.upsert(conversation)
         } catch {
             message = error.localizedDescription
@@ -414,28 +438,42 @@ struct MatchHomeView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
                     ForEach(model.todayDecisions) { rec in
-                        VStack(spacing: 8) {
-                            ZStack(alignment: .bottomTrailing) {
-                                PersonAvatar(
-                                    name: rec.displayName,
-                                    photoURL: rec.photoURL,
-                                    sunSign: rec.sunSign,
-                                    unlocked: false,
-                                    size: 52
-                                )
-                                Image(systemName: rec.accepted ? "hand.thumbsup.fill" : "hand.thumbsdown.fill")
-                                    .font(.system(size: 10, weight: .bold))
-                                    .foregroundStyle(rec.accepted ? Color(hex: "#A8D4B8") : Color(hex: "#D4A8A8"))
-                                    .padding(4)
-                                    .background(Circle().fill(Color.black.opacity(0.55)))
-                                    .offset(x: 4, y: 4)
+                        Button {
+                            Task { await model.openChat(for: rec) }
+                        } label: {
+                            VStack(spacing: 8) {
+                                ZStack(alignment: .bottomTrailing) {
+                                    PersonAvatar(
+                                        name: rec.displayName,
+                                        photoURL: rec.photoURL,
+                                        sunSign: rec.sunSign,
+                                        unlocked: false,
+                                        size: 52
+                                    )
+                                    .opacity(rec.accepted ? 1 : 0.55)
+                                    .overlay {
+                                        if model.openingRecordId == rec.id {
+                                            Circle().fill(Color.black.opacity(0.45))
+                                            ProgressView().tint(.white)
+                                        }
+                                    }
+
+                                    Image(systemName: rec.accepted ? "message.fill" : "hand.thumbsdown.fill")
+                                        .font(.system(size: 10, weight: .bold))
+                                        .foregroundStyle(rec.accepted ? Color(hex: "#A8D4B8") : Color(hex: "#D4A8A8"))
+                                        .padding(4)
+                                        .background(Circle().fill(Color.black.opacity(0.55)))
+                                        .offset(x: 4, y: 4)
+                                }
+                                Text(rec.displayName.components(separatedBy: " ").first ?? rec.displayName)
+                                    .font(ABFont.body(11, weight: .medium))
+                                    .foregroundStyle(rec.accepted ? ABColor.ink : ABColor.inkMuted)
+                                    .lineLimit(1)
+                                    .frame(width: 64)
                             }
-                            Text(rec.displayName.components(separatedBy: " ").first ?? rec.displayName)
-                                .font(ABFont.body(11, weight: .medium))
-                                .foregroundStyle(ABColor.inkMuted)
-                                .lineLimit(1)
-                                .frame(width: 64)
                         }
+                        .buttonStyle(.plain)
+                        .disabled(model.openingRecordId != nil)
                     }
                 }
                 .padding(.horizontal, 20)
