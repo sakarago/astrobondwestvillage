@@ -10,7 +10,7 @@ struct ProfileHomeView: View {
 
     private enum ChartMode: String, CaseIterable {
         case circle = "Çember"
-        case table = "Tablo"
+        case table = "Doğum Haritan"
     }
 
     var body: some View {
@@ -139,19 +139,21 @@ struct ProfileHomeView: View {
 
     private func chartSection(_ snap: ProfileSnapshot) -> some View {
         VStack(spacing: 14) {
-            HStack {
-                Text("Doğum Haritan")
-                    .font(ABFont.display(20))
-                    .foregroundStyle(ABColor.ink)
-                Spacer()
-                Picker("", selection: $chartMode) {
-                    ForEach(ChartMode.allCases, id: \.self) { mode in
-                        Text(mode.rawValue).tag(mode)
-                    }
+            Text("Haritan")
+                .font(ABFont.display(20))
+                .foregroundStyle(ABColor.ink)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            // "Çember" and "Doğum Haritan" are the two tabs themselves —
+            // one draws the wheel, the other lays the same placements out
+            // as a readable table — rather than "Doğum Haritan" being a
+            // static title sitting above an oddly-labeled "Tablo" tab.
+            Picker("", selection: $chartMode) {
+                ForEach(ChartMode.allCases, id: \.self) { mode in
+                    Text(mode.rawValue).tag(mode)
                 }
-                .pickerStyle(.segmented)
-                .frame(width: 140)
             }
+            .pickerStyle(.segmented)
 
             Text("V1 yaklaşık burç motoru. Detaylı ev/gezegen tablosu ephemeris ile genişleyecek.")
                 .font(ABFont.body(12))
