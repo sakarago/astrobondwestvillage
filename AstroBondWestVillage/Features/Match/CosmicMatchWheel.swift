@@ -69,13 +69,18 @@ struct CosmicMatchWheel: View {
             centerSeal
         }
         .frame(width: size + 72, height: size + 72)
+        .contentShape(Circle())
+        .onTapGesture(count: 2) {
+            guard interactive, !isSpinning else { return }
+            onFlick?()
+        }
         .gesture(interactive ? spinGesture : nil)
         .onAppear { startAmbientMotion() }
         .onChange(of: isSpinning) { _, spinning in
             if spinning { intensifyMotion() } else { startAmbientMotion() }
         }
         .accessibilityLabel(theirSeed != nil ? "Senkronizasyon haritası" : "Doğum haritası çarkı")
-        .accessibilityHint(interactive ? "Çevirmek için sürükle veya düğmeye bas" : "")
+        .accessibilityHint(interactive ? "Çevirmek için çarka çift dokun" : "")
     }
 
     private var aura: some View {
@@ -274,16 +279,21 @@ private struct NatalWheelCanvas: View {
     private let signs = ZodiacSign.allCases
     private let planets: [String] = ["☉", "☽", "☿", "♀", "♂", "♃", "♄", "♅", "♆", "♇"]
 
+    private let myTint = Color(hex: "#F0CE7E")
+    private let theirTint = Color(hex: "#C9B8FF")
+
     var body: some View {
         Canvas { ctx, canvasSize in
             let c = CGPoint(x: canvasSize.width / 2, y: canvasSize.height / 2)
             let R = min(canvasSize.width, canvasSize.height) / 2
             let zodiacOuter = R * 0.97
             let zodiacInner = R * 0.78
-            let houseR = R * 0.68
-            let outerPlanetR = R * 0.58
-            let innerPlanetR = R * 0.40
-            let aspectCoreR = R * 0.24
+            let houseR = R * 0.70
+            // Two clearly separated belts so the two-person bi-wheel actually
+            // reads as two rings, not one scattered cluster of dots.
+            let outerPlanetR = R * 0.62
+            let innerPlanetR = R * 0.32
+            let aspectCoreR = R * 0.20
 
             // Zodiac wedges tinted by element
             for (i, _) in signs.enumerated() {
@@ -333,9 +343,22 @@ private struct NatalWheelCanvas: View {
             }
 
             // Concentric rings
-            for r in [zodiacOuter, zodiacInner, houseR, outerPlanetR, innerPlanetR, aspectCoreR] {
+            for r in [zodiacOuter, zodiacInner, houseR, aspectCoreR] {
                 let ring = Path(ellipseIn: CGRect(x: c.x - r, y: c.y - r, width: r * 2, height: r * 2))
                 ctx.stroke(ring, with: .color(Color.white.opacity(0.22)), lineWidth: 0.9)
+            }
+
+            // Colored belt tracks — this is what actually sells "two charts,
+            // one wheel": a warm ring for you, a cool ring for the match,
+            // each visibly its own lane rather than dots floating in space.
+            func belt(_ r: CGFloat, _ tint: Color, _ width: CGFloat) {
+                let ring = Path(ellipseIn: CGRect(x: c.x - r, y: c.y - r, width: r * 2, height: r * 2))
+                ctx.stroke(ring, with: .color(tint.opacity(0.16)), lineWidth: width * 2.4)
+                ctx.stroke(ring, with: .color(tint.opacity(0.75)), lineWidth: width)
+            }
+            belt(innerPlanetR, myTint, R * 0.014)
+            if theirSeed != nil {
+                belt(outerPlanetR, theirTint, R * 0.014)
             }
 
             // Sign glyphs
@@ -355,15 +378,19 @@ private struct NatalWheelCanvas: View {
             // Planet placements
             let myAngles = planetAngles(seed: mySeed)
             let myPts = points(angles: myAngles, center: c, radius: innerPlanetR)
-            drawPlanets(ctx: ctx, pts: myPts, angles: myAngles, tint: Color(hex: "#E8C97A"), r: R)
 
             if let theirSeed {
                 let theirAngles = planetAngles(seed: theirSeed)
                 let theirPts = points(angles: theirAngles, center: c, radius: outerPlanetR)
-                drawPlanets(ctx: ctx, pts: theirPts, angles: theirAngles, tint: ABColor.lavenderSoft, r: R)
-                drawAspects(ctx: ctx, from: myPts, to: theirPts, fromAngles: myAngles, toAngles: theirAngles)
+                drawAspects(
+                    ctx: ctx, from: myPts, to: theirPts,
+                    fromAngles: myAngles, toAngles: theirAngles,
+                    fromTint: myTint, toTint: theirTint
+                )
+                drawPlanets(ctx: ctx, pts: myPts, angles: myAngles, tint: myTint, r: R)
+                drawPlanets(ctx: ctx, pts: theirPts, angles: theirAngles, tint: theirTint, r: R)
             } else {
-                drawAspects(ctx: ctx, from: myPts, to: myPts, fromAngles: myAngles, toAngles: myAngles, skipSelf: true)
+                drawPlanets(ctx: ctx, pts: myPts, angles: myAngles, tint: myTint, r: R)
             }
 
             // Outer silver rim highlight
@@ -389,14 +416,29 @@ private struct NatalWheelCanvas: View {
 
     private func drawPlanets(ctx: GraphicsContext, pts: [CGPoint], angles: [Double], tint: Color, r: CGFloat) {
         for (i, p) in pts.enumerated() {
-            let bead = Path(ellipseIn: CGRect(x: p.x - r * 0.028, y: p.y - r * 0.028, width: r * 0.056, height: r * 0.056))
-            ctx.fill(bead, with: .color(tint.opacity(0.9)))
-            ctx.stroke(bead, with: .color(Color.white.opacity(0.6)), lineWidth: 0.7)
+            // Soft glow halo behind the bead so each belt visibly "lights up"
+            // instead of reading as a flat dot lost in the chart's clutter.
+            let haloR = r * 0.095
+            let halo = Path(ellipseIn: CGRect(x: p.x - haloR, y: p.y - haloR, width: haloR * 2, height: haloR * 2))
+            ctx.fill(
+                halo,
+                with: .radialGradient(
+                    Gradient(colors: [tint.opacity(0.55), tint.opacity(0)]),
+                    center: p,
+                    startRadius: 0,
+                    endRadius: haloR
+                )
+            )
+
+            let beadR = r * 0.034
+            let bead = Path(ellipseIn: CGRect(x: p.x - beadR, y: p.y - beadR, width: beadR * 2, height: beadR * 2))
+            ctx.fill(bead, with: .color(tint))
+            ctx.stroke(bead, with: .color(Color.white.opacity(0.75)), lineWidth: 0.8)
             ctx.draw(
                 Text(planets[i % planets.count])
-                    .font(.system(size: r * 0.055, weight: .semibold))
-                    .foregroundStyle(Color.white.opacity(0.95)),
-                at: CGPoint(x: p.x, y: p.y - r * 0.075),
+                    .font(.system(size: r * 0.058, weight: .bold))
+                    .foregroundStyle(Color.white),
+                at: CGPoint(x: p.x, y: p.y - r * 0.082),
                 anchor: .center
             )
         }
@@ -408,19 +450,27 @@ private struct NatalWheelCanvas: View {
         to: [CGPoint],
         fromAngles: [Double],
         toAngles: [Double],
-        skipSelf: Bool = false
+        fromTint: Color,
+        toTint: Color
     ) {
         var drawn = 0
         for i in 0..<fromAngles.count {
             for j in 0..<toAngles.count {
-                if skipSelf && j <= i { continue }
-                if drawn >= 14 { return }
+                if drawn >= 16 { return }
                 let diff = angularDistance(fromAngles[i], toAngles[j])
-                guard let (color, _) = aspectStyle(for: diff) else { continue }
+                guard aspectStyle(for: diff) != nil else { continue }
                 var line = Path()
                 line.move(to: from[i])
                 line.addLine(to: to[j])
-                ctx.stroke(line, with: .color(color.opacity(0.45)), lineWidth: 0.9)
+                ctx.stroke(
+                    line,
+                    with: .linearGradient(
+                        Gradient(colors: [fromTint.opacity(0.8), toTint.opacity(0.8)]),
+                        startPoint: from[i],
+                        endPoint: to[j]
+                    ),
+                    lineWidth: 1.5
+                )
                 drawn += 1
             }
         }

@@ -125,6 +125,11 @@ final class MatchViewModel {
         refreshLocal(userId: myUserId)
         do {
             let conversation = try await messaging.getOrCreateConversation(otherUserId: active.id)
+            // Clear the reveal *before* navigating — otherwise this card (and
+            // its thumbs) was still sitting there, fully decided, whenever you
+            // came back from Chat, since nothing ever reset `active`/`phase`.
+            self.active = nil
+            phase = .idle
             openChat = conversation
             // Instant inbox update — the Messages tab view stays mounted in
             // the background (see MainTabView), so it won't re-run its own
@@ -195,6 +200,12 @@ struct MatchHomeView: View {
                     ) {
                         model.spin()
                     }
+                    .zIndex(0)
+
+                    if model.phase == .revealed, let active = model.active {
+                        synastryLegend(active)
+                            .transition(.opacity)
+                    }
 
                     if model.phase == .revealed, let active = model.active {
                         matchCard(active)
@@ -215,16 +226,6 @@ struct MatchHomeView: View {
                             .foregroundStyle(Color(hex: "#C69A9A"))
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 28)
-                    }
-
-                    if model.phase != .revealed {
-                        CrystalCTAButton(
-                            title: model.phase == .spinning ? "Çevriliyor…" : "Çarkı Çevir",
-                            isEnabled: model.phase != .spinning && !model.isLoading && model.remainingReveals > 0
-                        ) {
-                            model.spin()
-                        }
-                        .padding(.horizontal, 28)
                     }
 
                     Spacer(minLength: 120)
@@ -299,9 +300,36 @@ struct MatchHomeView: View {
 
     private var subtitle: String {
         switch model.phase {
-        case .idle: return model.isLoading ? "Adaylar yükleniyor…" : "Çarkı çevir veya sürükle"
+        case .idle: return model.isLoading ? "Adaylar yükleniyor…" : "Çevirmek için çarka çift dokun"
         case .spinning: return "Yıldızlar hizalanıyor…"
-        case .revealed: return "Altın: sen · Lavanta: eşleşme — kaydır ya da seç"
+        case .revealed: return "Altın: sen · Lavanta: eşleşme"
+        }
+    }
+
+    /// Makes the "the wheel just became a two-person chart" moment explicit —
+    /// the wheel's own gold/lavender belts can be subtle at a glance, so spell
+    /// it out with named, colored swatches right underneath it.
+    private func synastryLegend(_ card: MatchCard) -> some View {
+        HStack(spacing: 18) {
+            legendDot(color: Color(hex: "#F0CE7E"), label: "Sen")
+            Image(systemName: "sparkles")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(ABColor.inkMuted)
+            legendDot(color: Color(hex: "#C9B8FF"), label: card.displayName)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .crystalPlate(cornerRadius: 16)
+    }
+
+    private func legendDot(color: Color, label: String) -> some View {
+        HStack(spacing: 6) {
+            Circle().fill(color).frame(width: 9, height: 9)
+                .shadow(color: color.opacity(0.7), radius: 4)
+            Text(label)
+                .font(ABFont.body(12, weight: .semibold))
+                .foregroundStyle(ABColor.ink)
+                .lineLimit(1)
         }
     }
 
@@ -392,10 +420,8 @@ struct MatchHomeView: View {
         }
     }
 
-    @State private var dragOffset: CGSize = .zero
-
     private func matchCard(_ card: MatchCard) -> some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 18) {
             Button {
                 model.showDetail = true
             } label: {
@@ -439,30 +465,31 @@ struct MatchHomeView: View {
             }
             .buttonStyle(.plain)
 
+            // Solid, opaque pills (not glass-on-glass) so they never wash out
+            // against the card behind them, and no gesture is attached to the
+            // card above them anymore — nothing can steal or block their taps.
             HStack(spacing: 28) {
                 thumbButton(
                     system: "hand.thumbsdown.fill",
-                    tint: Color(hex: "#D4A0A0"),
+                    tint: Color(hex: "#E8A0A0"),
                     label: "Geç"
                 ) {
                     if let id = session.user?.id {
                         withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
                             model.reject(myUserId: id)
                         }
-                        dragOffset = .zero
                     }
                 }
 
                 thumbButton(
                     system: "hand.thumbsup.fill",
-                    tint: Color(hex: "#A8D4B8"),
+                    tint: Color(hex: "#A0E8B8"),
                     label: model.isOpeningChat ? "…" : "Kabul"
                 ) {
                     Task {
                         if let id = session.user?.id {
                             await model.acceptAndChat(myUserId: id)
                         }
-                        dragOffset = .zero
                     }
                 }
                 .disabled(model.isOpeningChat)
@@ -472,92 +499,35 @@ struct MatchHomeView: View {
         .frame(maxWidth: .infinity)
         .padding(22)
         .crystalPlate(cornerRadius: 28)
-        .overlay(alignment: .topLeading) {
-            decisionStamp(text: "GEÇ", tint: Color(hex: "#D4A0A0"))
-                .opacity(dragOffset.width < -24 ? min(1, Double(-dragOffset.width - 24) / 60) : 0)
-                .padding(18)
-        }
-        .overlay(alignment: .topTrailing) {
-            decisionStamp(text: "KABUL", tint: Color(hex: "#A8D4B8"))
-                .opacity(dragOffset.width > 24 ? min(1, Double(dragOffset.width - 24) / 60) : 0)
-                .padding(18)
-        }
-        .offset(x: dragOffset.width)
-        .rotationEffect(.degrees(Double(dragOffset.width / 18)))
-        .gesture(
-            DragGesture()
-                .onChanged { value in
-                    guard !model.isOpeningChat else { return }
-                    dragOffset = value.translation
-                }
-                .onEnded { value in
-                    guard !model.isOpeningChat else { return }
-                    if value.translation.width > 110 {
-                        Task {
-                            if let id = session.user?.id {
-                                await model.acceptAndChat(myUserId: id)
-                            }
-                            dragOffset = .zero
-                        }
-                    } else if value.translation.width < -110 {
-                        if let id = session.user?.id {
-                            withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
-                                model.reject(myUserId: id)
-                            }
-                        }
-                        dragOffset = .zero
-                    } else {
-                        withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
-                            dragOffset = .zero
-                        }
-                    }
-                }
-        )
-        .animation(.interactiveSpring(), value: dragOffset)
-    }
-
-    private func decisionStamp(text: String, tint: Color) -> some View {
-        Text(text)
-            .font(ABFont.body(13, weight: .bold))
-            .tracking(1.2)
-            .foregroundStyle(tint)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .overlay(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .strokeBorder(tint, lineWidth: 1.6)
-            )
-            .rotationEffect(.degrees(text == "GEÇ" ? -12 : 12))
+        .zIndex(5)
     }
 
     private func thumbButton(system: String, tint: Color, label: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             VStack(spacing: 8) {
                 Image(systemName: system)
-                    .font(.system(size: 26, weight: .semibold))
-                    .foregroundStyle(tint)
+                    .font(.system(size: 26, weight: .bold))
+                    .foregroundStyle(Color(hex: "#15131F"))
                     .frame(width: 72, height: 72)
                     .background {
                         Circle()
-                            .fill(.ultraThinMaterial)
-                            .environment(\.colorScheme, .dark)
-                    }
-                    .overlay(
-                        Circle()
-                            .strokeBorder(
+                            .fill(
                                 LinearGradient(
-                                    colors: [tint.opacity(0.7), Color.white.opacity(0.15)],
+                                    colors: [tint, tint.opacity(0.85)],
                                     startPoint: .topLeading,
                                     endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 1.2
+                                )
                             )
+                    }
+                    .overlay(
+                        Circle().strokeBorder(Color.white.opacity(0.6), lineWidth: 1.2)
                     )
-                    .shadow(color: tint.opacity(0.35), radius: 12, y: 4)
+                    .shadow(color: tint.opacity(0.55), radius: 14, y: 6)
+                    .shadow(color: Color.black.opacity(0.35), radius: 8, y: 4)
 
                 Text(label)
                     .font(ABFont.body(12, weight: .semibold))
-                    .foregroundStyle(ABColor.inkMuted)
+                    .foregroundStyle(ABColor.ink)
             }
         }
         .buttonStyle(.plain)
