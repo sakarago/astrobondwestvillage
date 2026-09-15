@@ -219,17 +219,43 @@ struct ChatView: View {
         }
     }
 
+    private var canSend: Bool {
+        !model.isSending && !model.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
     private var composer: some View {
-        HStack(spacing: 10) {
+        HStack(alignment: .bottom, spacing: 10) {
             TextField("Mesaj yaz…", text: $model.draft, axis: .vertical)
-                .lineLimit(1...4)
+                .lineLimit(1...5)
                 .font(ABFont.body(15))
                 .foregroundStyle(ABColor.ink)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 10)
+                .tint(ABColor.lavenderSoft)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
                 .background {
-                    Capsule().fill(.ultraThinMaterial).environment(\.colorScheme, .dark)
+                    Capsule(style: .continuous)
+                        .fill(.ultraThinMaterial)
+                        .environment(\.colorScheme, .dark)
+                    Capsule(style: .continuous)
+                        .fill(Color.white.opacity(0.05))
                 }
+                .overlay(
+                    Capsule(style: .continuous)
+                        .strokeBorder(
+                            LinearGradient(
+                                colors: [
+                                    Color.white.opacity(focused ? 0.55 : 0.32),
+                                    ABColor.lavenderSoft.opacity(focused ? 0.5 : 0.22),
+                                    Color.white.opacity(0.08)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: focused ? 1.4 : 1
+                        )
+                )
+                .shadow(color: Color.black.opacity(0.28), radius: 10, y: 4)
+                .animation(.easeOut(duration: 0.18), value: focused)
                 .focused($focused)
 
             Button {
@@ -239,16 +265,56 @@ struct ChatView: View {
                     }
                 }
             } label: {
-                Image(systemName: "arrow.up.circle.fill")
-                    .font(.system(size: 32))
-                    .foregroundStyle(ABColor.lavenderSoft)
+                Image(systemName: model.isSending ? "hourglass" : "arrow.up")
+                    .font(.system(size: 17, weight: .bold))
+                    .foregroundStyle(canSend ? Color(hex: "#15131F") : ABColor.inkMuted.opacity(0.6))
+                    .frame(width: 44, height: 44)
+                    .background {
+                        Circle().fill(
+                            canSend
+                                ? AnyShapeStyle(
+                                    LinearGradient(
+                                        colors: [ABColor.lavenderSoft, ABColor.lavender],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                                : AnyShapeStyle(Color.white.opacity(0.07))
+                        )
+                    }
+                    .overlay(
+                        Circle().strokeBorder(Color.white.opacity(canSend ? 0.55 : 0.12), lineWidth: 1.1)
+                    )
+                    .shadow(color: canSend ? ABColor.lavender.opacity(0.55) : .clear, radius: 12, y: 5)
             }
             .buttonStyle(.plain)
-            .disabled(model.isSending || model.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            .disabled(!canSend)
+            .animation(.spring(response: 0.32, dampingFraction: 0.7), value: canSend)
         }
         .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .padding(.bottom, 8)
-        .background(.ultraThinMaterial.opacity(0.5))
+        .padding(.top, 12)
+        .padding(.bottom, 10)
+        .background {
+            Rectangle()
+                .fill(.ultraThinMaterial)
+                .environment(\.colorScheme, .dark)
+                .opacity(0.6)
+            LinearGradient(
+                colors: [Color(hex: "#0A0810").opacity(0), Color(hex: "#0A0810").opacity(0.5)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        }
+        .overlay(alignment: .top) {
+            Rectangle()
+                .fill(
+                    LinearGradient(
+                        colors: [Color.white.opacity(0.18), Color.white.opacity(0.03)],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .frame(height: 1)
+        }
     }
 }

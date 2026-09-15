@@ -80,7 +80,11 @@ struct CosmicMatchWheel: View {
             if spinning { intensifyMotion() } else { startAmbientMotion() }
         }
         .accessibilityLabel(theirSeed != nil ? "Senkronizasyon haritası" : "Doğum haritası çarkı")
-        .accessibilityHint(interactive ? "Çevirmek için çarka çift dokun" : "")
+        .accessibilityHint(
+            interactive
+                ? (theirSeed != nil ? "Bağ özetini açmak için çift dokun" : "Çevirmek için çarka çift dokun")
+                : ""
+        )
     }
 
     private var aura: some View {

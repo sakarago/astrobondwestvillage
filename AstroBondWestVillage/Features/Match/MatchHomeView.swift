@@ -198,7 +198,16 @@ struct MatchHomeView: View {
                         mySeed: session.user?.id ?? "self",
                         theirSeed: model.phase == .revealed ? model.active?.id : nil
                     ) {
-                        model.spin()
+                        // While a match is revealed the wheel IS the synastry
+                        // chart — double-tapping it should open the written
+                        // summary of that chart, not spin away the match you
+                        // just got (which is what silently happened before:
+                        // spin() would restart and swap out `active`).
+                        if model.phase == .revealed {
+                            model.showDetail = true
+                        } else {
+                            model.spin()
+                        }
                     }
                     .zIndex(0)
 
@@ -302,24 +311,38 @@ struct MatchHomeView: View {
         switch model.phase {
         case .idle: return model.isLoading ? "Adaylar yükleniyor…" : "Çevirmek için çarka çift dokun"
         case .spinning: return "Yıldızlar hizalanıyor…"
-        case .revealed: return "Altın: sen · Lavanta: eşleşme"
+        case .revealed: return "Senkron haritası hazır — detay için çarka çift dokun"
         }
     }
 
     /// Makes the "the wheel just became a two-person chart" moment explicit —
     /// the wheel's own gold/lavender belts can be subtle at a glance, so spell
-    /// it out with named, colored swatches right underneath it.
+    /// it out with named, colored swatches right underneath it. Also doubles
+    /// as an obvious, single-tap way into the bond summary, since the
+    /// double-tap-the-wheel gesture alone isn't very discoverable.
     private func synastryLegend(_ card: MatchCard) -> some View {
-        HStack(spacing: 18) {
-            legendDot(color: Color(hex: "#F0CE7E"), label: "Sen")
-            Image(systemName: "sparkles")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(ABColor.inkMuted)
-            legendDot(color: Color(hex: "#C9B8FF"), label: card.displayName)
+        Button {
+            model.showDetail = true
+        } label: {
+            HStack(spacing: 14) {
+                legendDot(color: Color(hex: "#F0CE7E"), label: "Sen")
+                Image(systemName: "sparkles")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(ABColor.inkMuted)
+                legendDot(color: Color(hex: "#C9B8FF"), label: card.displayName)
+                Divider().frame(height: 14).overlay(Color.white.opacity(0.15))
+                Text("Bağ özeti")
+                    .font(ABFont.body(12, weight: .semibold))
+                    .foregroundStyle(ABColor.lavenderSoft)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(ABColor.lavenderSoft)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .crystalPlate(cornerRadius: 16)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-        .crystalPlate(cornerRadius: 16)
+        .buttonStyle(.plain)
     }
 
     private func legendDot(color: Color, label: String) -> some View {
