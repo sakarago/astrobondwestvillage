@@ -187,9 +187,9 @@ struct ChatView: View {
         HStack(spacing: 12) {
             Button { dismiss() } label: {
                 Image(systemName: "chevron.left")
-                    .font(.system(size: 17, weight: .semibold))
+                    .font(.system(size: 15, weight: .bold))
                     .foregroundStyle(ABColor.ink)
-                    .frame(width: 36, height: 36)
+                    .crystalIconBezel(size: 36, cornerRadius: 12)
             }
             .buttonStyle(.plain)
 
@@ -232,7 +232,7 @@ struct ChatView: View {
                 Image(systemName: "ellipsis")
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundStyle(ABColor.ink)
-                    .frame(width: 36, height: 36)
+                    .crystalIconBezel(size: 36, cornerRadius: 12)
             }
         }
         .padding(.horizontal, 14)

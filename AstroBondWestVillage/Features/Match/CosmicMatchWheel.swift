@@ -15,6 +15,12 @@ struct CosmicMatchWheel: View {
     var mySeed: String = "self"
     /// Seed for the revealed match's placements. Nil = single natal chart.
     var theirSeed: String? = nil
+    /// Real placements, when known, anchor the Sun/Moon glyphs to their
+    /// actual signs and rotate the house wheel so House 1 starts at the
+    /// real Ascendant — instead of the whole chart being pure hashed noise.
+    var mySun: ZodiacSign? = nil
+    var myMoon: ZodiacSign? = nil
+    var myRising: ZodiacSign? = nil
     var onFlick: (() -> Void)?
 
     @State private var dragRotation: Double = 0
@@ -42,8 +48,15 @@ struct CosmicMatchWheel: View {
                     .fill(Color(hex: "#0A0810").opacity(0.34))
                     .frame(width: size, height: size)
 
-                NatalWheelCanvas(size: size, mySeed: mySeed, theirSeed: theirSeed)
-                    .frame(width: size, height: size)
+                NatalWheelCanvas(
+                    size: size,
+                    mySeed: mySeed,
+                    theirSeed: theirSeed,
+                    mySun: mySun,
+                    myMoon: myMoon,
+                    myRising: myRising
+                )
+                .frame(width: size, height: size)
 
                 Circle()
                     .strokeBorder(
@@ -279,12 +292,24 @@ private struct NatalWheelCanvas: View {
     let size: CGFloat
     let mySeed: String
     let theirSeed: String?
+    var mySun: ZodiacSign? = nil
+    var myMoon: ZodiacSign? = nil
+    var myRising: ZodiacSign? = nil
 
     private let signs = ZodiacSign.allCases
     private let planets: [String] = ["☉", "☽", "☿", "♀", "♂", "♃", "♄", "♅", "♆", "♇"]
 
     private let myTint = Color(hex: "#F0CE7E")
     private let theirTint = Color(hex: "#C9B8FF")
+
+    /// With a known Ascendant, the whole ring rotates so House 1 (and the
+    /// rising sign's wedge) starts at the top of the wheel instead of
+    /// Aries always defaulting there — the wheel then actually reflects
+    /// *your* chart's orientation, not an arbitrary fixed one.
+    private var baseOffset: Double {
+        guard let myRising else { return -90 }
+        return -90 - Double(myRising.index) * 30
+    }
 
     var body: some View {
         Canvas { ctx, canvasSize in
@@ -301,8 +326,8 @@ private struct NatalWheelCanvas: View {
 
             // Zodiac wedges tinted by element
             for (i, _) in signs.enumerated() {
-                let a0 = Angle.degrees(Double(i) * 30 - 90)
-                let a1 = Angle.degrees(Double(i + 1) * 30 - 90)
+                let a0 = Angle.degrees(Double(i) * 30 + baseOffset)
+                let a1 = Angle.degrees(Double(i + 1) * 30 + baseOffset)
                 var wedge = Path()
                 wedge.addArc(center: c, radius: zodiacOuter, startAngle: a0, endAngle: a1, clockwise: false)
                 wedge.addArc(center: c, radius: zodiacInner, startAngle: a1, endAngle: a0, clockwise: true)
@@ -315,7 +340,7 @@ private struct NatalWheelCanvas: View {
             for deg in stride(from: 0, to: 360, by: 5) {
                 let major = deg % 30 == 0
                 let mid = deg % 10 == 0
-                let ang = Angle.degrees(Double(deg) - 90).radians
+                let ang = Angle.degrees(Double(deg) + baseOffset).radians
                 let r0 = zodiacOuter - (major ? R * 0.05 : mid ? R * 0.03 : R * 0.016)
                 var tick = Path()
                 tick.move(to: CGPoint(x: c.x + cos(ang) * r0, y: c.y + sin(ang) * r0))
@@ -327,20 +352,27 @@ private struct NatalWheelCanvas: View {
                 )
             }
 
-            // House spokes + numbers
+            // House spokes + numbers. House 1 (the Ascendant cusp) is drawn
+            // brighter and gold when we know the real rising sign, so it
+            // reads as "this is the anchor", not just another spoke.
             for i in 0..<12 {
-                let ang = Angle.degrees(Double(i) * 30 - 90).radians
+                let isAscendant = i == 0 && myRising != nil
+                let ang = Angle.degrees(Double(i) * 30 + baseOffset).radians
                 var spoke = Path()
                 spoke.move(to: CGPoint(x: c.x + cos(ang) * aspectCoreR * 0.5, y: c.y + sin(ang) * aspectCoreR * 0.5))
                 spoke.addLine(to: CGPoint(x: c.x + cos(ang) * houseR, y: c.y + sin(ang) * houseR))
-                ctx.stroke(spoke, with: .color(Color.white.opacity(i % 3 == 0 ? 0.32 : 0.14)), lineWidth: i % 3 == 0 ? 1.2 : 0.6)
+                ctx.stroke(
+                    spoke,
+                    with: .color(isAscendant ? myTint.opacity(0.85) : Color.white.opacity(i % 3 == 0 ? 0.32 : 0.14)),
+                    lineWidth: isAscendant ? 1.8 : (i % 3 == 0 ? 1.2 : 0.6)
+                )
 
-                let mid = Angle.degrees(Double(i) * 30 + 15 - 90).radians
+                let mid = Angle.degrees(Double(i) * 30 + 15 + baseOffset).radians
                 let p = CGPoint(x: c.x + cos(mid) * houseR * 0.82, y: c.y + sin(mid) * houseR * 0.82)
                 ctx.draw(
-                    Text("\(i + 1)")
-                        .font(.system(size: R * 0.045, weight: .semibold, design: .rounded))
-                        .foregroundStyle(Color.white.opacity(0.4)),
+                    Text(isAscendant ? "ASC" : "\(i + 1)")
+                        .font(.system(size: R * (isAscendant ? 0.038 : 0.045), weight: .bold, design: .rounded))
+                        .foregroundStyle(isAscendant ? myTint : Color.white.opacity(0.4)),
                     at: p,
                     anchor: .center
                 )
@@ -367,7 +399,7 @@ private struct NatalWheelCanvas: View {
 
             // Sign glyphs
             for (i, sign) in signs.enumerated() {
-                let mid = Angle.degrees(Double(i) * 30 + 15 - 90).radians
+                let mid = Angle.degrees(Double(i) * 30 + 15 + baseOffset).radians
                 let gr = (zodiacOuter + zodiacInner) / 2
                 let p = CGPoint(x: c.x + cos(mid) * gr, y: c.y + sin(mid) * gr)
                 ctx.draw(
@@ -379,12 +411,13 @@ private struct NatalWheelCanvas: View {
                 )
             }
 
-            // Planet placements
-            let myAngles = planetAngles(seed: mySeed)
+            // Planet placements — Sun/Moon anchor to your real signs when
+            // known; the rest stay deterministic-per-seed (no ephemeris yet).
+            let myAngles = planetAngles(seed: mySeed, sun: mySun, moon: myMoon)
             let myPts = points(angles: myAngles, center: c, radius: innerPlanetR)
 
             if let theirSeed {
-                let theirAngles = planetAngles(seed: theirSeed)
+                let theirAngles = planetAngles(seed: theirSeed, sun: nil, moon: nil)
                 let theirPts = points(angles: theirAngles, center: c, radius: outerPlanetR)
                 drawAspects(
                     ctx: ctx, from: myPts, to: theirPts,
@@ -495,9 +528,29 @@ private struct NatalWheelCanvas: View {
         return min(d, 360 - d)
     }
 
-    private func planetAngles(seed: String) -> [Double] {
+    /// `planets[0]` is ☉, `[1]` is ☽, `[2]`/`[3]` are ☿/♀. When the real sun
+    /// and/or moon sign are known, those two are placed at a random degree
+    /// *within that sign's wedge* instead of anywhere on the wheel — so the
+    /// wheel actually agrees with the "☉ Güneş"/"☽ Ay" pills shown elsewhere
+    /// on the same screen. Mercury/Venus are nudged near the Sun's degree
+    /// (real planets never stray far from it) for a touch more plausibility.
+    /// Everything else remains deterministic-per-seed placeholder placement,
+    /// since a real ephemeris isn't wired in yet.
+    private func planetAngles(seed: String, sun: ZodiacSign?, moon: ZodiacSign?) -> [Double] {
         var rng = Seeded(seed: stableHash(seed))
         var angles: [Double] = []
+
+        func degreeWithin(_ sign: ZodiacSign) -> Double {
+            Double(sign.index) * 30 + rng.next() * 30
+        }
+
+        let sunAngle = sun.map(degreeWithin) ?? rng.next() * 360
+        angles.append(sunAngle)
+        let moonAngle = moon.map(degreeWithin) ?? rng.next() * 360
+        angles.append(moonAngle)
+        angles.append(normalizeDegree(sunAngle + (rng.next() - 0.5) * 52))
+        angles.append(normalizeDegree(sunAngle + (rng.next() - 0.5) * 92))
+
         var guardCount = 0
         while angles.count < planets.count && guardCount < 800 {
             let candidate = rng.next() * 360
@@ -510,6 +563,11 @@ private struct NatalWheelCanvas: View {
             angles.append(Double(angles.count) * 36)
         }
         return angles
+    }
+
+    private func normalizeDegree(_ d: Double) -> Double {
+        let m = d.truncatingRemainder(dividingBy: 360)
+        return m < 0 ? m + 360 : m
     }
 
     private func stableHash(_ s: String) -> UInt64 {

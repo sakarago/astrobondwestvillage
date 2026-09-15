@@ -85,6 +85,96 @@ enum ZodiacSign: String, CaseIterable, Sendable {
         guard let name else { return nil }
         return allCases.first { $0.englishName.caseInsensitiveCompare(name) == .orderedSame }
     }
+
+    enum Element: String, Hashable { case fire, earth, air, water
+
+        var labelTR: String {
+            switch self {
+            case .fire: return "Ateş"
+            case .earth: return "Toprak"
+            case .air: return "Hava"
+            case .water: return "Su"
+            }
+        }
+
+        var blurbTR: String {
+            switch self {
+            case .fire: return "girişken, doğrudan ve hızlı tutuşan"
+            case .earth: return "somut, sabırlı ve köklü"
+            case .air: return "meraklı, sözel ve bağlantı arayan"
+            case .water: return "sezgisel, duygusal ve derin"
+            }
+        }
+    }
+
+    enum Modality: String { case cardinal, fixed, mutable
+
+        var labelTR: String {
+            switch self {
+            case .cardinal: return "Öncü"
+            case .fixed: return "Sabit"
+            case .mutable: return "Değişken"
+            }
+        }
+
+        var blurbTR: String {
+            switch self {
+            case .cardinal: return "başlatır, harekete geçirir"
+            case .fixed: return "sürdürür, derinleştirir"
+            case .mutable: return "uyum sağlar, dönüştürür"
+            }
+        }
+    }
+
+    /// Classical element — same grouping used by every tropical astrology
+    /// system, independent of any ephemeris data.
+    var element: Element {
+        switch self {
+        case .aries, .leo, .sagittarius: return .fire
+        case .taurus, .virgo, .capricorn: return .earth
+        case .gemini, .libra, .aquarius: return .air
+        case .cancer, .scorpio, .pisces: return .water
+        }
+    }
+
+    /// Classical modality (quality).
+    var modality: Modality {
+        switch self {
+        case .aries, .cancer, .libra, .capricorn: return .cardinal
+        case .taurus, .leo, .scorpio, .aquarius: return .fixed
+        case .gemini, .virgo, .sagittarius, .pisces: return .mutable
+        }
+    }
+
+    /// Traditional ruling planet (glyph + Turkish name).
+    var rulerTR: String {
+        switch self {
+        case .aries: return "♂ Mars"
+        case .taurus: return "♀ Venüs"
+        case .gemini: return "☿ Merkür"
+        case .cancer: return "☽ Ay"
+        case .leo: return "☉ Güneş"
+        case .virgo: return "☿ Merkür"
+        case .libra: return "♀ Venüs"
+        case .scorpio: return "♇ Plüton"
+        case .sagittarius: return "♃ Jüpiter"
+        case .capricorn: return "♄ Satürn"
+        case .aquarius: return "♅ Uranüs"
+        case .pisces: return "♆ Neptün"
+        }
+    }
+
+    /// Index 0...11 in the fixed Aries→Pisces order, used to derive
+    /// whole-sign house cusps from the Ascendant.
+    var index: Int { Self.allCases.firstIndex(of: self) ?? 0 }
+
+    /// Whole-sign house system: house 1 = rising sign, each subsequent house
+    /// is simply the next sign around the wheel. It's the simplest classical
+    /// house system and the only one that's meaningful without an exact
+    /// birth time + ephemeris, which this app doesn't compute yet.
+    static func houseSign(_ house: Int, ascendant: ZodiacSign) -> ZodiacSign {
+        allCases[(ascendant.index + house - 1 + 1200) % 12]
+    }
 }
 
 /// A neighbourhood/district within a `CityOption`. Birth-location precision

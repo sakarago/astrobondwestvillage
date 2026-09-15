@@ -31,8 +31,7 @@ struct ProfileHomeView: View {
                                 Image(systemName: "gearshape")
                                     .font(.system(size: 16, weight: .semibold))
                                     .foregroundStyle(ABColor.ink)
-                                    .frame(width: 42, height: 42)
-                                    .crystalPlate(cornerRadius: 14)
+                                    .crystalIconBezel(size: 42, cornerRadius: 14)
                             }
                             .buttonStyle(.plain)
                         }
@@ -155,10 +154,14 @@ struct ProfileHomeView: View {
             }
             .pickerStyle(.segmented)
 
-            Text("V1 yaklaşık burç motoru. Detaylı ev/gezegen tablosu ephemeris ile genişleyecek.")
-                .font(ABFont.body(12))
-                .foregroundStyle(ABColor.inkMuted)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            Text(
+                snap.risingSign != nil
+                    ? "Güneş/Ay yukarıdaki gerçek burçlarına, Ev 1 Yükselen'ine sabitlendi. Gezegenlerin kalanı ve ev sınırları V1 yaklaşık motoruyla üretiliyor — tam ephemeris ile genişleyecek."
+                    : "V1 yaklaşık burç motoru. Yükselen bilgisi eklendiğinde ev sistemi ona göre hizalanacak."
+            )
+            .font(ABFont.body(12))
+            .foregroundStyle(ABColor.inkMuted)
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             if chartMode == .circle {
                 CosmicMatchWheel(
@@ -167,41 +170,82 @@ struct ProfileHomeView: View {
                     size: 268,
                     showsPointer: false,
                     interactive: false,
-                    mySeed: snap.userId
+                    mySeed: snap.userId,
+                    mySun: snap.sunSign,
+                    myMoon: snap.moonSign,
+                    myRising: snap.risingSign
                 )
             } else {
                 chartTable(snap)
             }
 
-            if let sun = snap.sunSign {
-                Text(sunBlurb(sun))
-                    .font(ABFont.body(14))
-                    .foregroundStyle(ABColor.ink.opacity(0.9))
-                    .frame(maxWidth: .infinity, alignment: .leading)
+            VStack(alignment: .leading, spacing: 10) {
+                if let sun = snap.sunSign {
+                    Text(sunBlurb(sun))
+                        .font(ABFont.body(14))
+                        .foregroundStyle(ABColor.ink.opacity(0.9))
+                    Text("Element \(sun.element.labelTR.lowercased()) · Nitelik \(sun.modality.labelTR.lowercased()) · Yönetici \(sun.rulerTR)")
+                        .font(ABFont.body(12, weight: .medium))
+                        .foregroundStyle(ABColor.lavenderSoft)
+                }
+                if let moon = snap.moonSign {
+                    Text(placementBlurb(moon, title: "Ay"))
+                        .font(ABFont.body(13))
+                        .foregroundStyle(ABColor.inkMuted)
+                }
+                if let rising = snap.risingSign {
+                    Text(placementBlurb(rising, title: "Yükselen"))
+                        .font(ABFont.body(13))
+                        .foregroundStyle(ABColor.inkMuted)
+                }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(18)
         .crystalPlate(cornerRadius: 28)
     }
 
     private func chartTable(_ snap: ProfileSnapshot) -> some View {
-        VStack(spacing: 0) {
+        let ascendant = snap.risingSign ?? snap.sunSign
+        return VStack(spacing: 0) {
             tableRow("Güneş", snap.sunSign)
-            Rectangle().fill(Color.white.opacity(0.08)).frame(height: 1)
+            divider
             tableRow("Ay", snap.moonSign ?? snap.sunSign)
-            Rectangle().fill(Color.white.opacity(0.08)).frame(height: 1)
+            divider
             tableRow("Yükselen", snap.risingSign ?? snap.sunSign)
-            Rectangle().fill(Color.white.opacity(0.08)).frame(height: 1)
-            ForEach(Array(ZodiacSign.allCases.enumerated()), id: \.offset) { i, sign in
-                if i < 4 {
-                    tableRow("Ev \(i + 1)", sign == snap.sunSign ? snap.sunSign : nil, placeholder: elementHint(i))
-                    if i < 3 {
-                        Rectangle().fill(Color.white.opacity(0.06)).frame(height: 1)
-                    }
+            if let sun = snap.sunSign {
+                divider
+                tableRow("Element · Nitelik", nil, placeholder: "\(sun.element.labelTR) · \(sun.modality.labelTR)")
+                divider
+                tableRow("Yönetici gezegen", nil, placeholder: sun.rulerTR)
+            }
+            if let ascendant {
+                divider
+                Text("12 EV · YÜKSELEN'E GÖRE")
+                    .font(ABFont.body(10, weight: .bold))
+                    .tracking(1.0)
+                    .foregroundStyle(ABColor.inkMuted)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.top, 12)
+                    .padding(.bottom, 2)
+                ForEach(1...12, id: \.self) { house in
+                    tableRow("Ev \(house)", ZodiacSign.houseSign(house, ascendant: ascendant))
+                    if house < 12 { Rectangle().fill(Color.white.opacity(0.06)).frame(height: 1) }
                 }
             }
         }
         .padding(.vertical, 4)
+    }
+
+    private var divider: some View {
+        Rectangle().fill(Color.white.opacity(0.08)).frame(height: 1)
+    }
+
+    /// Generic (works for any sign, no per-sign copywriting needed) blurb for
+    /// Moon/Rising built straight from element + modality — real synthesis,
+    /// not just a label restated.
+    private func placementBlurb(_ sign: ZodiacSign, title: String) -> String {
+        "\(title) \(sign.glyph) \(sign.labelTR): \(sign.element.labelTR) elementi (\(sign.element.blurbTR)) + \(sign.modality.labelTR.lowercased()) nitelik (\(sign.modality.blurbTR))."
     }
 
     private func tableRow(_ label: String, _ sign: ZodiacSign?, placeholder: String? = nil) -> some View {
@@ -224,10 +268,6 @@ struct ProfileHomeView: View {
             }
         }
         .padding(.vertical, 12)
-    }
-
-    private func elementHint(_ i: Int) -> String {
-        ["Ateş vurgusu", "Toprak zemini", "Hava diyaloğu", "Su derinliği"][i]
     }
 
     private func sunBlurb(_ sign: ZodiacSign) -> String {

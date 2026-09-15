@@ -24,6 +24,8 @@ final class MatchViewModel {
     var showPrefs = false
     var showDetail = false
     var mySun: ZodiacSign?
+    var myMoon: ZodiacSign?
+    var myRising: ZodiacSign?
     var openingRecordId: String?
 
     private let matches = MatchService()
@@ -41,6 +43,8 @@ final class MatchViewModel {
         refreshLocal(userId: userId)
         if let snap = try? await profiles.fetchSnapshot(userId: userId) {
             mySun = snap.sunSign
+            myMoon = snap.moonSign
+            myRising = snap.risingSign
         }
         await load()
     }
@@ -220,7 +224,10 @@ struct MatchHomeView: View {
                         isSpinning: model.phase == .spinning,
                         size: 300,
                         mySeed: session.user?.id ?? "self",
-                        theirSeed: model.phase == .revealed ? model.active?.id : nil
+                        theirSeed: model.phase == .revealed ? model.active?.id : nil,
+                        mySun: model.mySun,
+                        myMoon: model.myMoon,
+                        myRising: model.myRising
                     ) {
                         // While a match is revealed the wheel IS the synastry
                         // chart — double-tapping it should open the written
@@ -310,8 +317,7 @@ struct MatchHomeView: View {
                     Image(systemName: "slider.horizontal.3")
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundStyle(ABColor.ink)
-                        .frame(width: 42, height: 42)
-                        .crystalPlate(cornerRadius: 14)
+                        .crystalIconBezel(size: 42, cornerRadius: 14)
                 }
                 .buttonStyle(.plain)
             }

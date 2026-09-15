@@ -120,7 +120,25 @@ enum BondStory {
                 blurb: d.2[Int(seed >> (i * 3) & 0x3) % d.2.count]
             ))
         }
-        let overall = total / dims.count
+
+        // Unlike the four dimensions above (deterministic-but-arbitrary
+        // hashes), this one is a genuine rule-based read: classical
+        // astrology's element compatibility wheel, computed from both
+        // people's *actual* sun signs when both are known.
+        var elementNote: String?
+        if let mySun, let theirSun = their.sunSign {
+            let (score, blurb) = elementCompatibility(mySun.element, theirSun.element)
+            total += score
+            dimensions.append(Dimension(
+                id: "element",
+                title: "Element Uyumu",
+                score: score,
+                blurb: blurb
+            ))
+            elementNote = "\(mySun.element.labelTR) (\(mySun.labelTR)) + \(theirSun.element.labelTR) (\(theirSun.labelTR)) → \(blurb.lowercased())"
+        }
+
+        let overall = total / dimensions.count
         let title: String
         switch overall {
         case 85...: title = "Kozmik Bağ"
@@ -128,12 +146,20 @@ enum BondStory {
         case 65..<75: title = "Uyumlu Çekim"
         default: title = "Keşif Bağı"
         }
-        let aspects = [
+        var aspects = [
             "Güneş–Ay gerilim/uyum çizgisi",
             "Venüs teması: \(intent.titleTR.lowercased()) odaklı",
             "Merkür diyaloğu açık",
-            their.sunSign.map { "\($0.glyph) \($0.labelTR) vurgusu" } ?? "Burç vurgusu gizli"
+            their.sunSign.map { "\($0.glyph) \($0.labelTR) vurgusu (yönetici: \($0.rulerTR))" } ?? "Burç vurgusu gizli"
         ]
+        if let elementNote { aspects.append(elementNote) }
+        if let mySun, let theirSun = their.sunSign {
+            let modalityNote = mySun.modality == theirSun.modality
+                ? "İkiniz de \(mySun.modality.labelTR.lowercased()) nitelikte — aynı tempoda hareket ediyorsunuz."
+                : "\(mySun.modality.labelTR) ve \(theirSun.modality.labelTR) nitelikler bir arada — biri başlatır, diğeri sürdürür ya da uyarlar."
+            aspects.append(modalityNote)
+        }
+
         return Report(
             title: title,
             headline: "\(their.displayName) ile \(intent.titleTR.lowercased()) bağınızın özeti",
@@ -141,6 +167,19 @@ enum BondStory {
             dimensions: dimensions,
             aspects: aspects
         )
+    }
+
+    /// Classical element compatibility: same element resonates, Fire↔Air and
+    /// Earth↔Water are the traditionally "easy" complementary pairs, Fire↔Water
+    /// and Earth↔Air are the traditionally "friction-prone" pairs, everything
+    /// else lands in between. This is a real (if simplified) rule, not a hash.
+    private static func elementCompatibility(_ a: ZodiacSign.Element, _ b: ZodiacSign.Element) -> (Int, String) {
+        if a == b { return (89, "Aynı element — anında tanıdık gelen bir ritim.") }
+        let easy: [Set<ZodiacSign.Element>] = [[.fire, .air], [.earth, .water]]
+        let hard: [Set<ZodiacSign.Element>] = [[.fire, .water], [.earth, .air]]
+        if easy.contains(Set([a, b])) { return (79, "Doğal olarak besleyen, kolay akan bir eşleşme.") }
+        if hard.contains(Set([a, b])) { return (58, "Zıt tempo — dikkatle yönetilirse büyüten bir sürtünme.") }
+        return (68, "Nötr — ne çok kolay ne çok zor, öğrenmeye açık.") // fire/earth or air/water
     }
 
     private static func stableSeed(_ s: String) -> UInt64 {

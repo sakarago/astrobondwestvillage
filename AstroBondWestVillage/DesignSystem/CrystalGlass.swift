@@ -52,6 +52,96 @@ extension View {
     }
 }
 
+/// A small "bezel" — used for icon-only chrome buttons (gear, filters, back,
+/// overflow…) that previously read as nearly-invisible flat glass. Adds a
+/// brighter top-down gradient, a raised-edge stroke that's lighter on top
+/// than on the bottom, a soft specular highlight near the top edge, and a
+/// grounding drop shadow so the button visibly pops off the background
+/// instead of blending into it.
+private struct CrystalIconBezel: ViewModifier {
+    var size: CGFloat
+    var cornerRadius: CGFloat
+    var pressed: Bool = false
+
+    func body(content: Content) -> some View {
+        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+        content
+            .frame(width: size, height: size)
+            .background {
+                ZStack {
+                    shape.fill(.ultraThinMaterial)
+                        .environment(\.colorScheme, .dark)
+                    shape.fill(Color.white.opacity(0.05))
+                    shape.fill(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(0.30),
+                                Color.white.opacity(0.04),
+                                Color.black.opacity(0.22)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                    shape.fill(
+                        RadialGradient(
+                            colors: [ABColor.lavender.opacity(0.28), .clear],
+                            center: .topLeading,
+                            startRadius: 1,
+                            endRadius: size * 1.1
+                        )
+                    )
+                }
+            }
+            .overlay(
+                shape.strokeBorder(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(0.85),
+                            ABColor.lavenderSoft.opacity(0.4),
+                            Color.black.opacity(0.35)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    ),
+                    lineWidth: 1.1
+                )
+            )
+            .overlay(alignment: .top) {
+                Capsule()
+                    .fill(Color.white.opacity(0.55))
+                    .frame(width: size * 0.46, height: 1.5)
+                    .blur(radius: 0.4)
+                    .offset(y: size * 0.17)
+                    .opacity(pressed ? 0.25 : 1)
+            }
+            .clipShape(shape)
+            .shadow(color: Color.black.opacity(pressed ? 0.16 : 0.38), radius: pressed ? 4 : 10, y: pressed ? 2 : 6)
+            .shadow(color: ABColor.lavender.opacity(pressed ? 0.10 : 0.26), radius: pressed ? 5 : 12, y: 3)
+            .scaleEffect(pressed ? 0.93 : 1)
+    }
+}
+
+extension View {
+    /// For plain, non-Button chrome (e.g. inside a `Menu` label).
+    func crystalIconBezel(size: CGFloat = 40, cornerRadius: CGFloat = 14, pressed: Bool = false) -> some View {
+        modifier(CrystalIconBezel(size: size, cornerRadius: cornerRadius, pressed: pressed))
+    }
+}
+
+/// Same bezel, wired to a real `Button`'s press state for a tactile,
+/// spring-back 3D feel instead of a static flat icon.
+struct CrystalIconButtonStyle: ButtonStyle {
+    var size: CGFloat = 40
+    var cornerRadius: CGFloat = 14
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .crystalIconBezel(size: size, cornerRadius: cornerRadius, pressed: configuration.isPressed)
+            .animation(.spring(response: 0.28, dampingFraction: 0.65), value: configuration.isPressed)
+    }
+}
+
 struct CrystalCTAButton: View {
     let title: String
     var isEnabled: Bool = true
