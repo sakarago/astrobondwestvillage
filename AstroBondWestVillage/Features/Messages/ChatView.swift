@@ -9,12 +9,31 @@ final class ChatViewModel {
     var isSending = false
     var error: String?
     var photoUnlocked = false
+    var mySun: ZodiacSign?
+    var showBondSummary = false
 
     private let messaging = MessagingService()
+    private let profiles = ProfileService()
     private var observeTask: Task<Void, Never>?
 
     init(conversation: ConversationSummary) {
         self.conversation = conversation
+    }
+
+    /// The bond-summary sheet reuses `MatchDetailSheet`, which only reads
+    /// `id`/`displayName`/`sunSign` off a `MatchCard` — so a lightweight
+    /// stand-in built from the conversation (no age/city/bio available for
+    /// an existing match) is enough, no extra backend call needed.
+    var otherAsCard: MatchCard {
+        MatchCard(
+            id: conversation.otherUserId,
+            displayName: conversation.otherName,
+            age: 0,
+            city: nil,
+            sunSign: conversation.otherSunSign,
+            bio: "",
+            photoURL: conversation.otherPhotoURL
+        )
     }
 
     func load(myUserId: String) async {
@@ -26,6 +45,9 @@ final class ChatViewModel {
             startObserving()
         } catch {
             self.error = error.localizedDescription
+        }
+        if let snap = try? await profiles.fetchSnapshot(userId: myUserId) {
+            mySun = snap.sunSign
         }
     }
 
@@ -132,6 +154,14 @@ struct ChatView: View {
             }
         }
         .onDisappear { model.stop() }
+        .sheet(isPresented: $model.showBondSummary) {
+            MatchDetailSheet(
+                card: model.otherAsCard,
+                mySun: model.mySun,
+                intent: MatchPrefsStore.shared.snapshot.intent
+            )
+            .presentationDetents([.medium, .large])
+        }
     }
 
     private var groupedMessages: [(day: Date, label: String, messages: [ChatMessage])] {
@@ -163,27 +193,39 @@ struct ChatView: View {
             }
             .buttonStyle(.plain)
 
-            PersonAvatar(
-                name: model.conversation.otherName,
-                photoURL: model.conversation.otherPhotoURL,
-                sunSign: model.conversation.otherSunSign,
-                unlocked: model.photoUnlocked,
-                size: 40
-            )
+            Button {
+                model.showBondSummary = true
+            } label: {
+                HStack(spacing: 12) {
+                    PersonAvatar(
+                        name: model.conversation.otherName,
+                        photoURL: model.conversation.otherPhotoURL,
+                        sunSign: model.conversation.otherSunSign,
+                        unlocked: model.photoUnlocked,
+                        size: 40
+                    )
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(model.conversation.otherName)
-                    .font(ABFont.display(18))
-                    .foregroundStyle(ABColor.ink)
-                if let sign = model.conversation.otherSunSign {
-                    Text("\(sign.glyph) \(sign.labelTR)")
-                        .font(ABFont.body(12))
-                        .foregroundStyle(ABColor.inkMuted)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(model.conversation.otherName)
+                            .font(ABFont.display(18))
+                            .foregroundStyle(ABColor.ink)
+                        if let sign = model.conversation.otherSunSign {
+                            Text("\(sign.glyph) \(sign.labelTR) · Bağ özeti")
+                                .font(ABFont.body(12))
+                                .foregroundStyle(ABColor.lavenderSoft)
+                        } else {
+                            Text("Bağ özeti")
+                                .font(ABFont.body(12))
+                                .foregroundStyle(ABColor.lavenderSoft)
+                        }
+                    }
                 }
             }
+            .buttonStyle(.plain)
+
             Spacer()
             Menu {
-                Button("Bağ özeti yakında") {}
+                Button("Bağ özeti") { model.showBondSummary = true }
                 Button("Sessize al", role: .none) {}
                 Button("Engelle", role: .destructive) {}
             } label: {
