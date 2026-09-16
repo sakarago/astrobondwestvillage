@@ -215,9 +215,65 @@ struct MatchHomeView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView(showsIndicators: false) {
+            ZStack {
+                // This screen was missing its own backdrop entirely — every
+                // other tab wraps its content in `CosmicBackdrop()` *inside*
+                // its NavigationStack, but this one relied on MainTabView's
+                // background showing through, which a NavigationStack does
+                // NOT reliably let happen. That's why "Eşleşme" and the wheel
+                // read as washed-out/invisible. Add the same backdrop, plus a
+                // touch of extra darkening specific to this screen since the
+                // wheel's own glow can otherwise wash out the header above it.
+                CosmicBackdrop()
+                LinearGradient(
+                    colors: [
+                        Color.black.opacity(0.30),
+                        Color.black.opacity(0.05),
+                        Color.black.opacity(0.22)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .ignoresSafeArea()
+
+                matchScroll
+            }
+            .toolbar(.hidden, for: .navigationBar)
+            .task {
+                if let id = session.user?.id {
+                    await model.bootstrap(userId: id)
+                }
+            }
+            .sheet(isPresented: $model.showPrefs) {
+                MatchPrefsSheet(prefs: model.prefs) { model.savePrefs($0) }
+            }
+            .sheet(isPresented: $model.showDetail) {
+                if let active = model.active {
+                    MatchDetailSheet(
+                        card: active,
+                        mySun: model.mySun,
+                        intent: model.prefs.intent
+                    )
+                    .presentationDetents([.medium, .large])
+                }
+            }
+            .navigationDestination(item: $model.openChat) { conv in
+                ChatView(conversation: conv)
+                    .onAppear { hideTabBar?.wrappedValue = true }
+                    .onDisappear { hideTabBar?.wrappedValue = false }
+            }
+        }
+    }
+
+    private var matchScroll: some View {
+        ScrollView(showsIndicators: false) {
                 VStack(spacing: 16) {
                     header
+
+                    if let note = dailyNote {
+                        dailyNoteCard(note)
+                            .padding(.horizontal, 20)
+                    }
 
                     CosmicMatchWheel(
                         rotation: model.wheelRotation,
@@ -270,33 +326,8 @@ struct MatchHomeView: View {
 
                     Spacer(minLength: 120)
                 }
-            }
-            .animation(.spring(response: 0.4, dampingFraction: 0.86), value: model.phase)
-            .toolbar(.hidden, for: .navigationBar)
-            .task {
-                if let id = session.user?.id {
-                    await model.bootstrap(userId: id)
-                }
-            }
-            .sheet(isPresented: $model.showPrefs) {
-                MatchPrefsSheet(prefs: model.prefs) { model.savePrefs($0) }
-            }
-            .sheet(isPresented: $model.showDetail) {
-                if let active = model.active {
-                    MatchDetailSheet(
-                        card: active,
-                        mySun: model.mySun,
-                        intent: model.prefs.intent
-                    )
-                    .presentationDetents([.medium, .large])
-                }
-            }
-            .navigationDestination(item: $model.openChat) { conv in
-                ChatView(conversation: conv)
-                    .onAppear { hideTabBar?.wrappedValue = true }
-                    .onDisappear { hideTabBar?.wrappedValue = false }
-            }
         }
+        .animation(.spring(response: 0.4, dampingFraction: 0.86), value: model.phase)
     }
 
     private var header: some View {
@@ -306,9 +337,11 @@ struct MatchHomeView: View {
                     Text("Eşleşme")
                         .font(ABFont.display(30))
                         .foregroundStyle(ABColor.ink)
+                        .shadow(color: .black.opacity(0.55), radius: 8, y: 2)
                     Text(subtitle)
                         .font(ABFont.body(13))
                         .foregroundStyle(ABColor.inkMuted)
+                        .shadow(color: .black.opacity(0.5), radius: 6, y: 1)
                 }
                 Spacer()
                 Button {
@@ -384,6 +417,69 @@ struct MatchHomeView: View {
                 .foregroundStyle(ABColor.ink)
                 .lineLimit(1)
         }
+    }
+
+    /// The "Günlük İçgörü" (Daily Insight) notification toggle in Settings
+    /// has had nothing behind it — no actual daily note ever existed here.
+    /// This brings that back: a short, personalized note recomputed once a
+    /// day from your real sun/moon/rising, so it's unique to your chart and
+    /// to you specifically (not just "everyone with this sun sign").
+    private var dailyNote: DailyNote? {
+        guard let uid = session.user?.id, model.mySun != nil else { return nil }
+        return DailyNoteEngine.note(for: Date(), userId: uid, sun: model.mySun, moon: model.myMoon, rising: model.myRising)
+    }
+
+    private func dailyNoteCard(_ note: DailyNote) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("BUGÜNÜN NOTU")
+                        .font(ABFont.body(11, weight: .bold))
+                        .tracking(1.2)
+                        .foregroundStyle(ABColor.lavenderSoft)
+                    Text(note.dateLabel)
+                        .font(ABFont.body(11))
+                        .foregroundStyle(ABColor.inkMuted)
+                }
+                Spacer()
+                HStack(spacing: 4) {
+                    Image(systemName: "bolt.fill").font(.system(size: 10, weight: .bold))
+                    Text("\(note.energyScore)")
+                        .font(ABFont.body(12, weight: .bold))
+                }
+                .foregroundStyle(Color(hex: "#F0CE7E"))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(Capsule().fill(Color.white.opacity(0.08)))
+                .overlay(Capsule().strokeBorder(Color.white.opacity(0.14), lineWidth: 1))
+            }
+
+            Text(note.headline)
+                .font(ABFont.display(17))
+                .foregroundStyle(ABColor.ink)
+
+            Text(note.body)
+                .font(ABFont.body(13.5))
+                .foregroundStyle(ABColor.ink.opacity(0.88))
+                .fixedSize(horizontal: false, vertical: true)
+
+            HStack(spacing: 8) {
+                noteTag("✦ \(note.focus)")
+                noteTag("🎨 \(note.luckyHue)")
+            }
+        }
+        .padding(16)
+        .crystalPlate(cornerRadius: 22)
+    }
+
+    private func noteTag(_ text: String) -> some View {
+        Text(text)
+            .font(ABFont.body(11, weight: .semibold))
+            .foregroundStyle(ABColor.lavenderSoft)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(Capsule().fill(Color.white.opacity(0.06)))
+            .overlay(Capsule().strokeBorder(Color.white.opacity(0.12), lineWidth: 1))
     }
 
     private var bondPrefsStrip: some View {
