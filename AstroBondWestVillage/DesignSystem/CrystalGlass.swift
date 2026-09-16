@@ -195,24 +195,42 @@ struct CrystalCTAButton: View {
     }
 }
 
+/// The app-wide backdrop. Rebuilt around `cosmic_match_bg` — a near-black
+/// deep-space starfield asset that shipped with the project but was never
+/// actually wired up — instead of a brighter purple-twilight gradient, so
+/// the whole app reads closer to the moodier, more mysterious feel the
+/// previous version's background had.
 struct CosmicBackdrop: View {
     var body: some View {
-        LinearGradient(
-            colors: [
-                Color(hex: "#16131F"),
-                ABColor.space,
-                Color(hex: "#1A1528")
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-        .ignoresSafeArea()
-        .overlay {
+        ZStack {
+            // Near-black base first, so edges/aspect gaps around the photo
+            // (different screen sizes) never show anything lighter.
+            Color(hex: "#040308")
+                .ignoresSafeArea()
+
+            Image("cosmic_match_bg")
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+                .ignoresSafeArea()
+
+            // Just a hint of the brand's violet, low enough to read as
+            // "something glows far away in the dark" rather than a colored
+            // wash over the whole screen.
             RadialGradient(
-                colors: [ABColor.lavender.opacity(0.18), .clear],
+                colors: [ABColor.lavender.opacity(0.10), .clear],
                 center: .topTrailing,
-                startRadius: 20,
-                endRadius: 420
+                startRadius: 10,
+                endRadius: 380
+            )
+            .ignoresSafeArea()
+
+            // Soft vignette — keeps the center a touch open for content
+            // while the edges stay deep and mysterious.
+            RadialGradient(
+                colors: [.clear, Color.black.opacity(0.5)],
+                center: .center,
+                startRadius: 200,
+                endRadius: 520
             )
             .ignoresSafeArea()
         }

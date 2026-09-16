@@ -222,19 +222,17 @@ struct MatchHomeView: View {
                 // background showing through, which a NavigationStack does
                 // NOT reliably let happen. That's why "Eşleşme" and the wheel
                 // read as washed-out/invisible. Add the same backdrop, plus a
-                // touch of extra darkening specific to this screen since the
-                // wheel's own glow can otherwise wash out the header above it.
+                // touch of extra darkening at the very top since the wheel's
+                // own glow can otherwise wash out the header sitting above it.
                 CosmicBackdrop()
                 LinearGradient(
-                    colors: [
-                        Color.black.opacity(0.30),
-                        Color.black.opacity(0.05),
-                        Color.black.opacity(0.22)
-                    ],
+                    colors: [Color.black.opacity(0.24), .clear],
                     startPoint: .top,
                     endPoint: .bottom
                 )
-                .ignoresSafeArea()
+                .frame(height: 220)
+                .frame(maxHeight: .infinity, alignment: .top)
+                .ignoresSafeArea(edges: .top)
 
                 matchScroll
             }
