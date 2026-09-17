@@ -10,6 +10,8 @@ final class ChatViewModel {
     var error: String?
     var photoUnlocked = false
     var mySun: ZodiacSign?
+    var myMoon: ZodiacSign?
+    var myRising: ZodiacSign?
     var showBondSummary = false
 
     private let messaging = MessagingService()
@@ -48,6 +50,8 @@ final class ChatViewModel {
         }
         if let snap = try? await profiles.fetchSnapshot(userId: myUserId) {
             mySun = snap.sunSign
+            myMoon = snap.moonSign
+            myRising = snap.risingSign
         }
     }
 
@@ -157,7 +161,10 @@ struct ChatView: View {
         .sheet(isPresented: $model.showBondSummary) {
             MatchDetailSheet(
                 card: model.otherAsCard,
+                mySeed: session.user?.id ?? "self",
                 mySun: model.mySun,
+                myMoon: model.myMoon,
+                myRising: model.myRising,
                 intent: MatchPrefsStore.shared.snapshot.intent
             )
             .presentationDetents([.medium, .large])

@@ -166,7 +166,12 @@ struct MatchPrefsSheet: View {
 struct MatchDetailSheet: View {
     @Environment(\.dismiss) private var dismiss
     let card: MatchCard
+    /// Seed for *your* placements on the shared wheel below — stable per
+    /// user, same convention as `CosmicMatchWheel.mySeed` everywhere else.
+    var mySeed: String = "self"
     let mySun: ZodiacSign?
+    var myMoon: ZodiacSign? = nil
+    var myRising: ZodiacSign? = nil
     let intent: MatchIntent
 
     private var report: BondStory.Report {
@@ -179,6 +184,52 @@ struct MatchDetailSheet: View {
                 CosmicBackdrop()
                 ScrollView {
                     VStack(spacing: 18) {
+                        // The actual ask: "İki ruhun ortak yıldız haritası" —
+                        // this is the same bi-wheel used on the Match tab's
+                        // reveal (your placements gold, theirs lavender,
+                        // aspect lines between the two), surfaced here too so
+                        // tapping into a match's detail always shows the
+                        // shared chart, not just a text/score summary of it.
+                        VStack(spacing: 4) {
+                            Text("İKİ RUHUN ORTAK YILDIZ HARİTASI")
+                                .font(ABFont.body(11, weight: .bold))
+                                .tracking(1.3)
+                                .multilineTextAlignment(.center)
+                                .foregroundStyle(ABColor.lavenderSoft)
+                            Text("Ortak yıldız çarkınız")
+                                .font(ABFont.body(12))
+                                .foregroundStyle(ABColor.inkMuted)
+                        }
+
+                        CosmicMatchWheel(
+                            rotation: 6,
+                            isSpinning: false,
+                            size: 260,
+                            showsPointer: false,
+                            interactive: false,
+                            mySeed: mySeed,
+                            theirSeed: card.id,
+                            mySun: mySun,
+                            myMoon: myMoon,
+                            myRising: myRising
+                        )
+
+                        HStack(spacing: 14) {
+                            legendDot(color: Color(hex: "#F0CE7E"), label: "Sen")
+                            Image(systemName: "sparkles")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(ABColor.inkMuted)
+                            legendDot(color: Color(hex: "#C9B8FF"), label: card.displayName)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .crystalPlate(cornerRadius: 16)
+
+                        Rectangle()
+                            .fill(Color.white.opacity(0.08))
+                            .frame(height: 1)
+                            .padding(.vertical, 4)
+
                         PersonAvatar(
                             name: card.displayName,
                             photoURL: card.photoURL,
@@ -281,6 +332,17 @@ struct MatchDetailSheet: View {
                 }
             }
             .toolbarBackground(.hidden, for: .navigationBar)
+        }
+    }
+
+    private func legendDot(color: Color, label: String) -> some View {
+        HStack(spacing: 6) {
+            Circle().fill(color).frame(width: 9, height: 9)
+                .shadow(color: color.opacity(0.7), radius: 4)
+            Text(label)
+                .font(ABFont.body(12, weight: .semibold))
+                .foregroundStyle(ABColor.ink)
+                .lineLimit(1)
         }
     }
 }

@@ -249,7 +249,10 @@ struct MatchHomeView: View {
                 if let active = model.active {
                     MatchDetailSheet(
                         card: active,
+                        mySeed: session.user?.id ?? "self",
                         mySun: model.mySun,
+                        myMoon: model.myMoon,
+                        myRising: model.myRising,
                         intent: model.prefs.intent
                     )
                     .presentationDetents([.medium, .large])
