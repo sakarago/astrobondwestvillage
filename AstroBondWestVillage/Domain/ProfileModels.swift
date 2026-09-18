@@ -22,7 +22,7 @@ enum Gender: String, CaseIterable, Identifiable, Codable, Sendable {
     }
 }
 
-enum ZodiacSign: String, CaseIterable, Sendable {
+enum ZodiacSign: String, CaseIterable, Equatable, Hashable, Codable, Sendable {
     case aries, taurus, gemini, cancer, leo, virgo
     case libra, scorpio, sagittarius, capricorn, aquarius, pisces
 
@@ -44,6 +44,8 @@ enum ZodiacSign: String, CaseIterable, Sendable {
         case .pisces: return "♓︎"
         }
     }
+
+    var lineGlyph: String { glyph }
 
     var labelTR: String {
         switch self {
@@ -86,7 +88,7 @@ enum ZodiacSign: String, CaseIterable, Sendable {
         return allCases.first { $0.englishName.caseInsensitiveCompare(name) == .orderedSame }
     }
 
-    enum Element: String, Hashable { case fire, earth, air, water
+    enum Element: String, Hashable, Codable, Sendable { case fire, earth, air, water
 
         var labelTR: String {
             switch self {
@@ -105,9 +107,27 @@ enum ZodiacSign: String, CaseIterable, Sendable {
             case .water: return "sezgisel, duygusal ve derin"
             }
         }
+
+        /// Fire↔Air and Earth↔Water — the traditionally complementary pairs.
+        func isComplementary(to other: Element) -> Bool {
+            switch (self, other) {
+            case (.fire, .air), (.air, .fire): return true
+            case (.earth, .water), (.water, .earth): return true
+            default: return false
+            }
+        }
+
+        /// Fire↔Water and Earth↔Air — the traditionally friction-prone pairs.
+        func isChallenging(to other: Element) -> Bool {
+            switch (self, other) {
+            case (.fire, .water), (.water, .fire): return true
+            case (.earth, .air), (.air, .earth): return true
+            default: return false
+            }
+        }
     }
 
-    enum Modality: String { case cardinal, fixed, mutable
+    enum Modality: String, Hashable, Codable, Sendable { case cardinal, fixed, mutable
 
         var labelTR: String {
             switch self {
@@ -167,6 +187,38 @@ enum ZodiacSign: String, CaseIterable, Sendable {
     /// Index 0...11 in the fixed Aries→Pisces order, used to derive
     /// whole-sign house cusps from the Ascendant.
     var index: Int { Self.allCases.firstIndex(of: self) ?? 0 }
+
+    /// Starting degree of this sign on the ecliptic (0° Aries = 0).
+    var startDegree: Double { Double(index) * 30 }
+
+    /// Same-element signs (the classical trine).
+    func isTrine(to other: ZodiacSign) -> Bool { element == other.element }
+
+    /// Complementary elements: Fire–Air, Earth–Water.
+    func isSextile(to other: ZodiacSign) -> Bool { element.isComplementary(to: other.element) }
+
+    /// Three (or nine) signs apart.
+    func isSquare(to other: ZodiacSign) -> Bool {
+        let diff = abs(index - other.index)
+        return diff == 3 || diff == 9
+    }
+
+    /// Six signs apart.
+    func isOpposite(to other: ZodiacSign) -> Bool {
+        abs(index - other.index) == 6
+    }
+
+    /// Derive the sign from ecliptic longitude (0–360).
+    static func from(longitude: Double) -> ZodiacSign {
+        let normalized = ((longitude.truncatingRemainder(dividingBy: 360)) + 360).truncatingRemainder(dividingBy: 360)
+        return allCases[Int(normalized / 30) % 12]
+    }
+
+    /// Degree within the sign (0–30).
+    static func degreeWithinSign(longitude: Double) -> Double {
+        let normalized = ((longitude.truncatingRemainder(dividingBy: 360)) + 360).truncatingRemainder(dividingBy: 360)
+        return normalized.truncatingRemainder(dividingBy: 30)
+    }
 
     /// Whole-sign house system: house 1 = rising sign, each subsequent house
     /// is simply the next sign around the wheel. It's the simplest classical

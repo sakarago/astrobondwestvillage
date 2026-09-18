@@ -1,10 +1,9 @@
 import SwiftUI
 
 struct MessagesInboxView: View {
-    @Environment(SessionStore.self) private var session
-    @Environment(\.hideTabBar) private var hideTabBar
     @Environment(\.activeTab) private var activeTab
     @State private var store = ConversationsStore.shared
+    @State private var openChat: ConversationSummary?
 
     var body: some View {
         NavigationStack {
@@ -30,10 +29,8 @@ struct MessagesInboxView: View {
                                 .crystalPlate(cornerRadius: 24)
                         } else {
                             ForEach(store.conversations) { conv in
-                                NavigationLink {
-                                    ChatView(conversation: conv)
-                                        .onAppear { hideTabBar?.wrappedValue = true }
-                                        .onDisappear { hideTabBar?.wrappedValue = false }
+                                Button {
+                                    openChat = conv
                                 } label: {
                                     inboxRow(conv)
                                 }
@@ -53,6 +50,9 @@ struct MessagesInboxView: View {
                 }
             }
             .toolbar(.hidden, for: .navigationBar)
+            .navigationDestination(item: $openChat) { conv in
+                ChatView(conversation: conv, onBack: { openChat = nil })
+            }
             .task { await store.loadIfNeeded() }
             .refreshable { await store.refresh() }
             .onChange(of: activeTab?.wrappedValue) { _, newValue in
@@ -60,7 +60,7 @@ struct MessagesInboxView: View {
                 // active, pull the latest from the server too (covers replies
                 // that arrived while we were elsewhere, not just our own
                 // freshly-accepted matches which are upserted instantly).
-                if newValue == 2 {
+                if newValue == 2, openChat == nil {
                     Task { await store.refresh() }
                 }
             }
@@ -82,6 +82,8 @@ struct MessagesInboxView: View {
                     Text(conv.otherName)
                         .font(ABFont.display(18))
                         .foregroundStyle(ABColor.ink)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
                     Spacer()
                     if conv.unreadCount > 0 {
                         Circle()

@@ -26,20 +26,13 @@ struct WelcomeView: View {
 
                 Spacer()
 
-                VStack(spacing: 12) {
-                    CrystalCTAButton(title: "Giriş Yap") {
+                HStack(spacing: 10) {
+                    AuthPillButton(title: "Giriş", emphasized: false) {
                         authRoute = AuthRoute(mode: .signIn)
                     }
-
-                    CrystalCTAButton(title: "Kaydol") {
+                    AuthPillButton(title: "Kaydol", emphasized: true) {
                         authRoute = AuthRoute(mode: .signUp)
                     }
-
-                    Text("Mevcut hesabın varsa Giriş Yap’ı kullan.")
-                        .font(ABFont.body(12))
-                        .foregroundStyle(ABColor.inkMuted)
-                        .multilineTextAlignment(.center)
-                        .padding(.top, 4)
                 }
                 .padding(.horizontal, 28)
                 .padding(.bottom, 48)
@@ -57,6 +50,38 @@ struct WelcomeView: View {
 struct AuthRoute: Identifiable, Equatable {
     let id = UUID()
     let mode: AuthSheetView.Mode
+}
+
+/// Shared Giriş / Kaydol capsule used on welcome and the auth sheet.
+struct AuthPillButton: View {
+    let title: String
+    var emphasized: Bool = false
+    var isEnabled: Bool = true
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(ABFont.body(15, weight: .semibold))
+                .foregroundStyle(isEnabled ? ABColor.ink : ABColor.inkMuted)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 14)
+                .background {
+                    Capsule(style: .continuous)
+                        .fill(emphasized ? ABColor.lavender.opacity(0.32) : Color.white.opacity(0.07))
+                }
+                .overlay(
+                    Capsule(style: .continuous)
+                        .strokeBorder(
+                            emphasized ? ABColor.lavenderSoft.opacity(0.6) : Color.white.opacity(0.14),
+                            lineWidth: 1
+                        )
+                )
+        }
+        .buttonStyle(.plain)
+        .disabled(!isEnabled)
+        .opacity(isEnabled ? 1 : 0.55)
+    }
 }
 
 #Preview {

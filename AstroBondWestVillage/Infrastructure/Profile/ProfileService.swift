@@ -17,6 +17,13 @@ struct ProfileSnapshot: Equatable, Sendable {
     var photoURL: String?
     var birthDate: Date?
     var hasBirthData: Bool
+    var timeKnown: Bool
+    var timeHour: Int
+    var timeMinute: Int
+    var latitude: Double?
+    var longitude: Double?
+    var utcOffset: Double?
+    var country: String?
 
     /// "İstanbul, Kadıköy" when both are known, else whatever is available.
     var placeLabel: String? {
@@ -70,10 +77,21 @@ final class ProfileService: Sendable {
             let userId: String
             let dateOfBirth: String?
             let city: String?
+            let country: String?
+            let timeHour: Int?
+            let timeMinute: Int?
+            let timeKnown: Bool?
+            let latitude: Double?
+            let longitude: Double?
+            let utcOffset: Double?
             enum CodingKeys: String, CodingKey {
                 case userId = "user_id"
                 case dateOfBirth = "date_of_birth"
-                case city
+                case city, country, latitude, longitude
+                case timeHour = "time_hour"
+                case timeMinute = "time_minute"
+                case timeKnown = "time_known"
+                case utcOffset = "utc_offset"
             }
         }
 
@@ -88,7 +106,7 @@ final class ProfileService: Sendable {
             // birth_data is owner-only (RLS); this call only succeeds for the
             // signed-in user's own id, which is the only caller today.
             let births: [BirthRow] = try await client.from("birth_data")
-                .select("user_id,date_of_birth,city")
+                .select("user_id,date_of_birth,city,country,time_hour,time_minute,time_known,latitude,longitude,utc_offset")
                 .eq("user_id", value: userId)
                 .execute()
                 .value
@@ -113,7 +131,14 @@ final class ProfileService: Sendable {
                 risingSign: ZodiacSign.fromEnglishName(p.risingSign),
                 photoURL: p.photoURL,
                 birthDate: birthDate,
-                hasBirthData: !births.isEmpty && !p.displayName.trimmingCharacters(in: .whitespaces).isEmpty
+                hasBirthData: !births.isEmpty && !p.displayName.trimmingCharacters(in: .whitespaces).isEmpty,
+                timeKnown: births.first?.timeKnown ?? false,
+                timeHour: births.first?.timeHour ?? 12,
+                timeMinute: births.first?.timeMinute ?? 0,
+                latitude: births.first?.latitude,
+                longitude: births.first?.longitude,
+                utcOffset: births.first?.utcOffset,
+                country: births.first?.country
             )
         } catch {
             throw ProfileServiceError.network(error.localizedDescription)
@@ -184,6 +209,23 @@ final class ProfileService: Sendable {
                 ))
                 .eq("user_id", value: userId)
                 .execute()
+
+            if let birthDate {
+                let existing = try? await ChartService.shared.fetchBirthData(userId: userId)
+                let time = existing?.timeOfBirth ?? .unknown
+                let birth = BirthData(
+                    dateOfBirth: birthDate,
+                    timeOfBirth: time,
+                    location: BirthLocation(
+                        city: district.name,
+                        country: city.country,
+                        latitude: district.latitude,
+                        longitude: district.longitude,
+                        utcOffset: city.utcOffset
+                    )
+                )
+                _ = try await ChartService.shared.calculateAndSave(userId: userId, birthData: birth)
+            }
         } catch {
             throw ProfileServiceError.network(error.localizedDescription)
         }
@@ -263,17 +305,6 @@ final class ProfileService: Sendable {
             let ageMin: Int
             let ageMax: Int
         }
-        struct ChartUpsert: Encodable {
-            let user_id: String
-            let chart_json: MinimalChartJSON
-            let engine_version: String
-        }
-        struct MinimalChartJSON: Encodable {
-            let userId: String
-            let sunSign: String
-            let engine: String
-            let note: String
-        }
 
         let prefs = MatchPrefsJSON(
             genderPreferences: genderPrefs.map(\.stableName),
@@ -312,18 +343,18 @@ final class ProfileService: Sendable {
                 )
             ).execute()
 
-            try await client.from("charts").upsert(
-                ChartUpsert(
-                    user_id: userId,
-                    chart_json: MinimalChartJSON(
-                        userId: userId,
-                        sunSign: sun.englishName,
-                        engine: "westvillage-v1-approx",
-                        note: "Placeholder chart until full ephemeris is wired"
-                    ),
-                    engine_version: "westvillage-v1"
+            let birth = BirthData(
+                dateOfBirth: birthDate,
+                timeOfBirth: timeKnown ? .known(hour: hour, minute: minute) : .unknown,
+                location: BirthLocation(
+                    city: district.name,
+                    country: city.country,
+                    latitude: district.latitude,
+                    longitude: district.longitude,
+                    utcOffset: city.utcOffset
                 )
-            ).execute()
+            )
+            _ = try await ChartService.shared.calculateAndSave(userId: userId, birthData: birth)
         } catch {
             throw ProfileServiceError.network(error.localizedDescription)
         }

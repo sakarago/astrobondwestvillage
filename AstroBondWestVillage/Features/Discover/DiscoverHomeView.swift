@@ -109,9 +109,10 @@ private struct DiscoverCard: View {
                 .foregroundStyle(ABColor.lavenderSoft)
 
             Text(page.title)
-                .font(ABFont.display(32))
+                .font(ABFont.display(28))
                 .foregroundStyle(ABColor.ink)
                 .fixedSize(horizontal: false, vertical: true)
+                .minimumScaleFactor(0.8)
 
             Text(page.body)
                 .font(ABFont.body(16))

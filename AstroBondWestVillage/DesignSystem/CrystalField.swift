@@ -23,21 +23,23 @@ struct CrystalField: View {
                         .keyboardType(keyboard)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
+                        .textFieldStyle(.plain)
                 }
             }
             .font(ABFont.body(16))
             .foregroundStyle(ABColor.ink)
+            .frame(minHeight: 22)
             .padding(.horizontal, 16)
             .padding(.vertical, 14)
             .background {
-                Capsule(style: .continuous)
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
                     .fill(.ultraThinMaterial)
                     .environment(\.colorScheme, .dark)
-                Capsule(style: .continuous)
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
                     .fill(Color.white.opacity(0.04))
             }
             .overlay(
-                Capsule(style: .continuous)
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
                     .strokeBorder(
                         LinearGradient(
                             colors: [

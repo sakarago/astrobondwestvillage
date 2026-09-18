@@ -3,6 +3,7 @@ import SwiftUI
 struct ProfileHomeView: View {
     @Environment(SessionStore.self) private var session
     @State private var snapshot: ProfileSnapshot?
+    @State private var natalChart: NatalChart?
     @State private var error: String?
     @State private var chartMode: ChartMode = .circle
 
@@ -18,46 +19,90 @@ struct ProfileHomeView: View {
             ZStack {
                 CosmicBackdrop()
 
-                ScrollView {
-                    VStack(spacing: 20) {
-                        HStack {
-                            Text("Profil")
-                                .font(ABFont.display(30))
+                VStack(alignment: .leading, spacing: 0) {
+                    HStack {
+                        Text("Profil")
+                            .font(ABFont.display(24))
+                            .foregroundStyle(ABColor.ink)
+                        Spacer()
+                        NavigationLink {
+                            SettingsView()
+                        } label: {
+                            Image(systemName: "gearshape")
+                                .font(.system(size: 15, weight: .semibold))
                                 .foregroundStyle(ABColor.ink)
-                            Spacer()
-                            NavigationLink {
-                                SettingsView()
-                            } label: {
-                                Image(systemName: "gearshape")
-                                    .font(.system(size: 16, weight: .semibold))
-                                    .foregroundStyle(ABColor.ink)
-                                    .crystalIconBezel(size: 42, cornerRadius: 14)
-                            }
-                            .buttonStyle(.plain)
+                                .crystalIconBezel(size: 36, cornerRadius: 12)
                         }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.top, 10)
 
-                        if let snapshot {
+                    if let snapshot {
+                        VStack(spacing: 8) {
                             profileCard(snapshot)
                             bigThree(snapshot)
-                            chartSection(snapshot)
-                        } else if error == nil {
-                            ProgressView().tint(ABColor.lavenderSoft)
                         }
+                        .padding(.top, 22)
 
-                        if let error {
-                            Text(error)
-                                .font(ABFont.body(13))
-                                .foregroundStyle(Color(hex: "#C69A9A"))
-                        }
+                        VStack(spacing: 10) {
+                            chartModeSwitcher
 
-                        CrystalCTAButton(title: "Çıkış Yap") {
-                            Task { await session.signOut() }
+                            if chartMode == .circle {
+                                GeometryReader { geo in
+                                    let side = min(geo.size.width, geo.size.height)
+                                    Group {
+                                        if let natalChart {
+                                            ChartWheelView(chart: natalChart)
+                                        } else {
+                                            CosmicMatchWheel(
+                                                rotation: 8,
+                                                isSpinning: false,
+                                                size: side,
+                                                showsPointer: false,
+                                                interactive: false,
+                                                mySeed: snapshot.userId,
+                                                mySun: snapshot.sunSign,
+                                                myMoon: snapshot.moonSign,
+                                                myRising: snapshot.risingSign,
+                                                myChart: natalChart
+                                            )
+                                        }
+                                    }
+                                    .frame(width: side, height: side)
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                                }
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            } else {
+                                ScrollView(showsIndicators: false) {
+                                    VStack(spacing: 14) {
+                                        if let natalChart {
+                                            natalTable(natalChart)
+                                        } else {
+                                            chartTable(snapshot)
+                                        }
+                                        chartBlurbs(snapshot)
+                                    }
+                                    .padding(.bottom, 24)
+                                }
+                            }
                         }
+                        .padding(.top, 18)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    } else if error == nil {
+                        ProgressView().tint(ABColor.lavenderSoft)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 20)
-                    .padding(.bottom, 130)
+
+                    if let error {
+                        Text(error)
+                            .font(ABFont.body(13))
+                            .foregroundStyle(Color(hex: "#C69A9A"))
+                            .padding(.top, 12)
+                    }
                 }
+                .padding(.horizontal, 16)
+                .padding(.top, 18)
+                .padding(.bottom, 96)
             }
             .toolbar(.hidden, for: .navigationBar)
             .task { await load() }
@@ -68,48 +113,87 @@ struct ProfileHomeView: View {
         guard let id = session.user?.id else { return }
         do {
             snapshot = try await profiles.fetchSnapshot(userId: id)
+            natalChart = try await ChartService.shared.ensureOwnChart(userId: id)
         } catch {
             self.error = error.localizedDescription
         }
     }
 
+    private var chartModeSwitcher: some View {
+        HStack(spacing: 0) {
+            ForEach(ChartMode.allCases, id: \.self) { mode in
+                Button {
+                    chartMode = mode
+                } label: {
+                    Text(mode.rawValue)
+                        .font(ABFont.body(13, weight: .semibold))
+                        .foregroundStyle(
+                            chartMode == mode
+                                ? Color(hex: "#15131F")
+                                : ABColor.ink.opacity(0.82)
+                        )
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background {
+                            if chartMode == mode {
+                                Capsule(style: .continuous)
+                                    .fill(Color.white.opacity(0.92))
+                            }
+                        }
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(4)
+        .background {
+            Capsule(style: .continuous)
+                .fill(Color.white.opacity(0.18))
+        }
+        .overlay(
+            Capsule(style: .continuous)
+                .strokeBorder(Color.white.opacity(0.28), lineWidth: 1)
+        )
+    }
+
     private func profileCard(_ snap: ProfileSnapshot) -> some View {
-        VStack(spacing: 12) {
+        HStack(spacing: 12) {
             PersonAvatar(
                 name: snap.displayName,
                 photoURL: snap.photoURL,
                 sunSign: snap.sunSign,
                 unlocked: true,
-                size: 84
+                size: 48
             )
-            Text(snap.displayName.isEmpty ? "İsimsiz" : snap.displayName)
-                .font(ABFont.display(24))
-                .foregroundStyle(ABColor.ink)
-            if let email = session.user?.email {
-                Text(email)
-                    .font(ABFont.body(13))
-                    .foregroundStyle(ABColor.inkMuted)
-            }
-            HStack(spacing: 12) {
-                Text("\(snap.age)")
-                Text(snap.gender.labelTR)
-                if let place = snap.placeLabel {
-                    Text(place)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(snap.displayName.isEmpty ? "İsimsiz" : snap.displayName)
+                    .font(ABFont.display(18))
+                    .foregroundStyle(ABColor.ink)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+                if let email = session.user?.email {
+                    Text(email)
+                        .font(ABFont.body(12))
+                        .foregroundStyle(ABColor.inkMuted)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
                 }
+                HStack(spacing: 6) {
+                    Text("\(snap.age)")
+                    Text(snap.gender.labelTR)
+                    if let place = snap.placeLabel {
+                        Text(place)
+                    }
+                }
+                .font(ABFont.body(11, weight: .medium))
+                .foregroundStyle(ABColor.inkMuted)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
             }
-            .font(ABFont.body(13, weight: .medium))
-            .foregroundStyle(ABColor.inkMuted)
-
-            if !snap.bio.isEmpty {
-                Text(snap.bio)
-                    .font(ABFont.body(14))
-                    .foregroundStyle(ABColor.ink.opacity(0.85))
-                    .multilineTextAlignment(.center)
-            }
+            Spacer(minLength: 0)
         }
-        .frame(maxWidth: .infinity)
-        .padding(22)
-        .crystalPlate(cornerRadius: 28)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .crystalPlate(cornerRadius: 18)
     }
 
     private func bigThree(_ snap: ProfileSnapshot) -> some View {
@@ -121,88 +205,73 @@ struct ProfileHomeView: View {
     }
 
     private func planetPill(_ title: String, _ sign: ZodiacSign?) -> some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 2) {
             Text(title)
-                .font(ABFont.body(11, weight: .semibold))
+                .font(ABFont.body(10, weight: .semibold))
                 .foregroundStyle(ABColor.inkMuted)
             Text(sign.map { "\($0.glyph) \($0.labelTR)" } ?? "—")
-                .font(ABFont.body(13, weight: .semibold))
+                .font(ABFont.body(12, weight: .semibold))
                 .foregroundStyle(ABColor.ink)
                 .lineLimit(1)
-                .minimumScaleFactor(0.8)
+                .minimumScaleFactor(0.75)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 14)
-        .crystalPlate(cornerRadius: 18)
+        .padding(.vertical, 8)
+        .crystalPlate(cornerRadius: 14)
     }
 
-    private func chartSection(_ snap: ProfileSnapshot) -> some View {
-        VStack(spacing: 14) {
-            Text("Haritan")
-                .font(ABFont.display(20))
-                .foregroundStyle(ABColor.ink)
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            // "Çember" and "Doğum Haritan" are the two tabs themselves —
-            // one draws the wheel, the other lays the same placements out
-            // as a readable table — rather than "Doğum Haritan" being a
-            // static title sitting above an oddly-labeled "Tablo" tab.
-            Picker("", selection: $chartMode) {
-                ForEach(ChartMode.allCases, id: \.self) { mode in
-                    Text(mode.rawValue).tag(mode)
-                }
+    private func chartBlurbs(_ snap: ProfileSnapshot) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if let sun = snap.sunSign {
+                Text(sunBlurb(sun))
+                    .font(ABFont.body(14))
+                    .foregroundStyle(ABColor.ink.opacity(0.9))
+                Text("Element \(sun.element.labelTR.lowercased()) · Nitelik \(sun.modality.labelTR.lowercased()) · Yönetici \(sun.rulerTR)")
+                    .font(ABFont.body(12, weight: .medium))
+                    .foregroundStyle(ABColor.lavenderSoft)
             }
-            .pickerStyle(.segmented)
-
-            Text(
-                snap.risingSign != nil
-                    ? "Güneş/Ay yukarıdaki gerçek burçlarına, Ev 1 Yükselen'ine sabitlendi. Gezegenlerin kalanı ve ev sınırları V1 yaklaşık motoruyla üretiliyor — tam ephemeris ile genişleyecek."
-                    : "V1 yaklaşık burç motoru. Yükselen bilgisi eklendiğinde ev sistemi ona göre hizalanacak."
-            )
-            .font(ABFont.body(12))
-            .foregroundStyle(ABColor.inkMuted)
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-            if chartMode == .circle {
-                CosmicMatchWheel(
-                    rotation: 8,
-                    isSpinning: false,
-                    size: 268,
-                    showsPointer: false,
-                    interactive: false,
-                    mySeed: snap.userId,
-                    mySun: snap.sunSign,
-                    myMoon: snap.moonSign,
-                    myRising: snap.risingSign
-                )
-            } else {
-                chartTable(snap)
+            if let moon = snap.moonSign {
+                Text(placementBlurb(moon, title: "Ay"))
+                    .font(ABFont.body(13))
+                    .foregroundStyle(ABColor.inkMuted)
             }
-
-            VStack(alignment: .leading, spacing: 10) {
-                if let sun = snap.sunSign {
-                    Text(sunBlurb(sun))
-                        .font(ABFont.body(14))
-                        .foregroundStyle(ABColor.ink.opacity(0.9))
-                    Text("Element \(sun.element.labelTR.lowercased()) · Nitelik \(sun.modality.labelTR.lowercased()) · Yönetici \(sun.rulerTR)")
-                        .font(ABFont.body(12, weight: .medium))
-                        .foregroundStyle(ABColor.lavenderSoft)
-                }
-                if let moon = snap.moonSign {
-                    Text(placementBlurb(moon, title: "Ay"))
-                        .font(ABFont.body(13))
-                        .foregroundStyle(ABColor.inkMuted)
-                }
-                if let rising = snap.risingSign {
-                    Text(placementBlurb(rising, title: "Yükselen"))
-                        .font(ABFont.body(13))
-                        .foregroundStyle(ABColor.inkMuted)
-                }
+            if let rising = snap.risingSign {
+                Text(placementBlurb(rising, title: "Yükselen"))
+                    .font(ABFont.body(13))
+                    .foregroundStyle(ABColor.inkMuted)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(18)
-        .crystalPlate(cornerRadius: 28)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .crystalPlate(cornerRadius: 20)
+    }
+
+    private func natalTable(_ chart: NatalChart) -> some View {
+        VStack(spacing: 0) {
+            ForEach(Array(chart.planets.enumerated()), id: \.element.planet) { idx, pos in
+                tableRow(pos.planet.name, pos.sign, placeholder: pos.formatted)
+                if idx < chart.planets.count - 1 { divider }
+            }
+            divider
+            tableRow("Yükselen", chart.risingSign)
+            divider
+            tableRow("MC", chart.midheaven.sign)
+            divider
+            tableRow("Element · Nitelik", nil, placeholder: "\(chart.dominantElement.labelTR) · \(chart.dominantModality.labelTR)")
+            divider
+            Text("12 EV")
+                .font(ABFont.body(10, weight: .bold))
+                .tracking(1.0)
+                .foregroundStyle(ABColor.inkMuted)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, 12)
+                .padding(.bottom, 2)
+            ForEach(chart.houses, id: \.number) { house in
+                tableRow("Ev \(house.number)", house.sign)
+                if house.number < 12 { Rectangle().fill(Color.white.opacity(0.06)).frame(height: 1) }
+            }
+        }
+        .padding(.vertical, 4)
     }
 
     private func chartTable(_ snap: ProfileSnapshot) -> some View {
@@ -253,15 +322,22 @@ struct ProfileHomeView: View {
             Text(label)
                 .font(ABFont.body(14, weight: .medium))
                 .foregroundStyle(ABColor.inkMuted)
-            Spacer()
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+            Spacer(minLength: 8)
             if let sign {
                 Text("\(sign.glyph)  \(sign.labelTR)")
                     .font(ABFont.body(14, weight: .semibold))
                     .foregroundStyle(ABColor.ink)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
             } else if let placeholder {
                 Text(placeholder)
                     .font(ABFont.body(13))
                     .foregroundStyle(ABColor.inkMuted.opacity(0.8))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+                    .multilineTextAlignment(.trailing)
             } else {
                 Text("—")
                     .foregroundStyle(ABColor.inkMuted)

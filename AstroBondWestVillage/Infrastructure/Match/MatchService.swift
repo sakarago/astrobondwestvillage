@@ -1,12 +1,14 @@
 import Foundation
 import Supabase
 
-struct MatchCard: Identifiable, Equatable, Sendable {
+struct MatchCard: Identifiable, Equatable, Hashable, Sendable {
     let id: String
     let displayName: String
     let age: Int
     let city: String?
     let sunSign: ZodiacSign?
+    let moonSign: ZodiacSign?
+    let risingSign: ZodiacSign?
     let bio: String
     let photoURL: String?
 }
@@ -40,12 +42,16 @@ final class MatchService: Sendable {
             let bio: String?
             let city: String?
             let sunSign: String?
+            let moonSign: String?
+            let risingSign: String?
             let photoURL: String?
             let isDemo: Bool?
             enum CodingKeys: String, CodingKey {
                 case id, age, bio, city
                 case displayName = "display_name"
                 case sunSign = "sun_sign"
+                case moonSign = "moon_sign"
+                case risingSign = "rising_sign"
                 case photoURL = "profile_photo_url"
                 case isDemo = "is_demo"
             }
@@ -66,6 +72,8 @@ final class MatchService: Sendable {
                         age: $0.age ?? 0,
                         city: $0.city,
                         sunSign: ZodiacSign.fromEnglishName($0.sunSign),
+                        moonSign: ZodiacSign.fromEnglishName($0.moonSign),
+                        risingSign: ZodiacSign.fromEnglishName($0.risingSign),
                         bio: $0.bio ?? "",
                         photoURL: $0.photoURL
                     )

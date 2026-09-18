@@ -21,6 +21,13 @@ struct CosmicMatchWheel: View {
     var mySun: ZodiacSign? = nil
     var myMoon: ZodiacSign? = nil
     var myRising: ZodiacSign? = nil
+    /// The revealed match's real Sun sign, when known (`MatchCard.sunSign`)
+    /// — without this the wheel used to place their ☉ glyph at a random
+    /// degree even though their actual sign was already shown elsewhere on
+    /// the same screen (the pill under their name), so the two disagreed.
+    var theirSun: ZodiacSign? = nil
+    var myChart: NatalChart? = nil
+    var theirChart: NatalChart? = nil
     var onFlick: (() -> Void)?
 
     @State private var dragRotation: Double = 0
@@ -42,21 +49,33 @@ struct CosmicMatchWheel: View {
                     .scaledToFill()
                     .frame(width: size, height: size)
                     .clipShape(Circle())
-                    .opacity(0.55)
+                    .opacity(myChart == nil ? 0.55 : 0.16)
 
                 Circle()
-                    .fill(Color(hex: "#0A0810").opacity(0.34))
+                    .fill(Color(hex: "#0A0810").opacity(myChart == nil ? 0.34 : 0.22))
                     .frame(width: size, height: size)
 
-                NatalWheelCanvas(
-                    size: size,
-                    mySeed: mySeed,
-                    theirSeed: theirSeed,
-                    mySun: mySun,
-                    myMoon: myMoon,
-                    myRising: myRising
-                )
-                .frame(width: size, height: size)
+                if let myChart {
+                    ChartWheelView(
+                        chart: myChart,
+                        overlay: theirSeed != nil ? theirChart : nil
+                    )
+                    .frame(width: size, height: size)
+                    .padding(2)
+                } else {
+                    NatalWheelCanvas(
+                        size: size,
+                        mySeed: mySeed,
+                        theirSeed: theirSeed,
+                        mySun: mySun,
+                        myMoon: myMoon,
+                        myRising: myRising,
+                        theirSun: theirSun,
+                        myChart: myChart,
+                        theirChart: theirChart
+                    )
+                    .frame(width: size, height: size)
+                }
 
                 Circle()
                     .strokeBorder(
@@ -74,20 +93,22 @@ struct CosmicMatchWheel: View {
                     .frame(width: size, height: size)
             }
             .frame(width: size, height: size)
+            .clipShape(Circle())
             .rotationEffect(.degrees(totalRotation))
             .shadow(color: Color.black.opacity(0.55), radius: 22, y: 14)
             .shadow(color: ABColor.lavender.opacity(isSpinning ? 0.45 : 0.22), radius: 28, y: 0)
 
             if showsPointer { pointer }
-            centerSeal
+            if myChart == nil { centerSeal }
         }
-        .frame(width: size + 72, height: size + 72)
+        .frame(width: size, height: size + (showsPointer ? 32 : 4))
+        .frame(maxWidth: .infinity)
         .contentShape(Circle())
         .onTapGesture(count: 2) {
             guard interactive, !isSpinning else { return }
             onFlick?()
         }
-        .gesture(interactive ? spinGesture : nil)
+        .simultaneousGesture(interactive ? spinGesture : nil)
         .onAppear { startAmbientMotion() }
         .onChange(of: isSpinning) { _, spinning in
             if spinning { intensifyMotion() } else { startAmbientMotion() }
@@ -115,7 +136,7 @@ struct CosmicMatchWheel: View {
                         endRadius: size * 0.78
                     )
                 )
-                .frame(width: size * 1.55, height: size * 1.55)
+                .frame(width: size, height: size)
                 .blur(radius: 14)
                 .scaleEffect(pulse)
 
@@ -157,7 +178,7 @@ struct CosmicMatchWheel: View {
                 }
             }
         }
-        .frame(width: size * 1.4, height: size * 1.4)
+        .frame(width: size, height: size)
         .allowsHitTesting(false)
     }
 
@@ -174,7 +195,7 @@ struct CosmicMatchWheel: View {
                         ),
                         style: StrokeStyle(lineWidth: 2.2, lineCap: .round)
                     )
-                    .frame(width: size * 1.04, height: size * 1.04)
+                    .frame(width: size, height: size)
                     .rotationEffect(.degrees(Double(i) * 90 + streak))
                     .opacity(isSpinning ? 0.9 : 0.25)
             }
@@ -243,9 +264,12 @@ struct CosmicMatchWheel: View {
     }
 
     private var spinGesture: some Gesture {
-        DragGesture(minimumDistance: 8)
+        DragGesture(minimumDistance: 24)
             .onChanged { value in
                 guard !isSpinning else { return }
+                // Only twist the disk on mostly-horizontal flicks so a vertical
+                // finger movement can still scroll the Eşleşme page.
+                guard abs(value.translation.width) > abs(value.translation.height) else { return }
                 dragRotation = value.translation.width * 0.4
             }
             .onEnded { value in
@@ -253,9 +277,10 @@ struct CosmicMatchWheel: View {
                     dragRotation = 0
                     return
                 }
-                let velocity = abs(value.predictedEndTranslation.width - value.translation.width)
                 withAnimation(.easeOut(duration: 0.3)) { dragRotation = 0 }
-                if velocity > 100 || abs(value.translation.width) > 70 {
+                let horizontal = abs(value.translation.width) > abs(value.translation.height) * 1.2
+                let velocity = abs(value.predictedEndTranslation.width - value.translation.width)
+                if horizontal, velocity > 100 || abs(value.translation.width) > 70 {
                     onFlick?()
                 }
             }
@@ -295,6 +320,9 @@ private struct NatalWheelCanvas: View {
     var mySun: ZodiacSign? = nil
     var myMoon: ZodiacSign? = nil
     var myRising: ZodiacSign? = nil
+    var theirSun: ZodiacSign? = nil
+    var myChart: NatalChart? = nil
+    var theirChart: NatalChart? = nil
 
     private let signs = ZodiacSign.allCases
     private let planets: [String] = ["☉", "☽", "☿", "♀", "♂", "♃", "♄", "♅", "♆", "♇"]
@@ -413,11 +441,11 @@ private struct NatalWheelCanvas: View {
 
             // Planet placements — Sun/Moon anchor to your real signs when
             // known; the rest stay deterministic-per-seed (no ephemeris yet).
-            let myAngles = planetAngles(seed: mySeed, sun: mySun, moon: myMoon)
+            let myAngles = planetAngles(seed: mySeed, sun: mySun, moon: myMoon, chart: myChart)
             let myPts = points(angles: myAngles, center: c, radius: innerPlanetR)
 
             if let theirSeed {
-                let theirAngles = planetAngles(seed: theirSeed, sun: nil, moon: nil)
+                let theirAngles = planetAngles(seed: theirSeed, sun: theirSun, moon: nil, chart: theirChart)
                 let theirPts = points(angles: theirAngles, center: c, radius: outerPlanetR)
                 drawAspects(
                     ctx: ctx, from: myPts, to: theirPts,
@@ -446,7 +474,7 @@ private struct NatalWheelCanvas: View {
 
     private func points(angles: [Double], center: CGPoint, radius: CGFloat) -> [CGPoint] {
         angles.map { deg in
-            let ang = Angle.degrees(deg - 90).radians
+            let ang = Angle.degrees(deg + baseOffset).radians
             return CGPoint(x: center.x + cos(ang) * radius, y: center.y + sin(ang) * radius)
         }
     }
@@ -536,7 +564,11 @@ private struct NatalWheelCanvas: View {
     /// (real planets never stray far from it) for a touch more plausibility.
     /// Everything else remains deterministic-per-seed placeholder placement,
     /// since a real ephemeris isn't wired in yet.
-    private func planetAngles(seed: String, sun: ZodiacSign?, moon: ZodiacSign?) -> [Double] {
+    private func planetAngles(seed: String, sun: ZodiacSign?, moon: ZodiacSign?, chart: NatalChart?) -> [Double] {
+        if let chart {
+            let longs = Planet.allCases.compactMap { chart.planet($0)?.longitude }
+            if longs.count == planets.count { return longs }
+        }
         var rng = Seeded(seed: stableHash(seed))
         var angles: [Double] = []
 

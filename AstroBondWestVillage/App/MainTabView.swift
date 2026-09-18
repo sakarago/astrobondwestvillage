@@ -24,12 +24,13 @@ struct MainTabView: View {
             }
             .environment(\.hideTabBar, $hideTabBar)
             .environment(\.activeTab, $selectedTab)
+            .ignoresSafeArea(.keyboard, edges: hideTabBar ? .all : [])
 
-            VStack {
-                Spacer()
+            .overlay(alignment: .bottom) {
                 if !hideTabBar {
                     WestVillageTabBar(selectedTab: $selectedTab)
                         .transition(.move(edge: .bottom).combined(with: .opacity))
+                        .ignoresSafeArea(.keyboard, edges: .bottom)
                 }
             }
             .animation(.easeInOut(duration: 0.2), value: hideTabBar)
@@ -90,7 +91,7 @@ struct WestVillageTabBar: View {
                 )
         )
         .shadow(color: Color.black.opacity(0.28), radius: 18, y: 10)
-        .padding(.horizontal, 36)
-        .padding(.bottom, 18)
+        .padding(.horizontal, 28)
+        .padding(.bottom, 10)
     }
 }

@@ -22,10 +22,14 @@ final class MatchViewModel {
     var todayDecisions: [MatchDecisionsStore.Record] = []
     var prefs = MatchPrefsStore.shared.snapshot
     var showPrefs = false
-    var showDetail = false
+    var detailCard: MatchCard?
     var mySun: ZodiacSign?
     var myMoon: ZodiacSign?
     var myRising: ZodiacSign?
+    var myName: String = "Sen"
+    var myPhotoURL: String?
+    var myChart: NatalChart?
+    var theirChart: NatalChart?
     var openingRecordId: String?
 
     private let matches = MatchService()
@@ -45,6 +49,16 @@ final class MatchViewModel {
             mySun = snap.sunSign
             myMoon = snap.moonSign
             myRising = snap.risingSign
+            if !snap.displayName.trimmingCharacters(in: .whitespaces).isEmpty {
+                myName = snap.displayName
+            }
+            myPhotoURL = snap.photoURL
+        }
+        myChart = try? await ChartService.shared.ensureOwnChart(userId: userId)
+        if let chart = myChart {
+            mySun = chart.sunSign
+            myMoon = chart.moonSign
+            myRising = chart.risingSign
         }
         await load()
     }
@@ -102,6 +116,12 @@ final class MatchViewModel {
             guard !Task.isCancelled else { return }
             if let card = await network {
                 active = card
+                theirChart = await ChartService.shared.fetchOrSynthesize(
+                    userId: card.id,
+                    sun: card.sunSign,
+                    moon: card.moonSign,
+                    rising: card.risingSign
+                )
                 phase = .revealed
                 UINotificationFeedbackGenerator().notificationOccurred(.success)
             } else {
@@ -115,6 +135,7 @@ final class MatchViewModel {
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         decisions.reject(myUserId: myUserId, card: active)
         self.active = nil
+        theirChart = nil
         phase = .idle
         message = nil
         refreshLocal(userId: myUserId)
@@ -134,6 +155,7 @@ final class MatchViewModel {
             // its thumbs) was still sitting there, fully decided, whenever you
             // came back from Chat, since nothing ever reset `active`/`phase`.
             self.active = nil
+            theirChart = nil
             phase = .idle
             openChat = conversation
             // Instant inbox update — the Messages tab view stays mounted in
@@ -245,54 +267,71 @@ struct MatchHomeView: View {
             .sheet(isPresented: $model.showPrefs) {
                 MatchPrefsSheet(prefs: model.prefs) { model.savePrefs($0) }
             }
-            .sheet(isPresented: $model.showDetail) {
-                if let active = model.active {
-                    MatchDetailSheet(
-                        card: active,
-                        mySeed: session.user?.id ?? "self",
-                        mySun: model.mySun,
-                        myMoon: model.myMoon,
-                        myRising: model.myRising,
-                        intent: model.prefs.intent
-                    )
-                    .presentationDetents([.medium, .large])
+            .navigationDestination(item: $model.detailCard) { card in
+                MatchDetailSheet(
+                    card: card,
+                    mySeed: session.user?.id ?? "self",
+                    myName: model.myName,
+                    myPhotoURL: model.myPhotoURL,
+                    mySun: model.mySun,
+                    myMoon: model.myMoon,
+                    myRising: model.myRising,
+                    seedChart: model.myChart,
+                    intent: model.prefs.intent,
+                    onMessage: {
+                        hideTabBar?.wrappedValue = true
+                        model.detailCard = nil
+                        if let id = session.user?.id {
+                            Task { await model.acceptAndChat(myUserId: id) }
+                        }
+                    },
+                    onBack: { model.detailCard = nil }
+                )
+                .navigationBarBackButtonHidden(true)
+                .toolbar(.hidden, for: .navigationBar)
+                .onAppear { hideTabBar?.wrappedValue = true }
+                .onDisappear {
+                    if model.openChat == nil {
+                        hideTabBar?.wrappedValue = false
+                    }
                 }
             }
             .navigationDestination(item: $model.openChat) { conv in
-                ChatView(conversation: conv)
-                    .onAppear { hideTabBar?.wrappedValue = true }
-                    .onDisappear { hideTabBar?.wrappedValue = false }
+                ChatView(conversation: conv, onBack: { model.openChat = nil })
             }
         }
     }
 
     private var matchScroll: some View {
         ScrollView(showsIndicators: false) {
-                VStack(spacing: 16) {
+                VStack(spacing: 10) {
                     header
 
                     if let note = dailyNote {
                         dailyNoteCard(note)
-                            .padding(.horizontal, 20)
+                            .padding(.horizontal, 16)
                     }
 
                     CosmicMatchWheel(
                         rotation: model.wheelRotation,
                         isSpinning: model.phase == .spinning,
-                        size: 300,
+                        size: min(UIScreen.main.bounds.width - 24, 336),
                         mySeed: session.user?.id ?? "self",
                         theirSeed: model.phase == .revealed ? model.active?.id : nil,
                         mySun: model.mySun,
                         myMoon: model.myMoon,
-                        myRising: model.myRising
+                        myRising: model.myRising,
+                        theirSun: model.active?.sunSign,
+                        myChart: model.myChart,
+                        theirChart: model.theirChart
                     ) {
                         // While a match is revealed the wheel IS the synastry
                         // chart — double-tapping it should open the written
                         // summary of that chart, not spin away the match you
                         // just got (which is what silently happened before:
                         // spin() would restart and swap out `active`).
-                        if model.phase == .revealed {
-                            model.showDetail = true
+                        if model.phase == .revealed, let active = model.active {
+                            model.detailCard = active
                         } else {
                             model.spin()
                         }
@@ -301,16 +340,17 @@ struct MatchHomeView: View {
 
                     if model.phase == .revealed, let active = model.active {
                         synastryLegend(active)
+                            .padding(.horizontal, 16)
                             .transition(.opacity)
                     }
 
                     if model.phase == .revealed, let active = model.active {
                         matchCard(active)
-                            .padding(.horizontal, 20)
+                            .padding(.horizontal, 16)
                             .transition(.move(edge: .bottom).combined(with: .opacity))
                     } else {
                         bondPrefsStrip
-                            .padding(.horizontal, 20)
+                            .padding(.horizontal, 16)
 
                         if !model.todayDecisions.isEmpty {
                             todayStrip
@@ -332,43 +372,37 @@ struct MatchHomeView: View {
     }
 
     private var header: some View {
-        VStack(spacing: 10) {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Eşleşme")
-                        .font(ABFont.display(30))
-                        .foregroundStyle(ABColor.ink)
-                        .shadow(color: .black.opacity(0.55), radius: 8, y: 2)
-                    Text(subtitle)
-                        .font(ABFont.body(13))
-                        .foregroundStyle(ABColor.inkMuted)
-                        .shadow(color: .black.opacity(0.5), radius: 6, y: 1)
-                }
-                Spacer()
-                Button {
-                    model.showPrefs = true
-                } label: {
-                    Image(systemName: "slider.horizontal.3")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(ABColor.ink)
-                        .crystalIconBezel(size: 42, cornerRadius: 14)
-                }
-                .buttonStyle(.plain)
+        HStack(alignment: .center, spacing: 10) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Eşleşme")
+                    .font(ABFont.display(24))
+                    .foregroundStyle(ABColor.ink)
+                    .shadow(color: .black.opacity(0.55), radius: 8, y: 2)
+                Text(subtitle)
+                    .font(ABFont.body(12))
+                    .foregroundStyle(ABColor.inkMuted)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
             }
-            .padding(.horizontal, 20)
-
-            HStack(spacing: 8) {
-                Image(systemName: "sparkles")
-                    .font(.system(size: 12, weight: .semibold))
-                Text("Bugün \(model.remainingReveals)/\(DailyRevealQuotaStore.dailyLimit)")
-                    .font(ABFont.body(13, weight: .semibold))
+            Spacer(minLength: 8)
+            Text("\(model.remainingReveals)/\(DailyRevealQuotaStore.dailyLimit)")
+                .font(ABFont.body(12, weight: .semibold))
+                .foregroundStyle(ABColor.lavenderSoft)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .crystalPlate(cornerRadius: 12)
+            Button {
+                model.showPrefs = true
+            } label: {
+                Image(systemName: "slider.horizontal.3")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(ABColor.ink)
+                    .crystalIconBezel(size: 36, cornerRadius: 12)
             }
-            .foregroundStyle(ABColor.lavenderSoft)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
-            .crystalPlate(cornerRadius: 16)
+            .buttonStyle(.plain)
         }
-        .padding(.top, 16)
+        .padding(.horizontal, 16)
+        .padding(.top, 10)
     }
 
     private var subtitle: String {
@@ -386,23 +420,25 @@ struct MatchHomeView: View {
     /// double-tap-the-wheel gesture alone isn't very discoverable.
     private func synastryLegend(_ card: MatchCard) -> some View {
         Button {
-            model.showDetail = true
+            model.detailCard = card
         } label: {
-            HStack(spacing: 14) {
+            HStack(spacing: 8) {
                 legendDot(color: Color(hex: "#F0CE7E"), label: "Sen")
                 Image(systemName: "sparkles")
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(ABColor.inkMuted)
                 legendDot(color: Color(hex: "#C9B8FF"), label: card.displayName)
-                Divider().frame(height: 14).overlay(Color.white.opacity(0.15))
                 Text("Bağ özeti")
                     .font(ABFont.body(12, weight: .semibold))
                     .foregroundStyle(ABColor.lavenderSoft)
+                    .lineLimit(1)
                 Image(systemName: "chevron.right")
                     .font(.system(size: 10, weight: .bold))
                     .foregroundStyle(ABColor.lavenderSoft)
             }
-            .padding(.horizontal, 16)
+            .lineLimit(1)
+            .minimumScaleFactor(0.75)
+            .padding(.horizontal, 12)
             .padding(.vertical, 10)
             .crystalPlate(cornerRadius: 16)
         }
@@ -431,56 +467,30 @@ struct MatchHomeView: View {
     }
 
     private func dailyNoteCard(_ note: DailyNote) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("BUGÜNÜN NOTU")
-                        .font(ABFont.body(11, weight: .bold))
-                        .tracking(1.2)
-                        .foregroundStyle(ABColor.lavenderSoft)
-                    Text(note.dateLabel)
-                        .font(ABFont.body(11))
-                        .foregroundStyle(ABColor.inkMuted)
-                }
-                Spacer()
-                HStack(spacing: 4) {
-                    Image(systemName: "bolt.fill").font(.system(size: 10, weight: .bold))
-                    Text("\(note.energyScore)")
-                        .font(ABFont.body(12, weight: .bold))
-                }
-                .foregroundStyle(Color(hex: "#F0CE7E"))
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
-                .background(Capsule().fill(Color.white.opacity(0.08)))
-                .overlay(Capsule().strokeBorder(Color.white.opacity(0.14), lineWidth: 1))
+        HStack(alignment: .center, spacing: 10) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("BUGÜNÜN NOTU · \(note.focus)")
+                    .font(ABFont.body(10, weight: .bold))
+                    .tracking(0.8)
+                    .foregroundStyle(ABColor.lavenderSoft)
+                    .lineLimit(1)
+                Text(note.headline)
+                    .font(ABFont.body(13, weight: .semibold))
+                    .foregroundStyle(ABColor.ink)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
             }
-
-            Text(note.headline)
-                .font(ABFont.display(17))
-                .foregroundStyle(ABColor.ink)
-
-            Text(note.body)
-                .font(ABFont.body(13.5))
-                .foregroundStyle(ABColor.ink.opacity(0.88))
-                .fixedSize(horizontal: false, vertical: true)
-
-            HStack(spacing: 8) {
-                noteTag("✦ \(note.focus)")
-                noteTag("🎨 \(note.luckyHue)")
+            Spacer(minLength: 8)
+            HStack(spacing: 3) {
+                Image(systemName: "bolt.fill").font(.system(size: 9, weight: .bold))
+                Text("\(note.energyScore)")
+                    .font(ABFont.body(11, weight: .bold))
             }
+            .foregroundStyle(Color(hex: "#F0CE7E"))
         }
-        .padding(16)
-        .crystalPlate(cornerRadius: 22)
-    }
-
-    private func noteTag(_ text: String) -> some View {
-        Text(text)
-            .font(ABFont.body(11, weight: .semibold))
-            .foregroundStyle(ABColor.lavenderSoft)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(Capsule().fill(Color.white.opacity(0.06)))
-            .overlay(Capsule().strokeBorder(Color.white.opacity(0.12), lineWidth: 1))
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .crystalPlate(cornerRadius: 14)
     }
 
     private var bondPrefsStrip: some View {
@@ -587,7 +597,7 @@ struct MatchHomeView: View {
     private func matchCard(_ card: MatchCard) -> some View {
         VStack(spacing: 18) {
             Button {
-                model.showDetail = true
+                model.detailCard = card
             } label: {
                 VStack(spacing: 12) {
                     PersonAvatar(
@@ -595,12 +605,15 @@ struct MatchHomeView: View {
                         photoURL: card.photoURL,
                         sunSign: card.sunSign,
                         unlocked: false,
-                        size: 76
+                        size: 64
                     )
 
                     Text(card.displayName)
-                        .font(ABFont.display(26))
+                        .font(ABFont.display(22))
                         .foregroundStyle(ABColor.ink)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                        .padding(.horizontal, 8)
 
                     HStack(spacing: 10) {
                         if card.age > 0 { Text("\(card.age)") }
@@ -613,6 +626,8 @@ struct MatchHomeView: View {
                     }
                     .font(ABFont.body(14, weight: .medium))
                     .foregroundStyle(ABColor.inkMuted)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
 
                     if !card.bio.isEmpty {
                         Text(card.bio)
@@ -661,7 +676,7 @@ struct MatchHomeView: View {
             .padding(.top, 4)
         }
         .frame(maxWidth: .infinity)
-        .padding(22)
+        .padding(16)
         .crystalPlate(cornerRadius: 28)
         .zIndex(5)
     }
@@ -670,9 +685,9 @@ struct MatchHomeView: View {
         Button(action: action) {
             VStack(spacing: 8) {
                 Image(systemName: system)
-                    .font(.system(size: 26, weight: .bold))
+                    .font(.system(size: 22, weight: .bold))
                     .foregroundStyle(Color(hex: "#15131F"))
-                    .frame(width: 72, height: 72)
+                    .frame(width: 60, height: 60)
                     .background {
                         Circle()
                             .fill(

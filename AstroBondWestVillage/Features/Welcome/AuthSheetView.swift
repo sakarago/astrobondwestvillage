@@ -26,19 +26,28 @@ struct AuthSheetView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            ZStack {
-                CosmicBackdrop()
+        ZStack {
+            CosmicBackdrop()
+
+            VStack(spacing: 0) {
+                HStack {
+                    Spacer()
+                    Button { dismiss() } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(ABColor.ink)
+                            .crystalIconBezel(size: 36, cornerRadius: 12)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Kapat")
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 12)
+                .padding(.bottom, 8)
 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 20) {
-                        // Mode switcher — always visible so login isn't hidden behind signup.
-                        HStack(spacing: 8) {
-                            modeTab("Giriş", selected: mode == .signIn) { mode = .signIn }
-                            modeTab("Kaydol", selected: mode == .signUp) { mode = .signUp }
-                        }
-
-                        Text(mode == .signUp ? "Hesap oluştur" : "Giriş yap")
+                        Text(mode == .signUp ? "Hesap oluştur" : "Giriş")
                             .font(ABFont.display(28))
                             .foregroundStyle(ABColor.ink)
 
@@ -52,7 +61,7 @@ struct AuthSheetView: View {
                             title: "E-POSTA",
                             text: $email,
                             keyboard: .emailAddress,
-                            contentType: .username
+                            contentType: .emailAddress
                         )
                         .focused($focused, equals: .email)
 
@@ -69,67 +78,47 @@ struct AuthSheetView: View {
                                 .font(ABFont.body(13))
                                 .foregroundStyle(Color(hex: "#C69A9A"))
                         }
-
-                        CrystalCTAButton(
-                            title: isWorking ? "Bekle…" : (mode == .signUp ? "Kaydol" : "Giriş Yap"),
-                            isEnabled: canSubmit
-                        ) {
-                            Task { await submit() }
-                        }
                     }
                     .padding(24)
                     .crystalPlate(cornerRadius: 28)
-                    .padding(20)
-                    .padding(.bottom, 40)
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 16)
                 }
                 .scrollDismissesKeyboard(.interactively)
-            }
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Kapat") { dismiss() }
-                        .foregroundStyle(ABColor.inkMuted)
-                }
-            }
-        }
-        .onAppear {
-            session.lastError = nil
-            focused = .email
-        }
-        .onChange(of: mode) { _, _ in
-            session.lastError = nil
-        }
-    }
 
-    private func modeTab(_ title: String, selected: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(title)
-                .font(ABFont.body(14, weight: selected ? .semibold : .regular))
-                .foregroundStyle(selected ? ABColor.ink : ABColor.inkMuted)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 10)
-                .background {
-                    Capsule(style: .continuous)
-                        .fill(selected ? ABColor.lavender.opacity(0.30) : Color.white.opacity(0.06))
+                HStack(spacing: 10) {
+                    AuthPillButton(
+                        title: isWorking && mode == .signIn ? "Bekle…" : "Giriş",
+                        emphasized: mode == .signIn,
+                        isEnabled: canSubmit
+                    ) {
+                        Task { await submit(.signIn) }
+                    }
+                    AuthPillButton(
+                        title: isWorking && mode == .signUp ? "Bekle…" : "Kaydol",
+                        emphasized: mode == .signUp,
+                        isEnabled: canSubmit
+                    ) {
+                        Task { await submit(.signUp) }
+                    }
                 }
-                .overlay(
-                    Capsule(style: .continuous)
-                        .strokeBorder(
-                            selected ? ABColor.lavenderSoft.opacity(0.55) : Color.white.opacity(0.12),
-                            lineWidth: 1
-                        )
-                )
+                .padding(.horizontal, 28)
+                .padding(.bottom, 28)
+                .padding(.top, 8)
+            }
         }
-        .buttonStyle(.plain)
+        .onAppear { session.lastError = nil }
     }
 
     @MainActor
-    private func submit() async {
+    private func submit(_ next: Mode) async {
         guard canSubmit else { return }
+        mode = next
         isWorking = true
         defer { isWorking = false }
         let trimmed = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         let ok: Bool
-        switch mode {
+        switch next {
         case .signIn:
             ok = await session.signIn(email: trimmed, password: password)
         case .signUp:

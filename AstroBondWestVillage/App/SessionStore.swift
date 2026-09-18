@@ -104,6 +104,7 @@ final class SessionStore {
         try? await profiles.setFrozen(userId: userId, frozen: false)
         do {
             if let snap = try await profiles.fetchSnapshot(userId: userId), snap.hasBirthData {
+                _ = try? await ChartService.shared.ensureOwnChart(userId: userId)
                 phase = .main
             } else {
                 phase = .onboarding

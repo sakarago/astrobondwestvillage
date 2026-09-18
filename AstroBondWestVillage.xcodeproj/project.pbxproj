@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		A10000102F9A000100000001 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = A10000112F9A000100000001 /* Supabase */; };
+		A10000132F9A000100000001 /* SwissEphemeris in Frameworks */ = {isa = PBXBuildFile; productRef = A10000142F9A000100000001 /* SwissEphemeris */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -28,6 +29,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A10000102F9A000100000001 /* Supabase in Frameworks */,
+				A10000132F9A000100000001 /* SwissEphemeris in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -71,6 +73,7 @@
 			name = AstroBondWestVillage;
 			packageProductDependencies = (
 				A10000112F9A000100000001 /* Supabase */,
+				A10000142F9A000100000001 /* SwissEphemeris */,
 			);
 			productName = AstroBondWestVillage;
 			productReference = A10000012F9A000100000001 /* AstroBondWestVillage.app */;
@@ -102,6 +105,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				A10000122F9A000100000001 /* XCRemoteSwiftPackageReference "supabase-swift" */,
+				A10000152F9A000100000001 /* XCLocalSwiftPackageReference "Packages/SwissEphemeris" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = A10000052F9A000100000001 /* Products */;
@@ -210,6 +214,7 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_ENABLE_EXPLICIT_MODULES = NO;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 1;
 			};
@@ -240,6 +245,7 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_ENABLE_EXPLICIT_MODULES = NO;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 1;
 			};
@@ -268,6 +274,13 @@
 		};
 /* End XCConfigurationList section */
 
+/* Begin XCLocalSwiftPackageReference section */
+		A10000152F9A000100000001 /* XCLocalSwiftPackageReference "Packages/SwissEphemeris" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/SwissEphemeris;
+		};
+/* End XCLocalSwiftPackageReference section */
+
 /* Begin XCRemoteSwiftPackageReference section */
 		A10000122F9A000100000001 /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
 			isa = XCRemoteSwiftPackageReference;
@@ -284,6 +297,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = A10000122F9A000100000001 /* XCRemoteSwiftPackageReference "supabase-swift" */;
 			productName = Supabase;
+		};
+		A10000142F9A000100000001 /* SwissEphemeris */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A10000152F9A000100000001 /* XCLocalSwiftPackageReference "Packages/SwissEphemeris" */;
+			productName = SwissEphemeris;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
