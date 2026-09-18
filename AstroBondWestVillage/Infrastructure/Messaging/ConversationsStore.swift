@@ -40,10 +40,31 @@ final class ConversationsStore {
     /// (e.g. right after a match accept) so the inbox reflects it instantly,
     /// without waiting for a full server round-trip refresh.
     func upsert(_ conversation: ConversationSummary) {
-        if let idx = conversations.firstIndex(where: { $0.id == conversation.id }) {
+        if let idx = conversations.firstIndex(where: {
+            $0.id == conversation.id || $0.otherUserId.lowercased() == conversation.otherUserId.lowercased()
+        }) {
             conversations[idx] = conversation
         } else {
             conversations.insert(conversation, at: 0)
+        }
+    }
+
+    /// Original Cosmic Match: thumbs-up creates the inbox row even before the first message.
+    func ensureConversation(otherUserId: String) async {
+        let id = otherUserId.lowercased()
+        if conversations.contains(where: { $0.otherUserId.lowercased() == id }) { return }
+        do {
+            let conversation = try await messaging.getOrCreateConversation(otherUserId: id)
+            upsert(conversation)
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
+
+    func syncAcceptedMatches(userId: String) async {
+        let ids = MatchDecisionsStore.shared.acceptedIds(for: userId)
+        for matchId in ids {
+            await ensureConversation(otherUserId: matchId)
         }
     }
 }

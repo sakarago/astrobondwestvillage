@@ -6,6 +6,7 @@ final class OnboardingViewModel {
     var displayName = ""
     var gender: Gender = .preferNotSay
     var seeking: Set<Gender> = [.woman, .man]
+    var cartoonAvatar: CartoonAvatar?
     var birthDate = Calendar.current.date(byAdding: .year, value: -25, to: Date()) ?? Date()
     var timeKnown = false
     var hour = 12
@@ -15,11 +16,14 @@ final class OnboardingViewModel {
     var step = 0
     var isSaving = false
     var errorMessage: String?
+    var calculatedChart: NatalChart?
+    var didAttemptChartSave = false
 
     private let profiles = ProfileService()
 
     var canContinueName: Bool {
         displayName.trimmingCharacters(in: .whitespacesAndNewlines).count >= 2
+            && cartoonAvatar != nil
     }
 
     func selectCity(_ newCity: CityOption) {
@@ -40,7 +44,7 @@ final class OnboardingViewModel {
         errorMessage = nil
         defer { isSaving = false }
         do {
-            try await profiles.completeOnboarding(
+            calculatedChart = try await profiles.completeOnboarding(
                 userId: userId,
                 displayName: displayName.trimmingCharacters(in: .whitespacesAndNewlines),
                 gender: gender,
@@ -50,7 +54,8 @@ final class OnboardingViewModel {
                 minute: minute,
                 city: city,
                 district: district,
-                genderPrefs: Array(seeking)
+                genderPrefs: Array(seeking),
+                cartoonAvatarId: cartoonAvatar?.rawValue ?? CartoonAvatar.m01.rawValue
             )
             return true
         } catch {
@@ -69,39 +74,44 @@ struct OnboardingFlowView: View {
             CosmicBackdrop()
 
             VStack(spacing: 0) {
-                progress
-                    .padding(.top, 16)
-                    .padding(.horizontal, 28)
+                if model.step < 3 {
+                    progress
+                        .padding(.top, 16)
+                        .padding(.horizontal, 28)
+                }
 
                 TabView(selection: $model.step) {
                     nameGenderStep.tag(0)
                     birthStep.tag(1)
                     prefsStep.tag(2)
+                    chartStep.tag(3)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
                 .animation(.easeInOut(duration: 0.25), value: model.step)
 
-                footer
-                    .padding(.horizontal, 28)
-                    .padding(.bottom, 36)
-                    .padding(.top, 12)
+                if model.step < 3 {
+                    footer
+                        .padding(.horizontal, 28)
+                        .padding(.bottom, 36)
+                        .padding(.top, 12)
 
-                Button {
-                    Task { await session.signOut() }
-                } label: {
-                    Text("Farklı hesapla giriş yap")
-                        .font(ABFont.body(13, weight: .medium))
-                        .foregroundStyle(ABColor.lavenderSoft)
+                    Button {
+                        Task { await session.signOut() }
+                    } label: {
+                        Text("Farklı hesapla giriş yap")
+                            .font(ABFont.body(13, weight: .medium))
+                            .foregroundStyle(ABColor.lavenderSoft)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.bottom, 24)
                 }
-                .buttonStyle(.plain)
-                .padding(.bottom, 24)
             }
         }
     }
 
     private var progress: some View {
         HStack(spacing: 8) {
-            ForEach(0..<3, id: \.self) { i in
+            ForEach(0..<4, id: \.self) { i in
                 Capsule()
                     .fill(i <= model.step ? ABColor.lavenderSoft : Color.white.opacity(0.15))
                     .frame(height: 4)
@@ -126,6 +136,8 @@ struct OnboardingFlowView: View {
                         }
                     }
                 }
+
+                CartoonAvatarPicker(gender: model.gender, selection: $model.cartoonAvatar)
             }
             .padding(22)
             .crystalPlate(cornerRadius: 28)
@@ -218,16 +230,32 @@ struct OnboardingFlowView: View {
                         model.toggleSeeking(g)
                     }
                 }
-
-                if let error = model.errorMessage {
-                    Text(error)
-                        .font(ABFont.body(13))
-                        .foregroundStyle(Color(hex: "#C69A9A"))
-                }
             }
             .padding(22)
             .crystalPlate(cornerRadius: 28)
             .padding(20)
+        }
+    }
+
+    private var chartStep: some View {
+        ChartCalculationStepView(
+            chart: model.calculatedChart,
+            isLoading: model.isSaving,
+            errorMessage: model.errorMessage,
+            onBack: {
+                model.didAttemptChartSave = false
+                model.errorMessage = nil
+                model.step = 2
+            },
+            onContinue: {
+                Task { await session.markOnboardingComplete() }
+            }
+        )
+        .task {
+            guard let userId = session.user?.id else { return }
+            guard !model.didAttemptChartSave else { return }
+            model.didAttemptChartSave = true
+            _ = await model.save(userId: userId)
         }
     }
 
@@ -243,7 +271,7 @@ struct OnboardingFlowView: View {
             }
 
             CrystalCTAButton(
-                title: model.isSaving ? "Kaydediliyor…" : (model.step == 2 ? "Haritamı oluştur" : "Devam"),
+                title: model.step == 2 ? "Haritamı oluştur" : "Devam",
                 isEnabled: model.step == 0 ? model.canContinueName : !model.isSaving
             ) {
                 Task { await advance() }
@@ -256,9 +284,8 @@ struct OnboardingFlowView: View {
             model.step += 1
             return
         }
-        guard let userId = session.user?.id else { return }
-        if await model.save(userId: userId) {
-            await session.markOnboardingComplete()
+        if model.step == 2 {
+            model.step += 1
         }
     }
 

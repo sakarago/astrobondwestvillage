@@ -64,6 +64,24 @@ enum ZodiacSign: String, CaseIterable, Equatable, Hashable, Codable, Sendable {
         }
     }
 
+    /// Tropical sun-sign window, shown on the Eşleşme reveal card.
+    var dateRangeText: String {
+        switch self {
+        case .aries: return "21 Mar – 19 Nis"
+        case .taurus: return "20 Nis – 20 May"
+        case .gemini: return "21 May – 20 Haz"
+        case .cancer: return "21 Haz – 22 Tem"
+        case .leo: return "23 Tem – 22 Ağu"
+        case .virgo: return "23 Ağu – 22 Eyl"
+        case .libra: return "23 Eyl – 22 Eki"
+        case .scorpio: return "23 Eki – 21 Kas"
+        case .sagittarius: return "22 Kas – 21 Ara"
+        case .capricorn: return "22 Ara – 19 Oca"
+        case .aquarius: return "20 Oca – 18 Şub"
+        case .pisces: return "19 Şub – 20 Mar"
+        }
+    }
+
     /// Approximate tropical sun sign from calendar month/day (good enough for V1 profile).
     static func sunSign(month: Int, day: Int) -> ZodiacSign {
         let md = month * 100 + day

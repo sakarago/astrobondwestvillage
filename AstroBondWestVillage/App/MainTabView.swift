@@ -3,6 +3,7 @@ import SwiftUI
 struct MainTabView: View {
     @State private var selectedTab = 1
     @State private var hideTabBar = false
+    @State private var compactTabBar = false
 
     var body: some View {
         ZStack {
@@ -24,16 +25,23 @@ struct MainTabView: View {
             }
             .environment(\.hideTabBar, $hideTabBar)
             .environment(\.activeTab, $selectedTab)
+            .environment(\.compactTabBar, $compactTabBar)
             .ignoresSafeArea(.keyboard, edges: hideTabBar ? .all : [])
 
             .overlay(alignment: .bottom) {
                 if !hideTabBar {
                     WestVillageTabBar(selectedTab: $selectedTab)
+                        .scaleEffect(compactTabBar ? 0.72 : 1, anchor: .bottom)
+                        .opacity(compactTabBar ? 0.72 : 1)
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                         .ignoresSafeArea(.keyboard, edges: .bottom)
                 }
             }
             .animation(.easeInOut(duration: 0.2), value: hideTabBar)
+            .animation(.spring(response: 0.35, dampingFraction: 0.8), value: compactTabBar)
+        }
+        .onChange(of: selectedTab) { _, tab in
+            if tab != 1 { compactTabBar = false }
         }
     }
 }

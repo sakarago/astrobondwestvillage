@@ -21,25 +21,35 @@ final class MatchViewModel {
     var remainingReveals = DailyRevealQuotaStore.dailyLimit
     var todayDecisions: [MatchDecisionsStore.Record] = []
     var prefs = MatchPrefsStore.shared.snapshot
-    var showPrefs = false
     var detailCard: MatchCard?
     var mySun: ZodiacSign?
     var myMoon: ZodiacSign?
     var myRising: ZodiacSign?
     var myName: String = "Sen"
     var myPhotoURL: String?
+    var myCartoonAvatarId: String?
     var myChart: NatalChart?
     var theirChart: NatalChart?
-    var openingRecordId: String?
 
     private let matches = MatchService()
     private let messaging = MessagingService()
     private let profiles = ProfileService()
     private let decisions = MatchDecisionsStore.shared
     private let quota = DailyRevealQuotaStore.shared
-    private let spinDuration: Double = 4.2
+    private let spinDuration: Double = 6.0
     private var spinTask: Task<Void, Never>?
     private var myUserId: String?
+
+    var canMatch: Bool { remainingReveals > 0 }
+    var hasUnrevealedCandidates: Bool { !pool.isEmpty }
+    var canSpinForNewMatch: Bool { canMatch && hasUnrevealedCandidates }
+    var quotaLabel: String {
+        let used = DailyRevealQuotaStore.dailyLimit - remainingReveals
+        return "Bugün \(used)/\(DailyRevealQuotaStore.dailyLimit) eşleşme"
+    }
+    var todaysAccepted: [MatchDecisionsStore.Record] {
+        todayDecisions.filter(\.accepted)
+    }
 
     func bootstrap(userId: String) async {
         myUserId = userId
@@ -53,6 +63,7 @@ final class MatchViewModel {
                 myName = snap.displayName
             }
             myPhotoURL = snap.photoURL
+            myCartoonAvatarId = snap.cartoonAvatarId
         }
         myChart = try? await ChartService.shared.ensureOwnChart(userId: userId)
         if let chart = myChart {
@@ -81,23 +92,18 @@ final class MatchViewModel {
                 cards = cards.filter { !rejected.contains($0.id) && !accepted.contains($0.id) }
             }
             pool = cards
-            if phase == .idle, pool.isEmpty {
-                message = MatchServiceError.emptyPool.localizedDescription
-            }
         } catch {
             message = error.localizedDescription
         }
     }
 
-    func savePrefs(_ next: MatchPrefsStore.Snapshot) {
+    func persistPrefs(_ next: MatchPrefsStore.Snapshot) {
         prefs = next
         MatchPrefsStore.shared.snapshot = next
-        showPrefs = false
-        Task { await load() }
     }
 
     func spin() {
-        guard phase != .spinning else { return }
+        guard phase == .idle else { return }
         if let uid = myUserId, quota.remaining(for: uid) <= 0 {
             message = MatchServiceError.dailyLimit.localizedDescription
             return
@@ -106,8 +112,8 @@ final class MatchViewModel {
         message = nil
         phase = .spinning
 
-        withAnimation(.timingCurve(0.15, 0.05, 0.1, 1.0, duration: spinDuration)) {
-            wheelRotation += 360 * 4 + Double.random(in: 40...280)
+        withAnimation(.timingCurve(0.2, 0.0, 0.1, 1.0, duration: spinDuration)) {
+            wheelRotation += 360 * 5
         }
 
         spinTask = Task {
@@ -122,10 +128,14 @@ final class MatchViewModel {
                     moon: card.moonSign,
                     rising: card.risingSign
                 )
-                phase = .revealed
+                withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
+                    phase = .revealed
+                }
                 UINotificationFeedbackGenerator().notificationOccurred(.success)
             } else {
-                phase = .idle
+                withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
+                    phase = .idle
+                }
             }
         }
     }
@@ -134,11 +144,41 @@ final class MatchViewModel {
         guard let active else { return }
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         decisions.reject(myUserId: myUserId, card: active)
-        self.active = nil
-        theirChart = nil
-        phase = .idle
-        message = nil
+        dismissReveal()
         refreshLocal(userId: myUserId)
+    }
+
+    /// Thumbs-up: keep them on today's strip, open a Messages thread, return to the wheel.
+    func acceptReveal(myUserId: String) {
+        guard let active else { return }
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        let card = active
+        decisions.accept(myUserId: myUserId, card: card)
+        ConversationsStore.shared.upsert(
+            ConversationSummary(
+                id: "pending-\(card.id)",
+                otherUserId: card.id,
+                otherName: card.displayName,
+                otherPhotoURL: card.photoURL,
+                otherCartoonAvatarId: card.cartoonAvatarId,
+                otherSunSign: card.sunSign,
+                lastMessage: "Astro Bond açıldı. İlk mesajı sen at!",
+                lastMessageAt: Date(),
+                unreadCount: 0
+            )
+        )
+        dismissReveal()
+        refreshLocal(userId: myUserId)
+        Task { await ConversationsStore.shared.ensureConversation(otherUserId: card.id) }
+    }
+
+    func dismissReveal() {
+        withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
+            active = nil
+            theirChart = nil
+            phase = .idle
+            message = nil
+        }
     }
 
     func acceptAndChat(myUserId: String) async {
@@ -151,38 +191,28 @@ final class MatchViewModel {
         refreshLocal(userId: myUserId)
         do {
             let conversation = try await messaging.getOrCreateConversation(otherUserId: active.id)
-            // Clear the reveal *before* navigating — otherwise this card (and
-            // its thumbs) was still sitting there, fully decided, whenever you
-            // came back from Chat, since nothing ever reset `active`/`phase`.
             self.active = nil
             theirChart = nil
             phase = .idle
             openChat = conversation
-            // Instant inbox update — the Messages tab view stays mounted in
-            // the background (see MainTabView), so it won't re-run its own
-            // load on its own; push the result to the shared store instead.
             ConversationsStore.shared.upsert(conversation)
         } catch {
             message = error.localizedDescription
         }
     }
 
-    /// Tapping a face in "Bugünün kararları" used to do nothing at all. If it
-    /// was an accept, it's an actual match — take them straight to that chat
-    /// (creating the conversation if it somehow doesn't exist yet). If it was
-    /// a pass, there's no conversation to open, so say so instead of just
-    /// silently eating the tap.
-    func openChat(for record: MatchDecisionsStore.Record) async {
-        guard record.accepted else {
-            message = "\(record.displayName) kişisini geçtin — mesajlaşma yok."
+    func message(card: MatchCard, myUserId: String) async {
+        if active?.id == card.id {
+            await acceptAndChat(myUserId: myUserId)
             return
         }
-        guard openingRecordId == nil else { return }
-        openingRecordId = record.id
+        decisions.accept(myUserId: myUserId, card: card)
+        refreshLocal(userId: myUserId)
+        isOpeningChat = true
         message = nil
-        defer { openingRecordId = nil }
+        defer { isOpeningChat = false }
         do {
-            let conversation = try await messaging.getOrCreateConversation(otherUserId: record.id)
+            let conversation = try await messaging.getOrCreateConversation(otherUserId: card.id)
             openChat = conversation
             ConversationsStore.shared.upsert(conversation)
         } catch {
@@ -233,30 +263,32 @@ final class MatchViewModel {
 struct MatchHomeView: View {
     @Environment(SessionStore.self) private var session
     @Environment(\.hideTabBar) private var hideTabBar
+    @Environment(\.compactTabBar) private var compactTabBar
+    @Environment(\.activeTab) private var activeTab
     @State private var model = MatchViewModel()
+    @State private var intents: Set<MatchIntent> = []
+    @State private var orientations: Set<MatchOrientation> = []
+    @State private var homoTypes: Set<MatchHomoType> = []
+    @State private var showSelectionNotice = false
+    @State private var showDailyLimit = false
+    @State private var showNoCandidates = false
+
+    private let wheelSize: CGFloat = 278
 
     var body: some View {
+        @Bindable var model = model
         NavigationStack {
             ZStack {
-                // This screen was missing its own backdrop entirely — every
-                // other tab wraps its content in `CosmicBackdrop()` *inside*
-                // its NavigationStack, but this one relied on MainTabView's
-                // background showing through, which a NavigationStack does
-                // NOT reliably let happen. That's why "Eşleşme" and the wheel
-                // read as washed-out/invisible. Add the same backdrop, plus a
-                // touch of extra darkening at the very top since the wheel's
-                // own glow can otherwise wash out the header sitting above it.
                 CosmicBackdrop()
-                LinearGradient(
-                    colors: [Color.black.opacity(0.24), .clear],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .frame(height: 220)
-                .frame(maxHeight: .infinity, alignment: .top)
-                .ignoresSafeArea(edges: .top)
 
-                matchScroll
+                VStack(spacing: 0) {
+                    header.padding(.top, 6)
+                    wheelStack.padding(.top, 4)
+                    bottomArea
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                        .layoutPriority(1)
+                        .padding(.horizontal, 22)
+                }
             }
             .toolbar(.hidden, for: .navigationBar)
             .task {
@@ -264,8 +296,25 @@ struct MatchHomeView: View {
                     await model.bootstrap(userId: id)
                 }
             }
-            .sheet(isPresented: $model.showPrefs) {
-                MatchPrefsSheet(prefs: model.prefs) { model.savePrefs($0) }
+            .onChange(of: activeTab?.wrappedValue) { _, tab in
+                guard tab == 1 else { return }
+                if let id = session.user?.id {
+                    Task { await model.load() }
+                }
+            }
+            .onChange(of: model.phase) { _, phase in
+                compactTabBar?.wrappedValue = phase != .idle
+            }
+            .onDisappear { compactTabBar?.wrappedValue = false }
+            .alert("Günlük eşleşme hakkın doldu", isPresented: $showDailyLimit) {
+                Button("Tamam", role: .cancel) {}
+            } message: {
+                Text("Yeni eşleşmeler için yarın tekrar dene. Bugünkü eşleşmelerine aşağıdan dönebilirsin.")
+            }
+            .alert("Yeni eşleşme yok", isPresented: $showNoCandidates) {
+                Button("Tamam", role: .cancel) {}
+            } message: {
+                Text("Bugün gösterilecek başka profil kalmadı. Aşağıdaki eşleşmelerine dönebilir veya yarın tekrar çevirebilirsin.")
             }
             .navigationDestination(item: $model.detailCard) { card in
                 MatchDetailSheet(
@@ -273,6 +322,7 @@ struct MatchHomeView: View {
                     mySeed: session.user?.id ?? "self",
                     myName: model.myName,
                     myPhotoURL: model.myPhotoURL,
+                    myCartoonAvatarId: model.myCartoonAvatarId,
                     mySun: model.mySun,
                     myMoon: model.myMoon,
                     myRising: model.myRising,
@@ -282,7 +332,7 @@ struct MatchHomeView: View {
                         hideTabBar?.wrappedValue = true
                         model.detailCard = nil
                         if let id = session.user?.id {
-                            Task { await model.acceptAndChat(myUserId: id) }
+                            Task { await model.message(card: card, myUserId: id) }
                         }
                     },
                     onBack: { model.detailCard = nil }
@@ -302,412 +352,539 @@ struct MatchHomeView: View {
         }
     }
 
-    private var matchScroll: some View {
-        ScrollView(showsIndicators: false) {
-                VStack(spacing: 10) {
-                    header
-
-                    if let note = dailyNote {
-                        dailyNoteCard(note)
-                            .padding(.horizontal, 16)
-                    }
-
-                    CosmicMatchWheel(
-                        rotation: model.wheelRotation,
-                        isSpinning: model.phase == .spinning,
-                        size: min(UIScreen.main.bounds.width - 24, 336),
-                        mySeed: session.user?.id ?? "self",
-                        theirSeed: model.phase == .revealed ? model.active?.id : nil,
-                        mySun: model.mySun,
-                        myMoon: model.myMoon,
-                        myRising: model.myRising,
-                        theirSun: model.active?.sunSign,
-                        myChart: model.myChart,
-                        theirChart: model.theirChart
-                    ) {
-                        // While a match is revealed the wheel IS the synastry
-                        // chart — double-tapping it should open the written
-                        // summary of that chart, not spin away the match you
-                        // just got (which is what silently happened before:
-                        // spin() would restart and swap out `active`).
-                        if model.phase == .revealed, let active = model.active {
-                            model.detailCard = active
-                        } else {
-                            model.spin()
-                        }
-                    }
-                    .zIndex(0)
-
-                    if model.phase == .revealed, let active = model.active {
-                        synastryLegend(active)
-                            .padding(.horizontal, 16)
-                            .transition(.opacity)
-                    }
-
-                    if model.phase == .revealed, let active = model.active {
-                        matchCard(active)
-                            .padding(.horizontal, 16)
-                            .transition(.move(edge: .bottom).combined(with: .opacity))
-                    } else {
-                        bondPrefsStrip
-                            .padding(.horizontal, 16)
-
-                        if !model.todayDecisions.isEmpty {
-                            todayStrip
-                        }
-                    }
-
-                    if let message = model.message {
-                        Text(message)
-                            .font(ABFont.body(13))
-                            .foregroundStyle(Color(hex: "#C69A9A"))
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 28)
-                    }
-
-                    Spacer(minLength: 120)
-                }
+    private var header: some View {
+        VStack(spacing: 8) {
+            AstroBondLogoMark()
+            Text("BAĞ GÖRÜNENDEN ÖNCE BAŞLAR")
+                .font(ABFont.body(10, weight: .medium))
+                .tracking(2.2)
+                .foregroundStyle(Color.white.opacity(0.55))
+            Text(model.quotaLabel)
+                .font(ABFont.body(11, weight: .medium))
+                .foregroundStyle(ABColor.lavenderSoft)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 5)
+                .background(Capsule(style: .continuous).fill(ABColor.lavender.opacity(0.18)))
+                .overlay(
+                    Capsule(style: .continuous)
+                        .stroke(ABColor.lavender.opacity(0.45), lineWidth: 1)
+                )
         }
-        .animation(.spring(response: 0.4, dampingFraction: 0.86), value: model.phase)
     }
 
-    private var header: some View {
-        HStack(alignment: .center, spacing: 10) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Eşleşme")
-                    .font(ABFont.display(24))
-                    .foregroundStyle(ABColor.ink)
-                    .shadow(color: .black.opacity(0.55), radius: 8, y: 2)
-                Text(subtitle)
-                    .font(ABFont.body(12))
-                    .foregroundStyle(ABColor.inkMuted)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
+    private var wheelStack: some View {
+        CosmicMatchWheel(
+            rotation: model.wheelRotation,
+            isSpinning: model.phase == .spinning,
+            isRevealed: model.phase == .revealed,
+            size: wheelSize,
+            revealedGlyph: model.active?.sunSign?.lineGlyph,
+            revealedSignIndex: model.active?.sunSign?.index,
+            onTap: startSpin
+        )
+    }
+
+    @ViewBuilder
+    private var bottomArea: some View {
+        switch model.phase {
+        case .idle:
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 8) {
+                    if !model.todaysAccepted.isEmpty {
+                        todaysMatchesStrip
+                    }
+
+                    if !model.canMatch {
+                        matchStatusBanner("Günlük eşleşme hakkın doldu. Yarın yeni çark için geri gel.")
+                    } else if !model.hasUnrevealedCandidates {
+                        matchStatusBanner(
+                            model.todaysAccepted.isEmpty
+                                ? "Şu an uygun profil yok. Biraz sonra tekrar dene."
+                                : "Bugün yeni kişi kalmadı — aşağıdan eşleşmelerine dönebilirsin."
+                        )
+                    } else if !model.todaysAccepted.isEmpty {
+                        matchStatusBanner("Yeni eşleşme için çarkın ortasına bas.")
+                    }
+
+                    if showSelectionNotice {
+                        Text("Önce bağ ve eşleşme tercihinden seçim yap, sonra çarkın ortasına bas.")
+                            .font(ABFont.body(12.5, weight: .medium))
+                            .foregroundStyle(Color.white.opacity(0.95))
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 10)
+                            .background(Capsule(style: .continuous).fill(ABColor.lavender.opacity(0.16)))
+                            .overlay(
+                                Capsule(style: .continuous)
+                                    .stroke(ABColor.lavender.opacity(0.55), lineWidth: 1)
+                            )
+                    }
+
+                    BondSettingsPanel(
+                        intents: $intents,
+                        orientations: $orientations,
+                        homoTypes: $homoTypes,
+                        prefs: $model.prefs
+                    )
+                }
+                .padding(.top, 4)
+                .padding(.bottom, 120)
             }
-            Spacer(minLength: 8)
-            Text("\(model.remainingReveals)/\(DailyRevealQuotaStore.dailyLimit)")
-                .font(ABFont.body(12, weight: .semibold))
-                .foregroundStyle(ABColor.lavenderSoft)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .crystalPlate(cornerRadius: 12)
+            .transition(.opacity)
+
+        case .spinning:
+            VStack(spacing: 8) {
+                Text("Yıldızlar hizalanıyor...")
+                    .font(ABFont.display(20))
+                    .foregroundStyle(.white)
+                Text("AstroBond eşin aranıyor")
+                    .font(ABFont.body(13))
+                    .foregroundStyle(Color.white.opacity(0.5))
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .transition(.opacity)
+
+        case .revealed:
+            if let match = model.active {
+                VStack(spacing: 10) {
+                    matchedProfileCard(match)
+                    if !model.todaysAccepted.isEmpty {
+                        todaysMatchesStrip
+                    }
+                    if model.canSpinForNewMatch {
+                        Text("Başka biri için çarkı tekrar çevir")
+                            .font(ABFont.body(12, weight: .medium))
+                            .foregroundStyle(Color.white.opacity(0.45))
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .padding(.top, 8)
+                .padding(.bottom, 36)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+    }
+
+    private var todaysMatchesStrip: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("BUGÜNKÜ EŞLEŞMELER")
+                .font(ABFont.body(10, weight: .bold))
+                .foregroundStyle(Color.white.opacity(0.45))
+                .padding(.leading, 2)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 14) {
+                    ForEach(model.todaysAccepted) { rec in
+                        Button {
+                            model.detailCard = card(from: rec)
+                        } label: {
+                            VStack(spacing: 6) {
+                                PersonAvatar(
+                                    name: rec.displayName,
+                                    photoURL: rec.photoURL,
+                                    cartoonAvatarId: rec.cartoonAvatarId,
+                                    sunSign: rec.sunSign,
+                                    unlocked: false,
+                                    size: 52
+                                )
+                                .overlay {
+                                    if model.detailCard?.id == rec.id || model.active?.id == rec.id {
+                                        Circle().stroke(ABColor.lavender, lineWidth: 2)
+                                    }
+                                }
+                                Text(rec.displayName.components(separatedBy: " ").first ?? rec.displayName)
+                                    .font(ABFont.body(11, weight: .medium))
+                                    .foregroundStyle(Color.white.opacity(0.75))
+                                    .lineLimit(1)
+                            }
+                            .frame(width: 64)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func matchStatusBanner(_ text: String) -> some View {
+        Text(text)
+            .font(ABFont.body(12.5, weight: .medium))
+            .foregroundStyle(Color.white.opacity(0.88))
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(ABColor.lavender.opacity(0.12))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(ABColor.lavender.opacity(0.35), lineWidth: 1)
+            )
+    }
+
+    private func matchedProfileCard(_ match: MatchCard) -> some View {
+        let score = BondStory.report(
+            mySun: model.mySun,
+            their: match,
+            intent: model.prefs.intent,
+            myChart: model.myChart,
+            theirChart: model.theirChart
+        ).overall
+
+        return VStack(spacing: 14) {
+            HStack {
+                thumbButton(up: false) {
+                    if let id = session.user?.id { model.reject(myUserId: id) }
+                }
+                Spacer()
+                thumbButton(up: true) {
+                    if let id = session.user?.id { model.acceptReveal(myUserId: id) }
+                }
+            }
+
             Button {
-                model.showPrefs = true
+                model.detailCard = match
             } label: {
-                Image(systemName: "slider.horizontal.3")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(ABColor.ink)
-                    .crystalIconBezel(size: 36, cornerRadius: 12)
+                HStack(spacing: 16) {
+                    PersonAvatar(
+                        name: match.displayName,
+                        photoURL: match.photoURL,
+                        cartoonAvatarId: match.cartoonAvatarId,
+                        sunSign: match.sunSign,
+                        unlocked: false,
+                        size: 100
+                    )
+                    .opacity(0.84)
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(match.displayName)
+                            .font(ABFont.display(20))
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+
+                        if match.age > 0 {
+                            Text("\(match.age)")
+                                .font(ABFont.body(13, weight: .medium))
+                                .foregroundStyle(Color.white.opacity(0.55))
+                        }
+
+                        Divider().background(Color.white.opacity(0.14))
+
+                        if let sign = match.sunSign {
+                            HStack(spacing: 10) {
+                                ZStack {
+                                    Circle().stroke(Color.white.opacity(0.25), lineWidth: 1)
+                                        .frame(width: 40, height: 40)
+                                    Text(sign.lineGlyph)
+                                        .font(.system(size: 19))
+                                        .foregroundStyle(.white)
+                                }
+                                VStack(alignment: .leading, spacing: 1) {
+                                    Text(sign.labelTR.uppercased())
+                                        .font(ABFont.body(14, weight: .bold))
+                                        .tracking(1)
+                                        .foregroundStyle(.white)
+                                    Text(sign.dateRangeText)
+                                        .font(ABFont.body(11))
+                                        .foregroundStyle(Color.white.opacity(0.45))
+                                }
+                            }
+                        }
+
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            Image(systemName: "heart.fill")
+                                .font(.system(size: 18))
+                                .foregroundStyle(Color(hex: "#E4E8EF"))
+                            Text("%\(score)")
+                                .font(ABFont.display(19, weight: .bold))
+                                .foregroundStyle(.white)
+                            Text("UYUMLU")
+                                .font(ABFont.body(12, weight: .bold))
+                                .tracking(1)
+                                .foregroundStyle(Color.white.opacity(0.6))
+                        }
+                    }
+                }
             }
             .buttonStyle(.plain)
+
+            Text("Profili gör")
+                .font(ABFont.body(12, weight: .medium))
+                .foregroundStyle(ABColor.lavenderSoft.opacity(0.85))
         }
-        .padding(.horizontal, 16)
-        .padding(.top, 10)
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .stroke(
+                    LinearGradient(
+                        colors: [ABColor.lavenderSoft.opacity(0.5), ABColor.lavender.opacity(0.28)],
+                        startPoint: .top, endPoint: .bottom
+                    ),
+                    lineWidth: 4
+                )
+                .blur(radius: 6)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .strokeBorder(
+                    LinearGradient(
+                        colors: [Color(hex: "#E2DDFF").opacity(0.55), ABColor.lavender.opacity(0.24)],
+                        startPoint: .top, endPoint: .bottom
+                    ),
+                    lineWidth: 1
+                )
+        )
     }
 
-    private var subtitle: String {
-        switch model.phase {
-        case .idle: return model.isLoading ? "Adaylar yükleniyor…" : "Çevirmek için çarka çift dokun"
-        case .spinning: return "Yıldızlar hizalanıyor…"
-        case .revealed: return "Senkron haritası hazır — detay için çarka çift dokun"
-        }
-    }
-
-    /// Makes the "the wheel just became a two-person chart" moment explicit —
-    /// the wheel's own gold/lavender belts can be subtle at a glance, so spell
-    /// it out with named, colored swatches right underneath it. Also doubles
-    /// as an obvious, single-tap way into the bond summary, since the
-    /// double-tap-the-wheel gesture alone isn't very discoverable.
-    private func synastryLegend(_ card: MatchCard) -> some View {
-        Button {
-            model.detailCard = card
-        } label: {
-            HStack(spacing: 8) {
-                legendDot(color: Color(hex: "#F0CE7E"), label: "Sen")
-                Image(systemName: "sparkles")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(ABColor.inkMuted)
-                legendDot(color: Color(hex: "#C9B8FF"), label: card.displayName)
-                Text("Bağ özeti")
-                    .font(ABFont.body(12, weight: .semibold))
-                    .foregroundStyle(ABColor.lavenderSoft)
-                    .lineLimit(1)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundStyle(ABColor.lavenderSoft)
-            }
-            .lineLimit(1)
-            .minimumScaleFactor(0.75)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-            .crystalPlate(cornerRadius: 16)
+    private func thumbButton(up: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: up ? "hand.thumbsup.fill" : "hand.thumbsdown.fill")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 40, height: 40)
+                .background(Circle().fill(Color.white.opacity(0.06)))
+                .overlay(
+                    Circle().stroke(ABColor.lavender.opacity(up ? 0.9 : 0.6), lineWidth: 1.2)
+                )
         }
         .buttonStyle(.plain)
     }
 
-    private func legendDot(color: Color, label: String) -> some View {
-        HStack(spacing: 6) {
-            Circle().fill(color).frame(width: 9, height: 9)
-                .shadow(color: color.opacity(0.7), radius: 4)
-            Text(label)
-                .font(ABFont.body(12, weight: .semibold))
-                .foregroundStyle(ABColor.ink)
-                .lineLimit(1)
+    private func card(from rec: MatchDecisionsStore.Record) -> MatchCard {
+        MatchCard(
+            id: rec.id,
+            displayName: rec.displayName,
+            age: rec.age,
+            city: rec.city,
+            sunSign: rec.sunSign,
+            moonSign: nil,
+            risingSign: nil,
+            bio: "",
+            photoURL: rec.photoURL,
+            cartoonAvatarId: rec.cartoonAvatarId
+        )
+    }
+
+    private func startSpin() {
+        guard model.phase == .idle else { return }
+        guard !intents.isEmpty, !orientations.isEmpty else {
+            presentSelectionNotice()
+            return
+        }
+        guard model.canMatch else {
+            showDailyLimit = true
+            return
+        }
+        guard model.hasUnrevealedCandidates else {
+            showNoCandidates = true
+            return
+        }
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        applySelections()
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+            model.spin()
         }
     }
 
-    /// The "Günlük İçgörü" (Daily Insight) notification toggle in Settings
-    /// has had nothing behind it — no actual daily note ever existed here.
-    /// This brings that back: a short, personalized note recomputed once a
-    /// day from your real sun/moon/rising, so it's unique to your chart and
-    /// to you specifically (not just "everyone with this sun sign").
-    private var dailyNote: DailyNote? {
-        guard let uid = session.user?.id, model.mySun != nil else { return nil }
-        return DailyNoteEngine.note(for: Date(), userId: uid, sun: model.mySun, moon: model.myMoon, rising: model.myRising)
-    }
-
-    private func dailyNoteCard(_ note: DailyNote) -> some View {
-        HStack(alignment: .center, spacing: 10) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("BUGÜNÜN NOTU · \(note.focus)")
-                    .font(ABFont.body(10, weight: .bold))
-                    .tracking(0.8)
-                    .foregroundStyle(ABColor.lavenderSoft)
-                    .lineLimit(1)
-                Text(note.headline)
-                    .font(ABFont.body(13, weight: .semibold))
-                    .foregroundStyle(ABColor.ink)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-            }
-            Spacer(minLength: 8)
-            HStack(spacing: 3) {
-                Image(systemName: "bolt.fill").font(.system(size: 9, weight: .bold))
-                Text("\(note.energyScore)")
-                    .font(ABFont.body(11, weight: .bold))
-            }
-            .foregroundStyle(Color(hex: "#F0CE7E"))
+    private func applySelections() {
+        var next = model.prefs
+        if let primary = MatchIntent.allCases.first(where: { intents.contains($0) }) {
+            next.intent = primary
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .crystalPlate(cornerRadius: 14)
-    }
-
-    private var bondPrefsStrip: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Bağ ayarı")
-                .font(ABFont.body(12, weight: .semibold))
-                .foregroundStyle(ABColor.inkMuted)
-                .tracking(0.6)
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(MatchIntent.allCases) { intent in
-                        Button {
-                            var next = model.prefs
-                            next.intent = intent
-                            model.prefs = next
-                            MatchPrefsStore.shared.snapshot = next
-                        } label: {
-                            HStack(spacing: 6) {
-                                Image(systemName: intent.iconName)
-                                    .font(.system(size: 11, weight: .semibold))
-                                Text(intent.titleTR)
-                                    .font(ABFont.body(13, weight: .semibold))
-                            }
-                            .foregroundStyle(model.prefs.intent == intent ? Color.white : ABColor.inkMuted)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 10)
-                            .background {
-                                Capsule(style: .continuous)
-                                    .fill(model.prefs.intent == intent ? ABColor.lavender.opacity(0.45) : Color.white.opacity(0.06))
-                            }
-                            .overlay(
-                                Capsule(style: .continuous)
-                                    .strokeBorder(
-                                        model.prefs.intent == intent
-                                            ? ABColor.lavenderSoft.opacity(0.7)
-                                            : Color.white.opacity(0.12),
-                                        lineWidth: 1
-                                    )
-                            )
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-            }
+        var genders: [Gender] = []
+        if orientations.contains(.kadin) { genders.append(.woman) }
+        if orientations.contains(.erkek) { genders.append(.man) }
+        if orientations.contains(.lgbt) {
+            genders.append(.nonBinary)
+            genders.append(.other)
         }
-        .padding(14)
-        .crystalPlate(cornerRadius: 20)
+        if !genders.isEmpty { next.preferredGenders = genders }
+        model.persistPrefs(next)
     }
 
-    private var todayStrip: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Bugünün kararları")
-                .font(ABFont.body(12, weight: .semibold))
-                .foregroundStyle(ABColor.inkMuted)
-                .padding(.horizontal, 20)
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 12) {
-                    ForEach(model.todayDecisions) { rec in
-                        Button {
-                            Task { await model.openChat(for: rec) }
-                        } label: {
-                            VStack(spacing: 8) {
-                                ZStack(alignment: .bottomTrailing) {
-                                    PersonAvatar(
-                                        name: rec.displayName,
-                                        photoURL: rec.photoURL,
-                                        sunSign: rec.sunSign,
-                                        unlocked: false,
-                                        size: 52
-                                    )
-                                    .opacity(rec.accepted ? 1 : 0.55)
-                                    .overlay {
-                                        if model.openingRecordId == rec.id {
-                                            Circle().fill(Color.black.opacity(0.45))
-                                            ProgressView().tint(.white)
-                                        }
-                                    }
-
-                                    Image(systemName: rec.accepted ? "message.fill" : "hand.thumbsdown.fill")
-                                        .font(.system(size: 10, weight: .bold))
-                                        .foregroundStyle(rec.accepted ? Color(hex: "#A8D4B8") : Color(hex: "#D4A8A8"))
-                                        .padding(4)
-                                        .background(Circle().fill(Color.black.opacity(0.55)))
-                                        .offset(x: 4, y: 4)
-                                }
-                                Text(rec.displayName.components(separatedBy: " ").first ?? rec.displayName)
-                                    .font(ABFont.body(11, weight: .medium))
-                                    .foregroundStyle(rec.accepted ? ABColor.ink : ABColor.inkMuted)
-                                    .lineLimit(1)
-                                    .frame(width: 64)
-                            }
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(model.openingRecordId != nil)
-                    }
-                }
-                .padding(.horizontal, 20)
+    private func presentSelectionNotice() {
+        withAnimation(.easeInOut(duration: 0.2)) { showSelectionNotice = true }
+        Task {
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            await MainActor.run {
+                withAnimation(.easeInOut(duration: 0.2)) { showSelectionNotice = false }
             }
         }
     }
+}
 
-    private func matchCard(_ card: MatchCard) -> some View {
-        VStack(spacing: 18) {
-            Button {
-                model.detailCard = card
-            } label: {
-                VStack(spacing: 12) {
-                    PersonAvatar(
-                        name: card.displayName,
-                        photoURL: card.photoURL,
-                        sunSign: card.sunSign,
-                        unlocked: false,
-                        size: 64
-                    )
+// MARK: - Bond / gender pills (original Cosmic Match)
 
-                    Text(card.displayName)
-                        .font(ABFont.display(22))
-                        .foregroundStyle(ABColor.ink)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
-                        .padding(.horizontal, 8)
+private enum MatchOrientation: String, CaseIterable, Identifiable {
+    case kadin, erkek, lgbt
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .kadin: return "Kadın"
+        case .erkek: return "Erkek"
+        case .lgbt: return "LGBT"
+        }
+    }
+}
 
-                    HStack(spacing: 10) {
-                        if card.age > 0 { Text("\(card.age)") }
-                        if let sign = card.sunSign {
-                            Text("\(sign.glyph) \(sign.labelTR)")
-                        }
-                        if let city = card.city, !city.isEmpty {
-                            Text("· \(city)")
-                        }
-                    }
-                    .font(ABFont.body(14, weight: .medium))
-                    .foregroundStyle(ABColor.inkMuted)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
+private enum MatchHomoType: String, CaseIterable, Identifiable {
+    case gay, lezbiyen
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .gay: return "Gay"
+        case .lezbiyen: return "Lezbiyen"
+        }
+    }
+}
 
-                    if !card.bio.isEmpty {
-                        Text(card.bio)
-                            .font(ABFont.body(14))
-                            .foregroundStyle(ABColor.ink.opacity(0.85))
-                            .multilineTextAlignment(.center)
-                            .lineLimit(3)
-                    }
+private struct BondSettingsPanel: View {
+    @Binding var intents: Set<MatchIntent>
+    @Binding var orientations: Set<MatchOrientation>
+    @Binding var homoTypes: Set<MatchHomoType>
+    @Binding var prefs: MatchPrefsStore.Snapshot
 
-                    Text("Bağ detayını gör")
-                        .font(ABFont.body(13, weight: .semibold))
-                        .foregroundStyle(ABColor.lavenderSoft)
-                }
-            }
-            .buttonStyle(.plain)
-
-            // Solid, opaque pills (not glass-on-glass) so they never wash out
-            // against the card behind them, and no gesture is attached to the
-            // card above them anymore — nothing can steal or block their taps.
-            HStack(spacing: 28) {
-                thumbButton(
-                    system: "hand.thumbsdown.fill",
-                    tint: Color(hex: "#E8A0A0"),
-                    label: "Geç"
-                ) {
-                    if let id = session.user?.id {
-                        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
-                            model.reject(myUserId: id)
-                        }
-                    }
-                }
-
-                thumbButton(
-                    system: "hand.thumbsup.fill",
-                    tint: Color(hex: "#A0E8B8"),
-                    label: model.isOpeningChat ? "…" : "Kabul"
-                ) {
-                    Task {
-                        if let id = session.user?.id {
-                            await model.acceptAndChat(myUserId: id)
-                        }
-                    }
-                }
-                .disabled(model.isOpeningChat)
-            }
-            .padding(.top, 4)
+    var body: some View {
+        VStack(spacing: 16) {
+            orientationSection
+            bondieSection
         }
         .frame(maxWidth: .infinity)
-        .padding(16)
-        .crystalPlate(cornerRadius: 28)
-        .zIndex(5)
     }
 
-    private func thumbButton(system: String, tint: Color, label: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            VStack(spacing: 8) {
-                Image(systemName: system)
-                    .font(.system(size: 22, weight: .bold))
-                    .foregroundStyle(Color(hex: "#15131F"))
-                    .frame(width: 60, height: 60)
-                    .background {
-                        Circle()
-                            .fill(
-                                LinearGradient(
-                                    colors: [tint, tint.opacity(0.85)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
+    private var orientationSection: some View {
+        VStack(spacing: 10) {
+            sectionHeading("Eşleşme tercihin nedir?")
+            HStack(spacing: 6) {
+                ForEach(MatchOrientation.allCases) { option in
+                    SelectablePill(title: option.title, selected: orientations.contains(option)) {
+                        toggleOrientation(option)
                     }
-                    .overlay(
-                        Circle().strokeBorder(Color.white.opacity(0.6), lineWidth: 1.2)
-                    )
-                    .shadow(color: tint.opacity(0.55), radius: 14, y: 6)
-                    .shadow(color: Color.black.opacity(0.35), radius: 8, y: 4)
-
-                Text(label)
-                    .font(ABFont.body(12, weight: .semibold))
-                    .foregroundStyle(ABColor.ink)
+                }
             }
+            if orientations.contains(.lgbt) {
+                HStack(spacing: 6) {
+                    ForEach(MatchHomoType.allCases) { type in
+                        SelectablePill(title: type.title, selected: homoTypes.contains(type)) {
+                            toggleHomoType(type)
+                        }
+                    }
+                }
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+        .animation(.spring(response: 0.32, dampingFraction: 0.85), value: orientations.contains(.lgbt))
+    }
+
+    private var bondieSection: some View {
+        VStack(spacing: 10) {
+            sectionHeading("Nasıl bir bağ kurmak istiyorsun?", subtitle: "Seçimlerini yap, sonra çarkın ortasına bas.")
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)], spacing: 8) {
+                ForEach(MatchIntent.allCases) { item in
+                    SelectablePill(title: item.bondLabel, selected: intents.contains(item)) {
+                        toggleIntent(item)
+                    }
+                }
+            }
+        }
+    }
+
+    private func sectionHeading(_ title: String, subtitle: String? = nil) -> some View {
+        VStack(spacing: 7) {
+            Text(title)
+                .font(ABFont.display(18, weight: .regular))
+                .multilineTextAlignment(.center)
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [Color.white, Color(hex: "#E4E2F2").opacity(0.85)],
+                        startPoint: .top, endPoint: .bottom
+                    )
+                )
+                .fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: 8) {
+                Capsule()
+                    .fill(ABColor.lavender.opacity(0.8))
+                    .frame(width: 26, height: 3)
+                if let subtitle {
+                    Text(subtitle)
+                        .font(ABFont.body(11))
+                        .foregroundStyle(Color.white.opacity(0.5))
+                }
+            }
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private func toggleIntent(_ item: MatchIntent) {
+        withAnimation(.spring(response: 0.26, dampingFraction: 0.8)) {
+            if intents.contains(item) { intents.remove(item) } else { intents.insert(item) }
+        }
+        persist()
+    }
+
+    private func toggleOrientation(_ option: MatchOrientation) {
+        withAnimation(.spring(response: 0.26, dampingFraction: 0.8)) {
+            if orientations.contains(option) {
+                orientations.remove(option)
+                if option == .lgbt { homoTypes.removeAll() }
+            } else {
+                orientations.insert(option)
+            }
+        }
+        persist()
+    }
+
+    private func toggleHomoType(_ type: MatchHomoType) {
+        withAnimation(.spring(response: 0.26, dampingFraction: 0.8)) {
+            if homoTypes.contains(type) { homoTypes.remove(type) } else { homoTypes.insert(type) }
+        }
+        persist()
+    }
+
+    private func persist() {
+        if let primary = MatchIntent.allCases.first(where: { intents.contains($0) }) {
+            prefs.intent = primary
+        }
+        var genders: [Gender] = []
+        if orientations.contains(.kadin) { genders.append(.woman) }
+        if orientations.contains(.erkek) { genders.append(.man) }
+        if orientations.contains(.lgbt) {
+            genders.append(.nonBinary)
+            genders.append(.other)
+        }
+        if !genders.isEmpty { prefs.preferredGenders = genders }
+        MatchPrefsStore.shared.snapshot = prefs
+    }
+}
+
+private struct SelectablePill: View {
+    let title: String
+    let selected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(ABFont.body(13, weight: .medium))
+                .foregroundStyle(Color.white.opacity(selected ? 1 : 0.9))
+                .padding(.horizontal, 13)
+                .frame(height: 42)
+                .frame(maxWidth: .infinity)
+                .background {
+                    if selected {
+                        Capsule(style: .continuous).fill(ABColor.lavender.opacity(0.38))
+                    } else {
+                        Capsule(style: .continuous).fill(Color.white.opacity(0.06))
+                    }
+                }
+                .overlay(
+                    Capsule(style: .continuous)
+                        .stroke(ABColor.lavender.opacity(selected ? 0.85 : 0.28), lineWidth: 1)
+                )
+                .shadow(color: ABColor.lavender.opacity(selected ? 0.26 : 0), radius: selected ? 12 : 0, y: 4)
         }
         .buttonStyle(.plain)
     }

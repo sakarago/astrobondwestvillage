@@ -209,6 +209,7 @@ private struct EditProfileSettingsView: View {
     @State private var city: CityOption = CityOption.presets[0]
     @State private var district: District = CityOption.presets[0].districts[0]
     @State private var birthDate = Calendar.current.date(byAdding: .year, value: -25, to: Date()) ?? Date()
+    @State private var cartoonAvatar: CartoonAvatar?
     @State private var isSaving = false
     @State private var error: String?
 
@@ -275,6 +276,14 @@ private struct EditProfileSettingsView: View {
                         .padding(.vertical, 8)
                     }
 
+                    settingsInner {
+                        CartoonAvatarPicker(
+                            gender: snapshot?.gender ?? .preferNotSay,
+                            selection: $cartoonAvatar
+                        )
+                        .padding(.vertical, 8)
+                    }
+
                     if let error {
                         Text(error).font(ABFont.body(13)).foregroundStyle(Color(hex: "#C69A9A"))
                     }
@@ -313,6 +322,7 @@ private struct EditProfileSettingsView: View {
             district = match.districts.first ?? district
         }
         if let d = snapshot.birthDate { birthDate = d }
+        cartoonAvatar = CartoonAvatar.from(id: snapshot.cartoonAvatarId)
     }
 
     private func save() async {
@@ -331,7 +341,8 @@ private struct EditProfileSettingsView: View {
                 bio: bio,
                 city: city,
                 district: district,
-                birthDate: birthDate
+                birthDate: birthDate,
+                cartoonAvatarId: cartoonAvatar?.rawValue
             )
             if let snap = try await profiles.fetchSnapshot(userId: id) {
                 onSaved(snap)
@@ -507,7 +518,7 @@ private struct AboutView: View {
     }
 }
 
-private struct LegalAgreementView: View {
+struct LegalAgreementView: View {
     var body: some View {
         ZStack {
             CosmicBackdrop()

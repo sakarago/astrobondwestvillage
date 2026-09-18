@@ -11,6 +11,7 @@ struct MatchCard: Identifiable, Equatable, Hashable, Sendable {
     let risingSign: ZodiacSign?
     let bio: String
     let photoURL: String?
+    let cartoonAvatarId: String?
 }
 
 enum MatchServiceError: LocalizedError {
@@ -45,6 +46,7 @@ final class MatchService: Sendable {
             let moonSign: String?
             let risingSign: String?
             let photoURL: String?
+            let cartoonAvatarId: String?
             let isDemo: Bool?
             enum CodingKeys: String, CodingKey {
                 case id, age, bio, city
@@ -53,6 +55,7 @@ final class MatchService: Sendable {
                 case moonSign = "moon_sign"
                 case risingSign = "rising_sign"
                 case photoURL = "profile_photo_url"
+                case cartoonAvatarId = "cartoon_avatar_id"
                 case isDemo = "is_demo"
             }
         }
@@ -75,7 +78,8 @@ final class MatchService: Sendable {
                         moonSign: ZodiacSign.fromEnglishName($0.moonSign),
                         risingSign: ZodiacSign.fromEnglishName($0.risingSign),
                         bio: $0.bio ?? "",
-                        photoURL: $0.photoURL
+                        photoURL: $0.photoURL,
+                        cartoonAvatarId: $0.cartoonAvatarId
                     )
                 }
         } catch {

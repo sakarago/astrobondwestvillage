@@ -14,6 +14,7 @@ final class ChatViewModel {
     var myRising: ZodiacSign?
     var myName: String = "Sen"
     var myPhotoURL: String?
+    var myCartoonAvatarId: String?
     var showBondSummary = false
     var myChart: NatalChart?
 
@@ -35,7 +36,8 @@ final class ChatViewModel {
             moonSign: nil,
             risingSign: nil,
             bio: "",
-            photoURL: conversation.otherPhotoURL
+            photoURL: conversation.otherPhotoURL,
+            cartoonAvatarId: conversation.otherCartoonAvatarId
         )
     }
 
@@ -57,6 +59,7 @@ final class ChatViewModel {
                 myName = snap.displayName
             }
             myPhotoURL = snap.photoURL
+            myCartoonAvatarId = snap.cartoonAvatarId
         }
         myChart = try? await ChartService.shared.ensureOwnChart(userId: myUserId)
     }
@@ -123,6 +126,7 @@ struct ChatView: View {
                     mySeed: session.user?.id ?? "self",
                     myName: model.myName,
                     myPhotoURL: model.myPhotoURL,
+                    myCartoonAvatarId: model.myCartoonAvatarId,
                     mySun: model.mySun,
                     myMoon: model.myMoon,
                     myRising: model.myRising,
@@ -156,7 +160,7 @@ struct ChatView: View {
 
             ScrollViewReader { proxy in
                 ScrollView {
-                    LazyVStack(spacing: 10) {
+                    LazyVStack(spacing: 18) {
                         if !model.photoUnlocked {
                             Text("Gerçek fotoğraf \(PhotoGate.unlockAfterMessageCount) mesaj sonra açılır · \(model.messages.count)/\(PhotoGate.unlockAfterMessageCount)")
                                 .font(ABFont.body(12))
@@ -166,10 +170,13 @@ struct ChatView: View {
 
                         ForEach(groupedMessages, id: \.day) { group in
                             Text(group.label)
-                                .font(ABFont.body(11, weight: .semibold))
+                                .font(ABFont.body(12, weight: .semibold))
                                 .foregroundStyle(ABColor.inkMuted)
-                                .frame(maxWidth: .infinity)
+                                .padding(.horizontal, 14)
                                 .padding(.vertical, 6)
+                                .background(Capsule().fill(Color.white.opacity(0.06)))
+                                .overlay(Capsule().strokeBorder(ABColor.lavenderSoft.opacity(0.6), lineWidth: 1))
+                                .frame(maxWidth: .infinity)
 
                             ForEach(group.messages) { msg in
                                 bubble(msg)
@@ -263,15 +270,18 @@ struct ChatView: View {
     }
 
     private var header: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 12) {
             Button(action: goBack) {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(ABColor.ink)
-                    .frame(width: 44, height: 44)
+                    .foregroundStyle(ABColor.lavender)
+                    .frame(width: 40, height: 40)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Geri")
+
+            Spacer(minLength: 0)
 
             Button {
                 resignKeyboard()
@@ -281,56 +291,126 @@ struct ChatView: View {
                     PersonAvatar(
                         name: model.conversation.otherName,
                         photoURL: model.conversation.otherPhotoURL,
+                        cartoonAvatarId: model.conversation.otherCartoonAvatarId,
                         sunSign: model.conversation.otherSunSign,
                         unlocked: model.photoUnlocked,
-                        size: 32
+                        size: 44
                     )
-
-                    VStack(alignment: .leading, spacing: 1) {
+                    VStack(spacing: 1) {
                         Text(model.conversation.otherName)
-                            .font(ABFont.display(18))
+                            .font(ABFont.display(20))
                             .foregroundStyle(ABColor.ink)
                             .lineLimit(1)
                             .minimumScaleFactor(0.75)
-                        Text("Sinastri")
-                            .font(ABFont.body(11, weight: .medium))
-                            .foregroundStyle(ABColor.lavenderSoft)
+                        Text("Sinastriyi gör")
+                            .font(ABFont.body(12, weight: .medium))
+                            .foregroundStyle(ABColor.inkMuted)
                     }
-
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundStyle(ABColor.lavenderSoft)
                 }
             }
             .buttonStyle(.plain)
 
             Spacer(minLength: 0)
+
+            HStack(spacing: 6) {
+                circleIcon("phone")
+                Menu {
+                    Button("Profili Görüntüle", systemImage: "person") {
+                        resignKeyboard()
+                        showSinastri = true
+                    }
+                    Button("Sessize Al", systemImage: "bell.slash") {}
+                    Button("Engelle", systemImage: "hand.raised", role: .destructive) {}
+                } label: {
+                    circleIcon("ellipsis")
+                }
+            }
         }
-        .padding(.trailing, 16)
-        .padding(.leading, 4)
-        .background(.ultraThinMaterial.opacity(0.45))
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background {
+            Color(hex: "#0A0A0C").opacity(0.7)
+                .background(.ultraThinMaterial)
+                .ignoresSafeArea(edges: .top)
+        }
+    }
+
+    private func circleIcon(_ name: String) -> some View {
+        Image(systemName: name)
+            .font(.system(size: 15, weight: .semibold))
+            .foregroundStyle(ABColor.lavender)
+            .frame(width: 38, height: 38)
+            .background(Circle().fill(Color.white.opacity(0.06)))
+            .overlay(Circle().strokeBorder(ABColor.lavenderSoft.opacity(0.7), lineWidth: 1))
+            .shadow(color: ABColor.lavender.opacity(0.22), radius: 8)
     }
 
     private func bubble(_ msg: ChatMessage) -> some View {
         let mine = msg.senderId == session.user?.id
-        return HStack {
-            if mine { Spacer(minLength: 40) }
-            Text(msg.text)
-                .font(ABFont.body(15))
-                .foregroundStyle(ABColor.ink)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 10)
-                .background {
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .fill(mine ? ABColor.lavender.opacity(0.32) : Color.white.opacity(0.08))
-                }
-                .overlay(
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .strokeBorder(Color.white.opacity(mine ? 0.25 : 0.12), lineWidth: 1)
+        return HStack(alignment: .bottom, spacing: 10) {
+            if mine {
+                Spacer(minLength: 48)
+                bubbleBody(msg, mine: true)
+            } else {
+                PersonAvatar(
+                    name: model.conversation.otherName,
+                    photoURL: model.conversation.otherPhotoURL,
+                    cartoonAvatarId: model.conversation.otherCartoonAvatarId,
+                    sunSign: model.conversation.otherSunSign,
+                    unlocked: model.photoUnlocked,
+                    size: 40
                 )
-            if !mine { Spacer(minLength: 40) }
+                bubbleBody(msg, mine: false)
+                Spacer(minLength: 48)
+            }
         }
+        .frame(maxWidth: .infinity, alignment: mine ? .trailing : .leading)
+    }
+
+    private func bubbleBody(_ msg: ChatMessage, mine: Bool) -> some View {
+        VStack(alignment: mine ? .trailing : .leading, spacing: 6) {
+            Text(msg.text)
+                .font(ABFont.body(16))
+                .foregroundStyle(ABColor.ink)
+                .multilineTextAlignment(mine ? .trailing : .leading)
+                .fixedSize(horizontal: false, vertical: true)
+
+            HStack(spacing: 5) {
+                Text(timeString(msg.sentAt))
+                    .font(ABFont.body(11))
+                    .foregroundStyle(ABColor.inkMuted)
+                if mine {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(ABColor.lavender)
+                }
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .frame(maxWidth: 280, alignment: mine ? .trailing : .leading)
+        .background {
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(mine ? ABColor.lavender.opacity(0.18) : Color.white.opacity(0.06))
+        }
+        .overlay(
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .strokeBorder(
+                    LinearGradient(
+                        colors: [ABColor.lavenderSoft, ABColor.lavender.opacity(0.5)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1.1
+                )
+        )
+        .shadow(color: ABColor.lavender.opacity(0.22), radius: 10)
+    }
+
+    private func timeString(_ date: Date) -> String {
+        let f = DateFormatter()
+        f.dateFormat = "HH:mm"
+        return f.string(from: date)
     }
 
     private var canSend: Bool {
@@ -338,24 +418,19 @@ struct ChatView: View {
     }
 
     private var composer: some View {
-        HStack(alignment: .center, spacing: 10) {
-            ChatComposerField(text: $draft, placeholder: "Mesaj yaz…", onSubmit: sendTapped)
-                .frame(height: 36)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 10)
-                .background {
-                    RoundedRectangle(cornerRadius: 22, style: .continuous)
-                        .fill(Color.white.opacity(0.10))
-                }
-                .overlay(
-                    RoundedRectangle(cornerRadius: 22, style: .continuous)
-                        .strokeBorder(Color.white.opacity(0.28), lineWidth: 1)
-                )
+        HStack(spacing: 12) {
+            Image(systemName: "sparkle")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(ABColor.lavender)
+                .padding(.leading, 6)
+
+            ChatComposerField(text: $draft, placeholder: "Mesaj yaz...", onSubmit: sendTapped)
+                .frame(minHeight: 22, maxHeight: 72)
 
             Button(action: sendTapped) {
-                Image(systemName: model.isSending ? "hourglass" : "arrow.up")
-                    .font(.system(size: 17, weight: .bold))
-                    .foregroundStyle(canSend ? Color(hex: "#15131F") : ABColor.inkMuted.opacity(0.6))
+                Image(systemName: "paperplane.fill")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(canSend ? Color.white : ABColor.inkMuted)
                     .frame(width: 44, height: 44)
                     .background {
                         Circle().fill(
@@ -367,20 +442,33 @@ struct ChatView: View {
                                         endPoint: .bottomTrailing
                                     )
                                 )
-                                : AnyShapeStyle(Color.white.opacity(0.07))
+                                : AnyShapeStyle(Color.white.opacity(0.06))
                         )
                     }
-                    .overlay(
-                        Circle().strokeBorder(Color.white.opacity(canSend ? 0.55 : 0.12), lineWidth: 1.1)
-                    )
+                    .overlay(Circle().strokeBorder(ABColor.lavenderSoft.opacity(0.7), lineWidth: 1))
+                    .shadow(color: ABColor.lavender.opacity(canSend ? 0.28 : 0.12), radius: 8)
             }
             .buttonStyle(.plain)
             .disabled(!canSend)
         }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(Capsule(style: .continuous).fill(Color.white.opacity(0.06)))
+        .overlay(
+            Capsule(style: .continuous)
+                .strokeBorder(
+                    LinearGradient(
+                        colors: [ABColor.lavenderSoft, ABColor.lavender.opacity(0.5)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1.2
+                )
+        )
+        .shadow(color: ABColor.lavender.opacity(0.18), radius: 12)
         .padding(.horizontal, 14)
         .padding(.top, 8)
-        .padding(.bottom, 10)
-        .background(Color.black.opacity(0.35))
+        .padding(.bottom, 8)
     }
 
     private func sendTapped() {
@@ -392,6 +480,19 @@ struct ChatView: View {
             }
             if await model.send(myUserId: id, text: text) {
                 draft = ""
+                ConversationsStore.shared.upsert(
+                    ConversationSummary(
+                        id: model.conversation.id,
+                        otherUserId: model.conversation.otherUserId,
+                        otherName: model.conversation.otherName,
+                        otherPhotoURL: model.conversation.otherPhotoURL,
+                        otherCartoonAvatarId: model.conversation.otherCartoonAvatarId,
+                        otherSunSign: model.conversation.otherSunSign,
+                        lastMessage: text,
+                        lastMessageAt: Date(),
+                        unreadCount: 0
+                    )
+                )
             }
         }
     }

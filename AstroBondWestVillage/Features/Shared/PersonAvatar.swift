@@ -3,6 +3,7 @@ import SwiftUI
 struct PersonAvatar: View {
     var name: String
     var photoURL: String?
+    var cartoonAvatarId: String? = nil
     var sunSign: ZodiacSign?
     var unlocked: Bool
     var size: CGFloat = 52
@@ -18,20 +19,22 @@ struct PersonAvatar: View {
                     )
                 )
 
-            if unlocked, let photoURL, let url = URL(string: photoURL) {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image.resizable().scaledToFill()
-                    default:
-                        initials
+            Group {
+                if unlocked, let photoURL, let url = URL(string: photoURL), !photoURL.isEmpty {
+                    AsyncImage(url: url) { phase in
+                        switch phase {
+                        case .success(let image):
+                            image.resizable().scaledToFill()
+                        default:
+                            fallbackFace
+                        }
                     }
+                } else {
+                    fallbackFace
                 }
-                .frame(width: size, height: size)
-                .clipShape(Circle())
-            } else {
-                initials
             }
+            .frame(width: size, height: size)
+            .clipShape(Circle())
         }
         .frame(width: size, height: size)
         .overlay(
@@ -44,6 +47,15 @@ struct PersonAvatar: View {
                 lineWidth: 1.2
             )
         )
+    }
+
+    @ViewBuilder
+    private var fallbackFace: some View {
+        if let cartoon = CartoonAvatar.from(id: cartoonAvatarId) {
+            CartoonAvatarView(avatar: cartoon, size: size)
+        } else {
+            initials
+        }
     }
 
     private var initials: some View {

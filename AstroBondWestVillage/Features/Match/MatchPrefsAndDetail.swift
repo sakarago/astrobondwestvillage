@@ -179,6 +179,7 @@ struct MatchDetailSheet: View {
     var mySeed: String = "self"
     var myName: String = "Sen"
     var myPhotoURL: String? = nil
+    var myCartoonAvatarId: String? = nil
     let mySun: ZodiacSign?
     var myMoon: ZodiacSign? = nil
     var myRising: ZodiacSign? = nil
@@ -343,11 +344,11 @@ struct MatchDetailSheet: View {
     private var coupleHeader: some View {
         HStack(alignment: .top, spacing: 4) {
             personColumn(name: myName, sign: mySun, tint: mineTint) {
-                    PersonAvatar(name: myName, photoURL: myPhotoURL, sunSign: mySun, unlocked: true, size: 52)
+                    PersonAvatar(name: myName, photoURL: myPhotoURL, cartoonAvatarId: myCartoonAvatarId, sunSign: mySun, unlocked: true, size: 52)
             }
             bondSeal
             personColumn(name: card.displayName, sign: card.sunSign, tint: theirTint) {
-                PersonAvatar(name: card.displayName, photoURL: card.photoURL, sunSign: card.sunSign, unlocked: false, size: 52)
+                PersonAvatar(name: card.displayName, photoURL: card.photoURL, cartoonAvatarId: card.cartoonAvatarId, sunSign: card.sunSign, unlocked: false, size: 52)
             }
         }
     }
@@ -528,7 +529,9 @@ struct MatchDetailSheet: View {
                 ChartWheelView(chart: mine, overlay: theirChart)
                     .frame(maxWidth: .infinity)
                     .aspectRatio(1, contentMode: .fit)
-                    .clipped()
+                    .padding(8)
+                    .background(Color.black.opacity(0.28))
+                    .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
             } else {
                 SynastryWheelCanvas(points: points, mineColor: mineTint, theirColor: theirTint)
                     .frame(maxWidth: .infinity)

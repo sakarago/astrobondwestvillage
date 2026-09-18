@@ -6,6 +6,7 @@ struct ConversationSummary: Identifiable, Equatable, Hashable, Sendable {
     let otherUserId: String
     let otherName: String
     let otherPhotoURL: String?
+    let otherCartoonAvatarId: String?
     let otherSunSign: ZodiacSign?
     let lastMessage: String
     let lastMessageAt: Date
@@ -181,6 +182,7 @@ private struct ConversationRow: Decodable {
     let otherUserId: String
     let otherDisplayName: String
     let otherProfilePhotoURL: String?
+    let otherCartoonAvatarId: String?
     let otherSunSign: String?
 
     enum CodingKeys: String, CodingKey {
@@ -191,6 +193,7 @@ private struct ConversationRow: Decodable {
         case otherUserId = "other_user_id"
         case otherDisplayName = "other_display_name"
         case otherProfilePhotoURL = "other_profile_photo_url"
+        case otherCartoonAvatarId = "other_cartoon_avatar_id"
         case otherSunSign = "other_sun_sign"
     }
 
@@ -201,6 +204,7 @@ private struct ConversationRow: Decodable {
             otherUserId: otherUserId.lowercased(),
             otherName: otherDisplayName,
             otherPhotoURL: otherProfilePhotoURL,
+            otherCartoonAvatarId: otherCartoonAvatarId,
             otherSunSign: ZodiacSign.fromEnglishName(otherSunSign),
             lastMessage: preview.isEmpty ? "Astro Bond açıldı. İlk mesajı sen at!" : preview,
             lastMessageAt: lastMessageAt ?? .distantPast,

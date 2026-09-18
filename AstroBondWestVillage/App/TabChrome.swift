@@ -25,3 +25,16 @@ extension EnvironmentValues {
         set { self[ActiveTabKey.self] = newValue }
     }
 }
+
+private struct CompactTabBarKey: EnvironmentKey {
+    static let defaultValue: Binding<Bool>? = nil
+}
+
+extension EnvironmentValues {
+    /// Shrinks the floating tab bar while the Eşleşme wheel is spinning or
+    /// showing a reveal, matching the original Cosmic Match chrome.
+    var compactTabBar: Binding<Bool>? {
+        get { self[CompactTabBarKey.self] }
+        set { self[CompactTabBarKey.self] = newValue }
+    }
+}

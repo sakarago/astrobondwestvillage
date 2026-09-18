@@ -34,6 +34,16 @@ enum MatchIntent: String, CaseIterable, Identifiable, Codable, Sendable {
         case .friends: return "person.2.fill"
         }
     }
+
+    /// Original Cosmic Match pill copy.
+    var bondLabel: String {
+        switch self {
+        case .romantic: return "RomanticBond"
+        case .relationship: return "SexBond"
+        case .business: return "BusinessBond"
+        case .friends: return "FriendBond"
+        }
+    }
 }
 
 @MainActor

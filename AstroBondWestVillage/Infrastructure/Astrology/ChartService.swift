@@ -32,7 +32,7 @@ final class ChartService: Sendable {
                 .execute()
                 .value
             guard let row = rows.first else { return nil }
-            if row.engineVersion != Self.engineVersion, row.chartJSON.planets.count < 10 {
+            if row.engineVersion != Self.engineVersion || !Self.isFullSwissChart(row.chartJSON) {
                 return nil
             }
             return row.chartJSON
@@ -41,22 +41,20 @@ final class ChartService: Sendable {
         }
     }
 
+    /// Other users: only a stored Swiss Ephemeris chart. Never invent placements
+    /// from sun/moon/rising labels — that was a sign-level stand-in, not a birth map.
     func fetchOrSynthesize(
         userId: String,
-        sun: ZodiacSign?,
+        sun: ZodiacSign? = nil,
         moon: ZodiacSign? = nil,
         rising: ZodiacSign? = nil
     ) async -> NatalChart? {
-        if let existing = try? await fetch(userId: userId), existing.planets.count >= 7 {
-            return existing
-        }
-        guard let sun else { return nil }
-        return NatalChart.synthesized(userId: userId, sun: sun, moon: moon, rising: rising)
+        try? await fetch(userId: userId)
     }
 
     @discardableResult
     func ensureOwnChart(userId: String) async throws -> NatalChart? {
-        if let existing = try await fetch(userId: userId) {
+        if let existing = try await fetch(userId: userId), Self.isFullSwissChart(existing) {
             return existing
         }
         guard let birth = try await fetchBirthData(userId: userId) else { return nil }
@@ -175,6 +173,12 @@ final class ChartService: Sendable {
         df.timeZone = TimeZone(secondsFromGMT: 0)
         df.dateFormat = "yyyy-MM-dd"
         return df.date(from: String(s.prefix(10)))
+    }
+
+    /// A real Swiss Ephemeris natal has 10 bodies plus aspects. The old
+    /// sign-level `synthesized` helper had 10 planets and zero aspects.
+    private static func isFullSwissChart(_ chart: NatalChart) -> Bool {
+        chart.planets.count >= 10 && !chart.aspects.isEmpty
     }
 
     /// Public `charts` rows must not contain real birth date/time/place.

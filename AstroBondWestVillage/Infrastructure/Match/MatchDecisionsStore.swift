@@ -14,6 +14,7 @@ final class MatchDecisionsStore {
         var city: String?
         var sunSignRaw: String?
         var photoURL: String?
+        var cartoonAvatarId: String?
         var accepted: Bool
         var decidedAt: Date
 
@@ -87,6 +88,7 @@ final class MatchDecisionsStore {
                 city: card.city,
                 sunSignRaw: card.sunSign?.englishName,
                 photoURL: card.photoURL,
+                cartoonAvatarId: card.cartoonAvatarId,
                 accepted: accepted,
                 decidedAt: Date()
             ),

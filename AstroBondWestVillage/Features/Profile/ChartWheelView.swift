@@ -1,18 +1,18 @@
 import SwiftUI
 
-/// Original AstroBond natal wheel (Time Nomad–style):
-/// outer zodiac, house cusps + degree labels, planet glyphs with anti-collision,
-/// inner aspect web, AC/DC/MC/IC. Ascendant is always at the left.
+/// Time Nomad–style natal wheel:
+/// outer zodiac band (not a pie from the center), house cusps + degree labels,
+/// planet glyphs with anti-collision, inner aspect web, AC/DC/MC/IC.
+/// Ascendant is always at the left.
 struct ChartWheelView: View {
     let chart: NatalChart
-    /// Optional second chart — drawn as an outer planet ring (synastry).
     var overlay: NatalChart? = nil
     var onPlanetTap: ((PlanetPosition) -> Void)? = nil
 
     @State private var animationProgress: Double = 0
 
-    private var topAspects: [AspectEntity] {
-        Array(chart.aspects.sorted { $0.strength > $1.strength }.prefix(14))
+    private var webAspects: [AspectEntity] {
+        chart.aspects.sorted { $0.strength > $1.strength }
     }
 
     private var laidOutPlanets: [LaidOutPlanet] {
@@ -24,35 +24,33 @@ struct ChartWheelView: View {
     }
 
     var body: some View {
-        Color.clear
-            .aspectRatio(1, contentMode: .fit)
-            .overlay {
-                GeometryReader { geo in
+        GeometryReader { geo in
             let size = min(geo.size.width, geo.size.height)
             let c = CGPoint(x: size / 2, y: size / 2)
-            let R = size / 2 - 4
+            let rimInset = max(18.0, size * 0.055)
+            let R = size / 2 - rimInset
             let asc = chart.ascendant.longitude
 
             let c1 = R
-            let c2 = R * 0.78
-            let c3 = R * 0.52
-            let c4 = R * 0.30
+            let c2 = R * 0.80
+            let c3 = R * 0.54
+            let c4 = R * 0.32
 
             let zodiacMidR = (c1 + c2) / 2
-            let cuspDegR = c1 * 0.965
-            let planetBaseR = overlay == nil ? (c2 + c3) / 2 : (c3 + c4) / 2 + (c2 - c3) * 0.08
-            let overlayPlanetR = (c2 + c3) / 2 + (c2 - c3) * 0.18
+            let cuspDegR = c1 * 0.935
+            let planetBaseR = overlay == nil ? (c2 + c3) / 2 : (c3 + c4) / 2 + (c2 - c3) * 0.10
+            let overlayPlanetR = (c2 + c3) / 2 + (c2 - c3) * 0.16
             let romanR = (c3 + c4) / 2
-            let axisLabelR = c3 * 0.92
-            let aspectR = c4 * 0.92
+            let axisLabelR = c3 * 0.90
+            let aspectR = c4 * 0.90
 
-            let signFont = size * 0.048
-            let degFont = size * 0.026
+            let signFont = size * 0.046
+            let degFont = size * 0.024
             let planetFont = size * 0.050
-            let planetDegFont = size * 0.024
-            let romanFont = size * 0.032
-            let axisFont = size * 0.028
-            let aspectFont = size * 0.018
+            let planetDegFont = size * 0.022
+            let romanFont = size * 0.030
+            let axisFont = size * 0.026
+            let aspectFont = size * 0.016
 
             ZStack {
                 Canvas { ctx, _ in
@@ -63,7 +61,7 @@ struct ChartWheelView: View {
                     )
                 }
                 .frame(width: size, height: size)
-                .opacity(0.45 + 0.55 * animationProgress)
+                .opacity(0.55 + 0.45 * animationProgress)
 
                 ForEach(ZodiacSign.allCases, id: \.self) { sign in
                     let mid = sign.startDegree + 15
@@ -71,6 +69,7 @@ struct ChartWheelView: View {
                     Text(sign.lineGlyph)
                         .font(.system(size: signFont, weight: .medium))
                         .foregroundStyle(signColor(sign))
+                        .shadow(color: .black.opacity(0.55), radius: 2)
                         .position(x: pos.x, y: pos.y)
                 }
 
@@ -78,9 +77,9 @@ struct ChartWheelView: View {
                     let pos = pt(house.cuspLongitude, cuspDegR, center: c, asc: asc)
                     Text(degreeLabel(house.cuspLongitude))
                         .font(.system(size: degFont, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.72))
-                        .padding(.horizontal, 2)
-                        .background(Capsule().fill(Color(hex: "#12131A").opacity(0.75)))
+                        .foregroundStyle(.white.opacity(0.82))
+                        .padding(.horizontal, 2.5)
+                        .background(Capsule().fill(Color(hex: "#0E0F14").opacity(0.82)))
                         .position(x: pos.x, y: pos.y)
                 }
 
@@ -113,14 +112,14 @@ struct ChartWheelView: View {
                 }
 
                 ForEach(Array(chart.houses.enumerated()), id: \.offset) { idx, house in
-                    let next = chart.houses[(idx + 1) % chart.houses.count]
+                    let next = chart.houses[(idx + 1) % max(chart.houses.count, 1)]
                     let span = ((next.cuspLongitude - house.cuspLongitude) + 360)
                         .truncatingRemainder(dividingBy: 360)
                     let midL = house.cuspLongitude + span / 2
                     let pos = pt(midL, romanR, center: c, asc: asc)
                     Text(house.romanNumeral)
                         .font(.system(size: romanFont, weight: .semibold, design: .monospaced))
-                        .foregroundStyle(.white.opacity(0.40))
+                        .foregroundStyle(.white.opacity(0.48))
                         .position(x: pos.x, y: pos.y)
                 }
 
@@ -129,15 +128,16 @@ struct ChartWheelView: View {
                         let pos = pt(house.cuspLongitude, axisLabelR, center: c, asc: asc)
                         Text(axis)
                             .font(.system(size: axisFont, weight: .bold, design: .monospaced))
-                            .foregroundStyle(Color(hex: "#E8ECF2"))
+                            .foregroundStyle(Color(hex: "#F2F4F8"))
                             .padding(.horizontal, 4)
                             .padding(.vertical, 2)
-                            .background(Capsule().fill(Color(hex: "#16171D").opacity(0.9)))
+                            .background(Capsule().fill(Color(hex: "#12131A").opacity(0.92)))
+                            .overlay(Capsule().stroke(Color.white.opacity(0.22), lineWidth: 0.6))
                             .position(x: pos.x, y: pos.y)
                     }
                 }
 
-                ForEach(Array(topAspects.prefix(6).enumerated()), id: \.offset) { _, aspect in
+                ForEach(Array(webAspects.prefix(8).enumerated()), id: \.offset) { _, aspect in
                     if let p1 = chart.planet(aspect.planet1),
                        let p2 = chart.planet(aspect.planet2) {
                         let a = pt(p1.longitude, aspectR, center: c, asc: asc)
@@ -147,19 +147,19 @@ struct ChartWheelView: View {
                             .font(.system(size: aspectFont, weight: .bold))
                             .foregroundStyle(aspectColor(aspect.type))
                             .padding(1.5)
-                            .background(Circle().fill(Color(hex: "#16171D").opacity(0.9)))
+                            .background(Circle().fill(Color(hex: "#12131A").opacity(0.92)))
                             .position(x: mid.x, y: mid.y)
                             .opacity(animationProgress)
                     }
                 }
             }
             .frame(width: size, height: size)
-            .clipped()
-                }
-            }
-            .onAppear {
-                withAnimation(.easeInOut(duration: 1.2)) { animationProgress = 1.0 }
-            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .aspectRatio(1, contentMode: .fit)
+        .onAppear {
+            withAnimation(.easeInOut(duration: 1.05)) { animationProgress = 1.0 }
+        }
     }
 
     @ViewBuilder
@@ -174,9 +174,9 @@ struct ChartWheelView: View {
         planetDegFont: CGFloat,
         tint: Color?
     ) -> some View {
-        let r = baseR + item.radiusOffset * band * 0.35
+        let r = baseR + item.radiusOffset * band * 0.32
         let gp = pt(item.displayLongitude, r, center: c, asc: asc)
-        let dp = pt(item.displayLongitude, r - size * 0.042, center: c, asc: asc)
+        let dp = pt(item.displayLongitude, r - size * 0.040, center: c, asc: asc)
         Group {
             if let onPlanetTap {
                 Button { onPlanetTap(item.planet) } label: {
@@ -192,7 +192,7 @@ struct ChartWheelView: View {
 
         Text(degreeLabel(item.planet.longitude))
             .font(.system(size: planetDegFont, weight: .semibold, design: .rounded))
-            .foregroundStyle((tint ?? .white).opacity(0.65))
+            .foregroundStyle((tint ?? .white).opacity(0.72))
             .position(x: dp.x, y: dp.y)
             .opacity(animationProgress)
     }
@@ -202,68 +202,80 @@ struct ChartWheelView: View {
         c1: Double, c2: Double, c3: Double, c4: Double,
         aspectR: Double
     ) {
+        ctx.fill(Path(ellipseIn: circleRect(c, c1)), with: .color(Color(hex: "#0C0D12").opacity(0.94)))
+
         for sign in ZodiacSign.allCases {
             let start = sign.startDegree
             var path = Path()
-            path.move(to: c)
-            for step in 0...12 {
-                let lon = start + Double(step) * 2.5
-                let p = pt(lon, c1, center: c, asc: asc)
-                path.addLine(to: p)
+            let outer0 = pt(start, c1, center: c, asc: asc)
+            path.move(to: outer0)
+            for step in 1...16 {
+                path.addLine(to: pt(start + Double(step) * (30.0 / 16.0), c1, center: c, asc: asc))
+            }
+            for step in stride(from: 16, through: 0, by: -1) {
+                path.addLine(to: pt(start + Double(step) * (30.0 / 16.0), c2, center: c, asc: asc))
             }
             path.closeSubpath()
-            ctx.fill(path, with: .color(signColor(sign).opacity(0.14)))
+            ctx.fill(path, with: .color(signColor(sign).opacity(0.22)))
+            ctx.stroke(path, with: .color(signColor(sign).opacity(0.28)), lineWidth: 0.4)
         }
 
-        let ring = Color.white.opacity(0.55)
-        let ringSoft = Color.white.opacity(0.22)
+        let ring = Color.white.opacity(0.78)
+        let ringMid = Color.white.opacity(0.42)
+        let ringSoft = Color.white.opacity(0.28)
 
-        strokeCircle(ctx, c, c1, ring, 1.2)
-        strokeCircle(ctx, c, c2, ring, 1.0)
-        strokeCircle(ctx, c, c3, ringSoft, 0.9)
-        strokeCircle(ctx, c, c4, ringSoft, 0.9)
+        strokeCircle(ctx, c, c1, ring, 1.6)
+        strokeCircle(ctx, c, c2, ring, 1.25)
+        strokeCircle(ctx, c, c3, ringMid, 1.05)
+        strokeCircle(ctx, c, c4, ringMid, 1.05)
+        strokeCircle(ctx, c, aspectR * 0.18, ringSoft, 0.7)
 
         for i in 0..<12 {
             let lon = Double(i) * 30
-            let p1 = pt(lon, c1, center: c, asc: asc)
-            let p2 = pt(lon, c2, center: c, asc: asc)
-            line(ctx, p1, p2, ringSoft, 0.6)
+            line(ctx, pt(lon, c1, center: c, asc: asc), pt(lon, c2, center: c, asc: asc), ring, 1.05)
         }
 
         for d in 0..<360 {
-            let len: Double = d % 10 == 0 ? (c1 - c2) * 0.22
-                : (d % 5 == 0 ? (c1 - c2) * 0.14 : (c1 - c2) * 0.08)
-            let p1 = pt(Double(d), c1, center: c, asc: asc)
-            let p2 = pt(Double(d), c1 - len, center: c, asc: asc)
-            line(ctx, p1, p2, d % 10 == 0 ? ring : ringSoft, d % 10 == 0 ? 0.65 : 0.35)
+            let major = d % 10 == 0
+            let mid = d % 5 == 0
+            let len: Double = major ? (c1 - c2) * 0.38 : (mid ? (c1 - c2) * 0.22 : (c1 - c2) * 0.12)
+            line(
+                ctx,
+                pt(Double(d), c1, center: c, asc: asc),
+                pt(Double(d), c1 - len, center: c, asc: asc),
+                major ? ring : ringSoft,
+                major ? 0.9 : (mid ? 0.55 : 0.35)
+            )
         }
 
         for house in chart.houses {
             let angular = [1, 4, 7, 10].contains(house.number)
             let outer = pt(house.cuspLongitude, c1, center: c, asc: asc)
-            if angular {
-                line(ctx, outer, c, ring, 1.15)
-            } else {
-                let inner = pt(house.cuspLongitude, c4, center: c, asc: asc)
-                line(ctx, outer, inner, ringSoft, 0.55)
-            }
+            let inner = pt(house.cuspLongitude, angular ? c4 * 0.12 : c4, center: c, asc: asc)
+            line(ctx, outer, inner, angular ? Color.white.opacity(0.88) : ringSoft, angular ? 1.55 : 0.85)
         }
 
-        for aspect in topAspects {
+        for planet in chart.planets {
+            let outer = pt(planet.longitude, c3, center: c, asc: asc)
+            let inner = pt(planet.longitude, c4, center: c, asc: asc)
+            line(ctx, outer, inner, planetColor(planet.planet).opacity(0.55), 0.7)
+        }
+
+        for aspect in webAspects {
             guard let p1 = chart.planet(aspect.planet1),
                   let p2 = chart.planet(aspect.planet2) else { continue }
             let a = pt(p1.longitude, aspectR, center: c, asc: asc)
             let b = pt(p2.longitude, aspectR, center: c, asc: asc)
             let (baseWidth, dash) = aspectStroke(aspect.type)
-            let lw = baseWidth * (0.55 + 0.45 * aspect.strength)
-            let color = aspectColor(aspect.type).opacity(0.30 + 0.45 * aspect.strength)
+            let lw = max(0.85, baseWidth * (0.75 + 0.55 * aspect.strength))
+            let color = aspectColor(aspect.type).opacity(0.42 + 0.50 * aspect.strength)
             var path = Path()
             path.move(to: a)
             path.addLine(to: b)
             ctx.stroke(path, with: .color(color), style: StrokeStyle(lineWidth: lw, dash: dash))
         }
 
-        ctx.fill(Path(ellipseIn: circleRect(c, 2.5)), with: .color(.white.opacity(0.7)))
+        ctx.fill(Path(ellipseIn: circleRect(c, 3.2)), with: .color(.white.opacity(0.85)))
     }
 
     private struct LaidOutPlanet {
@@ -305,7 +317,7 @@ struct ChartWheelView: View {
         return Text(planet.glyph)
             .font(.system(size: size, weight: .medium))
             .foregroundStyle(color)
-            .shadow(color: color.opacity(0.45), radius: 3)
+            .shadow(color: color.opacity(0.55), radius: 3)
     }
 
     private func pt(_ L: Double, _ r: Double, center c: CGPoint, asc: Double) -> CGPoint {
@@ -375,19 +387,19 @@ struct ChartWheelView: View {
 
     private func aspectColor(_ type: AspectType) -> Color {
         switch type {
-        case .trine, .sextile: return Color(hex: "#5C8CE0")
-        case .square, .opposition: return Color(hex: "#E0655C")
-        case .conjunction: return Color(hex: "#9AA0AB")
+        case .trine, .sextile: return Color(hex: "#6EA4FF")
+        case .square, .opposition: return Color(hex: "#FF6E66")
+        case .conjunction: return Color(hex: "#D4D8E0")
         }
     }
 
     private func aspectStroke(_ type: AspectType) -> (CGFloat, [CGFloat]) {
         switch type {
-        case .opposition: return (1.1, [])
-        case .trine: return (1.0, [])
-        case .square: return (0.9, [])
-        case .sextile: return (0.8, [3, 3])
-        case .conjunction: return (0.7, [1.5, 2.5])
+        case .opposition: return (1.45, [])
+        case .trine: return (1.30, [])
+        case .square: return (1.20, [])
+        case .sextile: return (1.00, [3.5, 2.8])
+        case .conjunction: return (0.95, [1.6, 2.2])
         }
     }
 }
