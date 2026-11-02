@@ -112,6 +112,7 @@ struct ChatView: View {
     @State private var keyboardPad: CGFloat = 0
     @State private var isComposerFocused = false
     @State private var showSinastri = false
+    @State private var showQuestions = false
 
     init(conversation: ConversationSummary, onBack: (() -> Void)? = nil) {
         self.onBack = onBack
@@ -142,6 +143,11 @@ struct ChatView: View {
         .navigationBarBackButtonHidden(true)
         .toolbar(.hidden, for: .navigationBar)
         .toolbar(.hidden, for: .tabBar)
+        .sheet(isPresented: $showQuestions) {
+            QuestionDiscoverSheet(userId: session.user?.id ?? "self") { question in
+                send(question)
+            }
+        }
         .task {
             hideTabBar?.wrappedValue = true
             if let id = session.user?.id {
@@ -421,10 +427,20 @@ struct ChatView: View {
 
     private var composer: some View {
         HStack(spacing: 12) {
-            Image(systemName: "sparkle")
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(ABColor.lavender)
-                .padding(.leading, 6)
+            Button {
+                resignKeyboard()
+                showQuestions = true
+            } label: {
+                Image(systemName: "sparkle")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(ABColor.lavenderSoft)
+                    .frame(width: 40, height: 40)
+                    .background(Circle().fill(Color.white.opacity(0.08)))
+                    .overlay(Circle().strokeBorder(ABColor.lavenderSoft.opacity(0.8), lineWidth: 1.2))
+                    .shadow(color: ABColor.lavender.opacity(0.4), radius: 8)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Soru keşfet")
 
             ChatComposerField(
                 text: $draft,
@@ -481,13 +497,17 @@ struct ChatView: View {
 
     private func sendTapped() {
         let text = draft
+        send(text) { draft = "" }
+    }
+
+    private func send(_ text: String, onSuccess: @escaping () -> Void = {}) {
         Task {
             guard let id = session.user?.id else {
                 model.error = "Oturum bulunamadı."
                 return
             }
             if await model.send(myUserId: id, text: text) {
-                draft = ""
+                onSuccess()
                 ConversationsStore.shared.upsert(
                     ConversationSummary(
                         id: model.conversation.id,
