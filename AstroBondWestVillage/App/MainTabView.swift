@@ -100,6 +100,7 @@ struct WestVillageTabBar: View {
         )
         .shadow(color: Color.black.opacity(0.28), radius: 18, y: 10)
         .padding(.horizontal, 28)
-        .padding(.bottom, 10)
+        .safeAreaPadding(.bottom)
+        .padding(.bottom, 14)
     }
 }

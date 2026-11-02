@@ -11,8 +11,8 @@ final class OnboardingViewModel {
     var timeKnown = false
     var hour = 12
     var minute = 0
-    var city: CityOption = CityOption.presets[0]
-    var district: District = CityOption.presets[0].districts[0]
+    var city: CityOption = CityOption.defaultCity
+    var district: District = CityOption.defaultCity.districts[0]
     var step = 0
     var isSaving = false
     var errorMessage: String?
@@ -187,30 +187,7 @@ struct OnboardingFlowView: View {
                     .tint(ABColor.lavenderSoft)
                 }
 
-                Text("ŞEHİR")
-                    .font(ABFont.label(12))
-                    .foregroundStyle(ABColor.inkMuted)
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(CityOption.presets) { city in
-                            chip("\(city.name)", selected: model.city == city) {
-                                model.selectCity(city)
-                            }
-                            .frame(width: 130)
-                        }
-                    }
-                }
-
-                Text("SEMT / MAHALLE")
-                    .font(ABFont.label(12))
-                    .foregroundStyle(ABColor.inkMuted)
-                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
-                    ForEach(model.city.districts) { d in
-                        chip(d.name, selected: model.district.id == d.id) {
-                            model.district = d
-                        }
-                    }
-                }
+                BirthPlacePicker(city: $model.city, district: $model.district)
             }
             .padding(22)
             .crystalPlate(cornerRadius: 28)

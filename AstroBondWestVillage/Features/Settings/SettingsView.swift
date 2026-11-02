@@ -206,8 +206,8 @@ private struct EditProfileSettingsView: View {
     @State private var firstName = ""
     @State private var lastName = ""
     @State private var bio = ""
-    @State private var city: CityOption = CityOption.presets[0]
-    @State private var district: District = CityOption.presets[0].districts[0]
+    @State private var city: CityOption = CityOption.defaultCity
+    @State private var district: District = CityOption.defaultCity.districts[0]
     @State private var birthDate = Calendar.current.date(byAdding: .year, value: -25, to: Date()) ?? Date()
     @State private var cartoonAvatar: CartoonAvatar?
     @State private var isSaving = false
@@ -241,28 +241,8 @@ private struct EditProfileSettingsView: View {
                             .foregroundStyle(ABColor.ink)
                             .padding(.vertical, 8)
                         Rectangle().fill(Color.white.opacity(0.08)).frame(height: 1)
-                        VStack(alignment: .leading, spacing: 10) {
-                            Text("Doğum Yeri").font(ABFont.body(12, weight: .semibold)).foregroundStyle(ABColor.inkMuted)
-                            HStack(spacing: 10) {
-                                Menu {
-                                    ForEach(CityOption.presets) { c in
-                                        Button(c.name) {
-                                            city = c
-                                            district = c.districts.first ?? district
-                                        }
-                                    }
-                                } label: { menuChip(city.name) }
-
-                                Menu {
-                                    ForEach(city.districts) { d in
-                                        Button(d.name) { district = d }
-                                    }
-                                } label: { menuChip(district.name) }
-
-                                Spacer(minLength: 0)
-                            }
-                        }
-                        .padding(.vertical, 8)
+                        BirthPlacePicker(city: $city, district: $district, compact: true)
+                            .padding(.vertical, 8)
                     }
 
                     settingsInner {
@@ -314,9 +294,9 @@ private struct EditProfileSettingsView: View {
 
         // profiles.city is the metropolitan city; birth_data.city (owner-only)
         // is the neighbourhood/district — reverse-map both into the picker.
-        if let districtName = snapshot.district, let owningCity = CityOption.city(containingDistrictNamed: districtName) {
+        if let owningCity = CityOption.city(containingDistrictNamed: snapshot.district ?? "", metropolitan: snapshot.city) {
             city = owningCity
-            district = owningCity.districts.first(where: { $0.name == districtName }) ?? owningCity.districts[0]
+            district = owningCity.districts.first(where: { $0.name == snapshot.district }) ?? owningCity.districts[0]
         } else if let cityName = snapshot.city, let match = CityOption.presets.first(where: { $0.name == cityName }) {
             city = match
             district = match.districts.first ?? district
@@ -353,16 +333,6 @@ private struct EditProfileSettingsView: View {
         }
     }
 
-    private func menuChip(_ text: String) -> some View {
-        HStack(spacing: 6) {
-            Text(text).font(ABFont.body(15)).foregroundStyle(ABColor.ink)
-            Image(systemName: "chevron.down").font(.system(size: 10, weight: .semibold)).foregroundStyle(ABColor.inkMuted)
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .crystalPlate(cornerRadius: 14)
-    }
-
     private func field(_ title: String, _ text: Binding<String>) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title).font(ABFont.body(12, weight: .semibold)).foregroundStyle(ABColor.inkMuted)
@@ -389,7 +359,7 @@ private struct PremiumSettingsView: View {
                 Text("Premium")
                     .font(ABFont.display(28))
                     .foregroundStyle(ABColor.ink)
-                Text("West Village V1’de satın alma henüz açık değil. Günlük eşleşme kotası ve mesaj limiti ücretsiz planda çalışır.")
+                Text("Bu sürümde satın alma henüz açık değil. Günlük eşleşme kotası ve mesaj limiti ücretsiz planda çalışır.")
                     .font(ABFont.body(15))
                     .foregroundStyle(ABColor.inkMuted)
                 Spacer()
@@ -466,7 +436,7 @@ private struct HelpCenterView: View {
     private let faqs: [(String, String)] = [
         ("Günde kaç eşleşme alırım?", "Ücretsiz planda günde yaklaşık 3 yeni eşleşme hakkı vardır. Kota sunucu tarafında da doğrulanır."),
         ("Fotoğraf ne zaman görünür?", "Sohbette toplam \(PhotoGate.unlockAfterMessageCount) mesajdan sonra gerçek profil fotoğrafı açılır."),
-        ("Doğum haritam doğru mu?", "V1 yaklaşık Güneş burcu kullanır. Tam ephemeris haritası sonraki sürümde gelecek."),
+        ("Doğum haritam doğru mu?", "Haritan doğum tarih, saat ve yerinden hesaplanır. Gezegenler, evler ve açılar gerçek gök konumlarına dayanır."),
         ("Hesabımı nasıl silerim?", "Ayarlar → Hesabı Sil. Bu işlem geri alınamaz.")
     ]
 
@@ -502,10 +472,10 @@ private struct AboutView: View {
                 Text("AstroBond")
                     .font(ABFont.display(28))
                     .foregroundStyle(ABColor.ink)
-                Text("West Village")
+                Text("Yeni arayüz")
                     .font(ABFont.body(16, weight: .semibold))
                     .foregroundStyle(ABColor.lavenderSoft)
-                Text("Astroloji temelli bağ keşfi. Yeni arayüz, aynı ürün ruhu.")
+                Text("Astroloji temelli bağ keşfi. Yeni görünüm, aynı ürün ruhu.")
                     .font(ABFont.body(15))
                     .foregroundStyle(ABColor.inkMuted)
                 Spacer()

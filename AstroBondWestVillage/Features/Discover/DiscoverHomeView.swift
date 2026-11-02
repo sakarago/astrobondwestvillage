@@ -25,7 +25,7 @@ struct DiscoverHomeView: View {
         .init(
             eyebrow: "HARİTA",
             title: "Güneş, Ay, Yükselen",
-            body: "Profilinde büyük üçlü ve çember/tablo görünümü. Daha derin ephemeris yolda.",
+            body: "Profilinde Güneş, Ay, Yükselen ve ayrıntılı doğum haritan seni bekler.",
             icon: "sparkles"
         ),
         .init(
@@ -41,9 +41,9 @@ struct DiscoverHomeView: View {
             icon: "moon.stars"
         ),
         .init(
-            eyebrow: "WEST VILLAGE",
+            eyebrow: "YENİ YÜZ",
             title: "Yeni yüzey",
-            body: "Crystal cam, kozmik derinlik, aynı Supabase kalbi. Eski arayüz değil — yeni ürün gövdesi.",
+            body: "Kristal cam, kozmik derinlik, aynı ürün ruhu. Eski arayüz değil — yeni bir gövde.",
             icon: "building.columns"
         )
     ]

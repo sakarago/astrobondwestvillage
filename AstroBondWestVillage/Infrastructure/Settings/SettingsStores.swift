@@ -28,9 +28,9 @@ final class NotificationPrefsStore {
 }
 
 enum AppLanguage: String, CaseIterable, Identifiable {
-    case tr, en
+    case tr
     var id: String { rawValue }
-    var displayName: String { self == .tr ? "Türkçe" : "English" }
+    var displayName: String { "Türkçe" }
 }
 
 @MainActor

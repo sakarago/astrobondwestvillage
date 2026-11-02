@@ -110,6 +110,7 @@ struct ChatView: View {
     @State private var model: ChatViewModel
     @State private var draft = ""
     @State private var keyboardPad: CGFloat = 0
+    @State private var isComposerFocused = false
     @State private var showSinastri = false
 
     init(conversation: ConversationSummary, onBack: (() -> Void)? = nil) {
@@ -188,8 +189,9 @@ struct ChatView: View {
                     .padding(.vertical, 12)
                     .frame(maxWidth: .infinity)
                     .contentShape(Rectangle())
-                    .onTapGesture { resignKeyboard() }
                 }
+                .scrollDismissesKeyboard(.interactively)
+                .simultaneousGesture(TapGesture().onEnded { resignKeyboard() })
                 .onChange(of: model.messages.count) { _, _ in
                     if let last = model.messages.last?.id {
                         withAnimation { proxy.scrollTo(last, anchor: .bottom) }
@@ -206,10 +208,10 @@ struct ChatView: View {
             }
 
             composer
+                .padding(.bottom, keyboardPad)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .padding(.bottom, keyboardPad)
-        .ignoresSafeArea(.keyboard)
+        .ignoresSafeArea(.keyboard, edges: .bottom)
         .background {
             CosmicBackdrop()
                 .ignoresSafeArea(.container)
@@ -424,13 +426,18 @@ struct ChatView: View {
                 .foregroundStyle(ABColor.lavender)
                 .padding(.leading, 6)
 
-            ChatComposerField(text: $draft, placeholder: "Mesaj yaz...", onSubmit: sendTapped)
-                .frame(minHeight: 22, maxHeight: 72)
+            ChatComposerField(
+                text: $draft,
+                placeholder: "Mesaj yaz...",
+                isFocused: $isComposerFocused,
+                onSubmit: sendTapped
+            )
+            .frame(minHeight: 22, maxHeight: 72)
 
-            Button(action: sendTapped) {
-                Image(systemName: "paperplane.fill")
+            Button(action: canSend ? sendTapped : resignKeyboard) {
+                Image(systemName: canSend ? "paperplane.fill" : "chevron.down")
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(canSend ? Color.white : ABColor.inkMuted)
+                    .foregroundStyle(canSend || isComposerFocused ? Color.white : ABColor.inkMuted)
                     .frame(width: 44, height: 44)
                     .background {
                         Circle().fill(
@@ -442,14 +449,15 @@ struct ChatView: View {
                                         endPoint: .bottomTrailing
                                     )
                                 )
-                                : AnyShapeStyle(Color.white.opacity(0.06))
+                                : AnyShapeStyle(Color.white.opacity(isComposerFocused ? 0.12 : 0.06))
                         )
                     }
                     .overlay(Circle().strokeBorder(ABColor.lavenderSoft.opacity(0.7), lineWidth: 1))
                     .shadow(color: ABColor.lavender.opacity(canSend ? 0.28 : 0.12), radius: 8)
             }
             .buttonStyle(.plain)
-            .disabled(!canSend)
+            .disabled(!canSend && !isComposerFocused)
+            .accessibilityLabel(canSend ? "Gönder" : "Klavye kapat")
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
@@ -504,10 +512,11 @@ struct ChatView: View {
 private struct ChatComposerField: UIViewRepresentable {
     @Binding var text: String
     var placeholder: String
+    @Binding var isFocused: Bool
     var onSubmit: () -> Void
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(text: $text, onSubmit: onSubmit)
+        Coordinator(text: $text, isFocused: $isFocused, onSubmit: onSubmit)
     }
 
     func makeUIView(context: Context) -> UITextField {
@@ -534,6 +543,7 @@ private struct ChatComposerField: UIViewRepresentable {
 
     func updateUIView(_ field: UITextField, context: Context) {
         context.coordinator.text = $text
+        context.coordinator.isFocused = $isFocused
         context.coordinator.onSubmit = onSubmit
         if field.text != text {
             field.text = text
@@ -542,10 +552,12 @@ private struct ChatComposerField: UIViewRepresentable {
 
     final class Coordinator: NSObject, UITextFieldDelegate {
         var text: Binding<String>
+        var isFocused: Binding<Bool>
         var onSubmit: () -> Void
 
-        init(text: Binding<String>, onSubmit: @escaping () -> Void) {
+        init(text: Binding<String>, isFocused: Binding<Bool>, onSubmit: @escaping () -> Void) {
             self.text = text
+            self.isFocused = isFocused
             self.onSubmit = onSubmit
         }
 
@@ -553,7 +565,20 @@ private struct ChatComposerField: UIViewRepresentable {
             text.wrappedValue = field.text ?? ""
         }
 
+        func textFieldDidBeginEditing(_ textField: UITextField) {
+            isFocused.wrappedValue = true
+        }
+
+        func textFieldDidEndEditing(_ textField: UITextField) {
+            isFocused.wrappedValue = false
+        }
+
         func textFieldShouldReturn(_ textField: UITextField) -> Bool {
+            let trimmed = (textField.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.isEmpty {
+                textField.resignFirstResponder()
+                return true
+            }
             onSubmit()
             return false
         }

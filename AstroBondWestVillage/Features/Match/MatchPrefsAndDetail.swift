@@ -456,7 +456,7 @@ struct MatchDetailSheet: View {
 
     private var bondProfileSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            sectionHeader(title: "Astro Bond Profili", subtitle: "Dört boyutta bağınız")
+            sectionHeader(title: "Astro Bağ Profili", subtitle: "Dört boyutta bağınız")
             LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 14) {
                 ForEach(BondIconKind.allCases) { kind in
                     dimensionCard(kind)

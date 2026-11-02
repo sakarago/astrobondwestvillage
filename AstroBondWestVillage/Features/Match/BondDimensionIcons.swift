@@ -11,10 +11,10 @@ enum BondIconKind: CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .love: return "LOVE BOND"
-        case .sex: return "SEX BOND"
-        case .mind: return "MIND BOND"
-        case .trust: return "TRUST BOND"
+        case .love: return "AŞK BAĞI"
+        case .sex: return "TUTKU BAĞI"
+        case .mind: return "ZİHİN BAĞI"
+        case .trust: return "GÜVEN BAĞI"
         }
     }
 

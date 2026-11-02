@@ -35,7 +35,7 @@ enum MatchIntent: String, CaseIterable, Identifiable, Codable, Sendable {
         }
     }
 
-    /// Original Cosmic Match pill copy.
+    /// Match-home pill copy — English product names, as on the Eşleşme mock.
     var bondLabel: String {
         switch self {
         case .romantic: return "RomanticBond"

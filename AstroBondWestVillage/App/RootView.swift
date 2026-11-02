@@ -20,8 +20,10 @@ struct RootView: View {
                 MainTabView()
             }
         }
+        .environment(\.locale, Locale(identifier: "tr_TR"))
         .animation(.easeInOut(duration: 0.28), value: session.phase)
         .task {
+            AppLanguageStore.shared.language = .tr
             await session.bootstrap()
         }
     }

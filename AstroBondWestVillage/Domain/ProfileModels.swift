@@ -9,7 +9,7 @@ enum Gender: String, CaseIterable, Identifiable, Codable, Sendable {
         switch self {
         case .woman: return "Kadın"
         case .man: return "Erkek"
-        case .nonBinary: return "Non-binary"
+        case .nonBinary: return "İkili olmayan"
         case .other: return "Diğer"
         case .preferNotSay: return "Belirtmek istemiyorum"
         }
@@ -272,49 +272,16 @@ struct CityOption: Identifiable, Hashable, Sendable {
     static func == (lhs: CityOption, rhs: CityOption) -> Bool { lhs.id == rhs.id }
     func hash(into hasher: inout Hasher) { hasher.combine(id) }
 
-    private static func d(_ name: String, _ lat: Double, _ lon: Double) -> District {
-        District(id: name, name: name, latitude: lat, longitude: lon)
+    static func d(_ cityId: String, _ name: String, _ lat: Double, _ lon: Double) -> District {
+        District(id: "\(cityId)|\(name)", name: name, latitude: lat, longitude: lon)
     }
 
-    static let presets: [CityOption] = [
-        .init(id: "istanbul", name: "İstanbul", country: "Türkiye", utcOffset: 3, districts: [
-            d("Adalar", 40.8747, 29.0894), d("Arnavutköy", 41.1841, 28.7405), d("Ataşehir", 40.9927, 29.1244),
-            d("Avcılar", 40.9795, 28.7214), d("Bağcılar", 41.0344, 28.8564), d("Bahçelievler", 41.0020, 28.8598),
-            d("Bakırköy", 40.9780, 28.8721), d("Başakşehir", 41.0931, 28.8020), d("Bayrampaşa", 41.0490, 28.9025),
-            d("Beşiktaş", 41.0430, 29.0094), d("Beykoz", 41.1342, 29.0922), d("Beylikdüzü", 40.9820, 28.6391),
-            d("Beyoğlu", 41.0369, 28.9850), d("Büyükçekmece", 41.0201, 28.5850), d("Çekmeköy", 41.0323, 29.1764),
-            d("Esenler", 41.0433, 28.8767), d("Esenyurt", 41.0330, 28.6753), d("Eyüpsultan", 41.0477, 28.9338),
-            d("Fatih", 41.0186, 28.9647), d("Gaziosmanpaşa", 41.0750, 28.9126), d("Kadıköy", 40.9917, 29.0277),
-            d("Kağıthane", 41.0812, 28.9720), d("Kartal", 40.8880, 29.1897), d("Küçükçekmece", 40.9951, 28.7784),
-            d("Maltepe", 40.9351, 29.1307), d("Pendik", 40.8760, 29.2330), d("Sancaktepe", 41.0024, 29.2298),
-            d("Sarıyer", 41.1690, 29.0493), d("Şişli", 41.0605, 28.9872), d("Ümraniye", 41.0164, 29.1248),
-            d("Üsküdar", 41.0230, 29.0151), d("Zeytinburnu", 40.9897, 28.9005)
-        ]),
-        .init(id: "ankara", name: "Ankara", country: "Türkiye", utcOffset: 3, districts: [
-            d("Çankaya", 39.9179, 32.8627), d("Keçiören", 39.9739, 32.8663), d("Yenimahalle", 39.9675, 32.7934),
-            d("Mamak", 39.9208, 32.9223), d("Etimesgut", 39.9497, 32.6526)
-        ]),
-        .init(id: "izmir", name: "İzmir", country: "Türkiye", utcOffset: 3, districts: [
-            d("Karşıyaka", 38.4584, 27.1097), d("Bornova", 38.4622, 27.2177), d("Konak", 38.4192, 27.1287),
-            d("Buca", 38.3847, 27.1690), d("Çiğli", 38.4870, 27.0497)
-        ]),
-        .init(id: "bursa", name: "Bursa", country: "Türkiye", utcOffset: 3, districts: [
-            d("Osmangazi", 40.1826, 29.0665), d("Nilüfer", 40.2200, 28.9517),
-            d("Yıldırım", 40.1950, 29.1070), d("İnegöl", 40.0781, 29.5133)
-        ]),
-        .init(id: "antalya", name: "Antalya", country: "Türkiye", utcOffset: 3, districts: [
-            d("Muratpaşa", 36.8841, 30.7056), d("Kepez", 36.9176, 30.6896),
-            d("Konyaaltı", 36.8590, 30.6360), d("Alanya", 36.5444, 31.9954)
-        ]),
-        .init(id: "nyc", name: "New York", country: "USA", utcOffset: -5, districts: [
-            d("Manhattan", 40.7831, -73.9712), d("Brooklyn", 40.6782, -73.9442),
-            d("Queens", 40.7282, -73.7949), d("Bronx", 40.8448, -73.8648)
-        ]),
-        .init(id: "london", name: "London", country: "UK", utcOffset: 0, districts: [
-            d("Westminster", 51.4975, -0.1357), d("Camden", 51.5290, -0.1255),
-            d("Hackney", 51.5450, -0.0553), d("Greenwich", 51.4826, -0.0077)
-        ])
-    ]
+    /// 81 Turkish provinces (all official ilçe) plus a few abroad extras.
+    static let presets: [CityOption] = turkey + abroad
+
+    static var defaultCity: CityOption {
+        presets.first(where: { $0.id == "istanbul" }) ?? presets[0]
+    }
 
     static func district(named name: String, in cityId: String) -> District? {
         presets.first(where: { $0.id == cityId })?.districts.first(where: { $0.name == name })
@@ -323,7 +290,13 @@ struct CityOption: Identifiable, Hashable, Sendable {
     /// Finds which preset city contains a district with this name — used to
     /// reverse-map a stored `birth_data.city` (district) back to a picker
     /// selection when hydrating the edit-profile screen.
-    static func city(containingDistrictNamed name: String) -> CityOption? {
-        presets.first(where: { city in city.districts.contains(where: { $0.name == name }) })
+    /// Prefer `metropolitan` when several cities share a district name like "Merkez".
+    static func city(containingDistrictNamed name: String, metropolitan: String? = nil) -> CityOption? {
+        if let metropolitan,
+           let city = presets.first(where: { $0.name == metropolitan }) {
+            if city.districts.contains(where: { $0.name == name }) { return city }
+            return city
+        }
+        return presets.first(where: { city in city.districts.contains(where: { $0.name == name }) })
     }
 }

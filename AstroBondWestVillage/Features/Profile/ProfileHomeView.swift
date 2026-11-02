@@ -332,7 +332,7 @@ struct ProfileHomeView: View {
             VStack(spacing: 12) {
                 ProgressView()
                     .tint(Color(hex: "#CDD2DB"))
-                Text("Haritan Swiss Ephemeris ile hesaplanıyor…")
+                Text("Haritan hesaplanıyor…")
                     .font(ABFont.body(13))
                     .foregroundStyle(Color.white.opacity(0.55))
                     .multilineTextAlignment(.center)

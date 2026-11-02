@@ -112,8 +112,8 @@ final class MatchViewModel {
         message = nil
         phase = .spinning
 
-        withAnimation(.timingCurve(0.2, 0.0, 0.1, 1.0, duration: spinDuration)) {
-            wheelRotation += 360 * 5
+        withAnimation(.easeInOut(duration: spinDuration)) {
+            wheelRotation += 360 * 1.35
         }
 
         spinTask = Task {
@@ -273,21 +273,28 @@ struct MatchHomeView: View {
     @State private var showDailyLimit = false
     @State private var showNoCandidates = false
 
-    private let wheelSize: CGFloat = 278
-
     var body: some View {
         @Bindable var model = model
         NavigationStack {
             ZStack {
                 CosmicBackdrop()
 
-                VStack(spacing: 0) {
-                    header.padding(.top, 6)
-                    wheelStack.padding(.top, 4)
-                    bottomArea
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                        .layoutPriority(1)
-                        .padding(.horizontal, 22)
+                GeometryReader { geo in
+                    let tabClearance: CGFloat = 118
+                    let usable = max(geo.size.height - tabClearance, 320)
+                    let wheelSize = min(geo.size.width * 0.78, usable * 0.44, 320)
+
+                    VStack(spacing: 0) {
+                        header
+                            .padding(.top, 8)
+                        wheelStack(size: wheelSize)
+                            .padding(.top, 2)
+                        bottomArea
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                            .layoutPriority(1)
+                            .padding(.horizontal, 22)
+                    }
+                    .frame(width: geo.size.width, height: geo.size.height, alignment: .top)
                 }
             }
             .toolbar(.hidden, for: .navigationBar)
@@ -303,7 +310,7 @@ struct MatchHomeView: View {
                 }
             }
             .onChange(of: model.phase) { _, phase in
-                compactTabBar?.wrappedValue = phase != .idle
+                compactTabBar?.wrappedValue = phase == .revealed
             }
             .onDisappear { compactTabBar?.wrappedValue = false }
             .alert("Günlük eşleşme hakkın doldu", isPresented: $showDailyLimit) {
@@ -372,14 +379,15 @@ struct MatchHomeView: View {
         }
     }
 
-    private var wheelStack: some View {
+    private func wheelStack(size: CGFloat) -> some View {
         CosmicMatchWheel(
             rotation: model.wheelRotation,
             isSpinning: model.phase == .spinning,
             isRevealed: model.phase == .revealed,
-            size: wheelSize,
+            size: size,
             revealedGlyph: model.active?.sunSign?.lineGlyph,
             revealedSignIndex: model.active?.sunSign?.index,
+            showsTapPrompt: true,
             onTap: startSpin
         )
     }
@@ -389,23 +397,7 @@ struct MatchHomeView: View {
         switch model.phase {
         case .idle:
             ScrollView(showsIndicators: false) {
-                VStack(spacing: 8) {
-                    if !model.todaysAccepted.isEmpty {
-                        todaysMatchesStrip
-                    }
-
-                    if !model.canMatch {
-                        matchStatusBanner("Günlük eşleşme hakkın doldu. Yarın yeni çark için geri gel.")
-                    } else if !model.hasUnrevealedCandidates {
-                        matchStatusBanner(
-                            model.todaysAccepted.isEmpty
-                                ? "Şu an uygun profil yok. Biraz sonra tekrar dene."
-                                : "Bugün yeni kişi kalmadı — aşağıdan eşleşmelerine dönebilirsin."
-                        )
-                    } else if !model.todaysAccepted.isEmpty {
-                        matchStatusBanner("Yeni eşleşme için çarkın ortasına bas.")
-                    }
-
+                VStack(spacing: 14) {
                     if showSelectionNotice {
                         Text("Önce bağ ve eşleşme tercihinden seçim yap, sonra çarkın ortasına bas.")
                             .font(ABFont.body(12.5, weight: .medium))
@@ -426,22 +418,31 @@ struct MatchHomeView: View {
                         homoTypes: $homoTypes,
                         prefs: $model.prefs
                     )
+
+                    if !model.todaysAccepted.isEmpty {
+                        todaysMatchesStrip
+                            .padding(.top, 6)
+                    }
                 }
-                .padding(.top, 4)
+                .padding(.top, 8)
                 .padding(.bottom, 120)
             }
             .transition(.opacity)
 
         case .spinning:
-            VStack(spacing: 8) {
-                Text("Yıldızlar hizalanıyor...")
-                    .font(ABFont.display(20))
+            VStack(spacing: 10) {
+                Text("Eşleşme aranıyor...")
+                    .font(ABFont.display(26, weight: .regular))
                     .foregroundStyle(.white)
-                Text("AstroBond eşin aranıyor")
-                    .font(ABFont.body(13))
-                    .foregroundStyle(Color.white.opacity(0.5))
+                    .multilineTextAlignment(.center)
+                Text("Yıldızlar seninle uyumlu ruhları keşfediyor.")
+                    .font(ABFont.body(14))
+                    .foregroundStyle(Color.white.opacity(0.55))
+                    .multilineTextAlignment(.center)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding(.horizontal, 28)
+            .padding(.top, 18)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .transition(.opacity)
 
         case .revealed:
@@ -505,24 +506,6 @@ struct MatchHomeView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private func matchStatusBanner(_ text: String) -> some View {
-        Text(text)
-            .font(ABFont.body(12.5, weight: .medium))
-            .foregroundStyle(Color.white.opacity(0.88))
-            .multilineTextAlignment(.center)
-            .frame(maxWidth: .infinity)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
-            .background(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(ABColor.lavender.opacity(0.12))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .stroke(ABColor.lavender.opacity(0.35), lineWidth: 1)
-            )
     }
 
     private func matchedProfileCard(_ match: MatchCard) -> some View {
@@ -756,9 +739,9 @@ private struct BondSettingsPanel: View {
     }
 
     private var orientationSection: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 12) {
             sectionHeading("Eşleşme tercihin nedir?")
-            HStack(spacing: 6) {
+            HStack(spacing: 8) {
                 ForEach(MatchOrientation.allCases) { option in
                     SelectablePill(title: option.title, selected: orientations.contains(option)) {
                         toggleOrientation(option)
@@ -766,7 +749,7 @@ private struct BondSettingsPanel: View {
                 }
             }
             if orientations.contains(.lgbt) {
-                HStack(spacing: 6) {
+                HStack(spacing: 8) {
                     ForEach(MatchHomoType.allCases) { type in
                         SelectablePill(title: type.title, selected: homoTypes.contains(type)) {
                             toggleHomoType(type)
@@ -780,9 +763,9 @@ private struct BondSettingsPanel: View {
     }
 
     private var bondieSection: some View {
-        VStack(spacing: 10) {
-            sectionHeading("Nasıl bir bağ kurmak istiyorsun?", subtitle: "Seçimlerini yap, sonra çarkın ortasına bas.")
-            LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)], spacing: 8) {
+        VStack(spacing: 12) {
+            sectionHeading("Nasıl bir bağ kurmak istiyorsun?")
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
                 ForEach(MatchIntent.allCases) { item in
                     SelectablePill(title: item.bondLabel, selected: intents.contains(item)) {
                         toggleIntent(item)
@@ -792,30 +775,18 @@ private struct BondSettingsPanel: View {
         }
     }
 
-    private func sectionHeading(_ title: String, subtitle: String? = nil) -> some View {
-        VStack(spacing: 7) {
-            Text(title)
-                .font(ABFont.display(18, weight: .regular))
-                .multilineTextAlignment(.center)
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [Color.white, Color(hex: "#E4E2F2").opacity(0.85)],
-                        startPoint: .top, endPoint: .bottom
-                    )
+    private func sectionHeading(_ title: String) -> some View {
+        Text(title)
+            .font(ABFont.display(18, weight: .regular))
+            .multilineTextAlignment(.center)
+            .foregroundStyle(
+                LinearGradient(
+                    colors: [Color.white, Color(hex: "#E4E2F2").opacity(0.88)],
+                    startPoint: .top, endPoint: .bottom
                 )
-                .fixedSize(horizontal: false, vertical: true)
-            HStack(spacing: 8) {
-                Capsule()
-                    .fill(ABColor.lavender.opacity(0.8))
-                    .frame(width: 26, height: 3)
-                if let subtitle {
-                    Text(subtitle)
-                        .font(ABFont.body(11))
-                        .foregroundStyle(Color.white.opacity(0.5))
-                }
-            }
-        }
-        .frame(maxWidth: .infinity)
+            )
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity)
     }
 
     private func toggleIntent(_ item: MatchIntent) {
@@ -870,21 +841,18 @@ private struct SelectablePill: View {
             Text(title)
                 .font(ABFont.body(13, weight: .medium))
                 .foregroundStyle(Color.white.opacity(selected ? 1 : 0.9))
-                .padding(.horizontal, 13)
-                .frame(height: 42)
+                .padding(.horizontal, 12)
+                .frame(height: 44)
                 .frame(maxWidth: .infinity)
                 .background {
-                    if selected {
-                        Capsule(style: .continuous).fill(ABColor.lavender.opacity(0.38))
-                    } else {
-                        Capsule(style: .continuous).fill(Color.white.opacity(0.06))
-                    }
+                    Capsule(style: .continuous)
+                        .fill(selected ? ABColor.lavender.opacity(0.38) : Color.white.opacity(0.07))
                 }
                 .overlay(
                     Capsule(style: .continuous)
-                        .stroke(ABColor.lavender.opacity(selected ? 0.85 : 0.28), lineWidth: 1)
+                        .stroke(ABColor.lavender.opacity(selected ? 0.9 : 0.32), lineWidth: 1)
                 )
-                .shadow(color: ABColor.lavender.opacity(selected ? 0.26 : 0), radius: selected ? 12 : 0, y: 4)
+                .shadow(color: ABColor.lavender.opacity(selected ? 0.28 : 0), radius: selected ? 12 : 0, y: 4)
         }
         .buttonStyle(.plain)
     }
