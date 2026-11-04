@@ -26,7 +26,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.testTag
-import com.astrobond.app.ui.screens.DiscoverScreen
 import com.astrobond.app.ui.match.MatchScreen
 import com.astrobond.app.ui.screens.ProfileScreen
 import com.astrobond.app.ui.theme.ABColor
@@ -59,7 +58,7 @@ fun MainShell(session: com.astrobond.app.session.SessionViewModel? = null) {
 
 @Composable
 private fun TabBody(tab: AppTab, session: com.astrobond.app.session.SessionViewModel?) = when (tab) {
-    AppTab.Discover -> DiscoverScreen()
+    AppTab.Discover -> com.astrobond.app.ui.discover.DiscoverScreen(session)
     AppTab.Match -> MatchScreen(session)
     AppTab.Messages -> com.astrobond.app.ui.messages.MessagesScreen(session)
     AppTab.Profile -> ProfileScreen()

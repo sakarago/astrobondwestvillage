@@ -23,7 +23,7 @@ cd android && ./gradlew :app:assembleDebug
 - [ ] Step 3 (UI): chart wheel / profile chart, report screens
 - [x] Step 4: Match tab (wheel, 6s spin, reveal card, accept/new, today strip, Sinastri detail, bond tiers, 3/day quota). Not yet ported: iOS wheel atmosphere effects, dual synastry wheel, match prefs sheet (age/location), chat hand-off (step 5)
 - [x] Step 5: Messages inbox, chat (history, send, realtime inserts, mark-read, photo gate after 10 messages, Astro Uyum score, shared Sinastri), question discovery (hand-written bank, 23/day; no on-device AI), Match → chat hand-off. Not yet verified against a live account.
-- [ ] Step 6: Discover (DailyNoteEngine / DiscoverContent 1:1 port)
+- [x] Step 6: Discover tab (hero, daily card flow with one pick per day + reflection note, events, signs, love, guide, extras). DailyNoteEngine/DiscoverContent ported 1:1 with Swift-parity unit test. No on-device AI (templates only). `rawEvents` is hand-written: verify before release. Daily 09:00 notification scheduled on first card pick (permission prompt not wired yet).
 - [ ] Step 7: Profile, settings, 09:00 daily notification
 
 Notes: Crystal glass is approximated with translucent fills (no backdrop blur); body font is SansSerif until a rounded font is bundled; cartoon avatars are a simplified flat drawing using the iOS colour table; Google/Apple/phone sign-in are stubs as on iOS.
