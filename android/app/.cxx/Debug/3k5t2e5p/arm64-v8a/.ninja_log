@@ -1,0 +1,12 @@
+# ninja log v5
+4	367	1793801055245774467	CMakeFiles/astrobond_swe.dir/swe_jni.c.o	e3a3b92cac432819
+0	392	1793801055270798455	CMakeFiles/astrobond_swe.dir/swisseph/swedate.c.o	a33e97ed90096df1
+1	406	1793801055288909068	CMakeFiles/astrobond_swe.dir/swisseph/swejpl.c.o	df8230126ede1ba1
+1	410	1793801055292431881	CMakeFiles/astrobond_swe.dir/swisseph/swemmoon.c.o	8f2dbe5c9d45034d
+2	414	1793801055297167953	CMakeFiles/astrobond_swe.dir/swisseph/swemplan.c.o	d562327f09bf689a
+0	473	1793801055353670345	CMakeFiles/astrobond_swe.dir/swisseph/swehel.c.o	b0eb859529fba9fe
+0	482	1793801055363356280	CMakeFiles/astrobond_swe.dir/swisseph/swehouse.c.o	f849616cd1572225
+4	497	1793801055378287248	CMakeFiles/astrobond_swe.dir/swisseph/swephlib.c.o	bdcfdd6f77657a09
+0	547	1793801055428315892	CMakeFiles/astrobond_swe.dir/swisseph/swecl.c.o	7cd09117b9e73748
+3	619	1793801055495687769	CMakeFiles/astrobond_swe.dir/swisseph/sweph.c.o	18295f78ff2d4fdc
+619	829	1793801055709996183	/Users/karagozs/Projects/AstroBondWestVillage/android/app/build/intermediates/cxx/Debug/3k5t2e5p/obj/arm64-v8a/libastrobond_swe.so	b5dc922b6c9cb71

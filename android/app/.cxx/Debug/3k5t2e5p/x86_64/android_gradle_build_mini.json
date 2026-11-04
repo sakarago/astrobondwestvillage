@@ -1,0 +1,27 @@
+{
+  "buildFiles": [
+    "/Users/karagozs/Projects/AstroBondWestVillage/android/app/src/main/cpp/CMakeLists.txt"
+  ],
+  "cleanCommandsComponents": [
+    [
+      "/Users/karagozs/Library/Android/sdk/cmake/3.22.1/bin/ninja",
+      "-C",
+      "/Users/karagozs/Projects/AstroBondWestVillage/android/app/.cxx/Debug/3k5t2e5p/x86_64",
+      "clean"
+    ]
+  ],
+  "buildTargetsCommandComponents": [
+    "/Users/karagozs/Library/Android/sdk/cmake/3.22.1/bin/ninja",
+    "-C",
+    "/Users/karagozs/Projects/AstroBondWestVillage/android/app/.cxx/Debug/3k5t2e5p/x86_64",
+    "{LIST_OF_TARGETS_TO_BUILD}"
+  ],
+  "libraries": {
+    "astrobond_swe::@6890427a1f51a3e7e1df": {
+      "artifactName": "astrobond_swe",
+      "abi": "x86_64",
+      "output": "/Users/karagozs/Projects/AstroBondWestVillage/android/app/build/intermediates/cxx/Debug/3k5t2e5p/obj/x86_64/libastrobond_swe.so",
+      "runtimeFiles": []
+    }
+  }
+}
