@@ -52,6 +52,7 @@ private val Lav = hex("#C9B6FF")
 fun TarotFlow(sky: UserSky, onBack: () -> Unit) {
     val ctx = LocalContext.current
     val prefs = remember { ctx.getSharedPreferences("astrobond.discover", Context.MODE_PRIVATE) }
+    val askNotifications = com.astrobond.app.notify.rememberNotificationPermissionRequest { DailyMessageNotifier.scheduleDaily(ctx) }
     val today = LocalDate.now()
     val key = "dailyCard.${sky.userId}.${today.year}.${today.dayOfYear}"
     var picked by remember { mutableIntStateOf(prefs.getInt(key, -1)) }
@@ -85,7 +86,7 @@ fun TarotFlow(sky: UserSky, onBack: () -> Unit) {
                                     VioletTarotCard(sun = i == 1, width = if (i == 1) 108.dp else 96.dp, glow = i == 1,
                                         modifier = Modifier.rotate((i - 1) * 9f).clickable {
                                             picked = i; prefs.edit().putInt(key, i).apply()
-                                            DailyMessageNotifier.scheduleDaily(ctx); stage = 1
+                                            if (com.astrobond.app.data.NotificationPrefs(ctx).dailyInsight) askNotifications(); stage = 1
                                         })
                                 }
                             }

@@ -27,7 +27,6 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.testTag
 import com.astrobond.app.ui.match.MatchScreen
-import com.astrobond.app.ui.screens.ProfileScreen
 import com.astrobond.app.ui.theme.ABColor
 import com.astrobond.app.ui.theme.CosmicBackdrop
 import com.astrobond.app.ui.theme.crystalCapsule
@@ -61,7 +60,7 @@ private fun TabBody(tab: AppTab, session: com.astrobond.app.session.SessionViewM
     AppTab.Discover -> com.astrobond.app.ui.discover.DiscoverScreen(session)
     AppTab.Match -> MatchScreen(session)
     AppTab.Messages -> com.astrobond.app.ui.messages.MessagesScreen(session)
-    AppTab.Profile -> ProfileScreen()
+    AppTab.Profile -> com.astrobond.app.ui.profile.ProfileScreen(session)
 }
 
 @Composable
