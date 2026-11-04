@@ -21,7 +21,7 @@ cd android && ./gradlew :app:assembleDebug
 - [x] Step 3 (engine): Swiss Ephemeris via NDK/JNI (`cpp/`, `astro/SwissEph.kt`), natal chart (`astro/ChartEngine.kt`), compatibility (`domain/Compatibility.kt`), chart JSON compatible with iOS rows (`domain/Chart.kt`).
   Verified on emulator: J2000 Sun 280.3689°, Moon 223.3238°.
 - [ ] Step 3 (UI): chart wheel / profile chart, report screens
-- [ ] Step 4: Match wheel / reveal flow (+ daily quota; `isUnlimited` must NOT be ported)
+- [x] Step 4: Match tab (wheel, 6s spin, reveal card, accept/new, today strip, Sinastri detail, bond tiers, 3/day quota). Not yet ported: iOS wheel atmosphere effects, dual synastry wheel, match prefs sheet (age/location), chat hand-off (step 5)
 - [ ] Step 5: Messages + chat (+ question discovery), realtime
 - [ ] Step 6: Discover (DailyNoteEngine / DiscoverContent 1:1 port)
 - [ ] Step 7: Profile, settings, 09:00 daily notification

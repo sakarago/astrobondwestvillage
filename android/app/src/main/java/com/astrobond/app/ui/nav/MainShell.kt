@@ -25,7 +25,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.testTag
 import com.astrobond.app.ui.screens.DiscoverScreen
-import com.astrobond.app.ui.screens.MatchScreen
+import com.astrobond.app.ui.match.MatchScreen
 import com.astrobond.app.ui.screens.MessagesScreen
 import com.astrobond.app.ui.screens.ProfileScreen
 import com.astrobond.app.ui.theme.ABColor
@@ -44,7 +44,7 @@ fun MainShell(session: com.astrobond.app.session.SessionViewModel? = null) {
         Box(Modifier.fillMaxSize()) {
             // iOS keeps all four bodies mounted; here only the selected tab composes and
             // per-screen state lives in ViewModels / rememberSaveable.
-            TabBody(AppTab.entries[selected])
+            TabBody(AppTab.entries[selected], session)
             WestVillageTabBar(
                 selected = selected,
                 onSelect = { selected = it },
@@ -55,9 +55,9 @@ fun MainShell(session: com.astrobond.app.session.SessionViewModel? = null) {
 }
 
 @Composable
-private fun TabBody(tab: AppTab) = when (tab) {
+private fun TabBody(tab: AppTab, session: com.astrobond.app.session.SessionViewModel?) = when (tab) {
     AppTab.Discover -> DiscoverScreen()
-    AppTab.Match -> MatchScreen()
+    AppTab.Match -> MatchScreen(session)
     AppTab.Messages -> MessagesScreen()
     AppTab.Profile -> ProfileScreen()
 }

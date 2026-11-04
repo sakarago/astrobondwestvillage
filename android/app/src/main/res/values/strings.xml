@@ -78,4 +78,34 @@
     <string name="moon_label">Ay</string>
     <string name="rising_label">Yükselen</string>
     <string name="retry">Tekrar dene</string>
+
+    <!-- Match -->
+    <string name="match_quota">Bugün %1$d/%2$d eşleşme</string>
+    <string name="match_pref_q">Eşleşme tercihin nedir?</string>
+    <string name="match_bond_q">Nasıl bir bağ kurmak istiyorsun?</string>
+    <string name="match_pick_first">Önce bağ ve eşleşme tercihinden seçim yap, sonra çarkın ortasına bas.</string>
+    <string name="match_spin">EŞLEŞ</string>
+    <string name="match_searching">Eşleşme aranıyor...</string>
+    <string name="match_searching_sub">Yıldızlar seninle uyumlu ruhları keşfediyor.</string>
+    <string name="match_limit_title">Günlük eşleşme hakkın doldu</string>
+    <string name="match_limit_body">Yeni eşleşmeler için yarın tekrar dene. Bugünkü eşleşmelerine aşağıdan dönebilirsin.</string>
+    <string name="match_none_title">Yeni eşleşme yok</string>
+    <string name="match_none_body">Bugün gösterilecek başka profil kalmadı. Aşağıdaki eşleşmelerine dönebilir veya yarın tekrar çevirebilirsin.</string>
+    <string name="match_fail_title">Eşleşme bulunamadı</string>
+    <string name="ok">Tamam</string>
+    <string name="today_matches">BUGÜNKÜ EŞLEŞMELER</string>
+    <string name="astro_match">Astro Uyum</string>
+    <string name="see_profile">Profili gör</string>
+    <string name="hide">Gizle</string>
+    <string name="liked">İlgimi çekti</string>
+    <string name="new_match">Yeni bir eşleşme</string>
+    <string name="synastry">SİNASTRİ</string>
+    <string name="synastry_sub">İki ruhun ortak yıldız haritası</string>
+    <string name="spiritual">Ruhsal Bağlantı</string>
+    <string name="strengths">Güçlü Yanlar</string>
+    <string name="challenges">Dikkat Noktaları</string>
+    <string name="aspects">Öne Çıkan Açılar</string>
+    <string name="send_message">Mesaj gönder</string>
+    <string name="you">Sen</string>
+    <string name="msgs_soon">Mesajlaşma yakında burada olacak.</string>
 </resources>

@@ -37,6 +37,5 @@ private fun TabPlaceholder(@StringRes title: Int) {
 
 // Replaced one by one as the iOS features are ported (steps 4–7 in AndroidHandoff.md).
 @Composable fun DiscoverScreen() = TabPlaceholder(R.string.tab_discover)
-@Composable fun MatchScreen() = TabPlaceholder(R.string.tab_match)
 @Composable fun MessagesScreen() = TabPlaceholder(R.string.tab_messages)
 @Composable fun ProfileScreen() = TabPlaceholder(R.string.tab_profile)
