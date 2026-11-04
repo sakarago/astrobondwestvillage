@@ -19,6 +19,8 @@ struct CosmicMatchWheel: View {
     @State private var haloRotation: Double = 0
     @State private var twinkle: Double = 0
     @State private var nebulaRotation: Double = 0
+    @State private var starFlash: Double = 1
+    @State private var ripple: CGFloat = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -26,7 +28,7 @@ struct CosmicMatchWheel: View {
             searchAtmosphere
             outerFieldStars
             edgeGlow
-            spinStars
+            if isSpinning { spinStars }
             lightStreaks
             searchOrbitRings
 
@@ -36,6 +38,15 @@ struct CosmicMatchWheel: View {
             if isRevealed {
                 highlightWedge
                 matchedGlyphGlow
+            }
+
+            if !isSpinning && !isRevealed {
+                // Fixed Aries pointer, like the design mock.
+                Image(systemName: "chevron.up")
+                    .font(.system(size: size * 0.028, weight: .semibold))
+                    .foregroundStyle(ABColor.lavenderSoft.opacity(0.7))
+                    .offset(y: -size * 0.285)
+                    .allowsHitTesting(false)
             }
 
             centerControl
@@ -75,12 +86,8 @@ struct CosmicMatchWheel: View {
             }
             .allowsHitTesting(false)
         } else if isRevealed {
-            centerRing {
-                Text(revealedGlyph ?? "✦")
-                    .font(.system(size: size * 0.115, weight: .regular))
-                    .foregroundStyle(.white)
-            }
-            .allowsHitTesting(false)
+            revealedCenter
+                .allowsHitTesting(false)
         } else {
             Button {
                 onTap?()
@@ -89,15 +96,21 @@ struct CosmicMatchWheel: View {
                     if showsTapPrompt {
                         ZStack {
                             innerFieldStars
-                            VStack(spacing: size * 0.002) {
-                                CosmicSparkStar(size: size * 0.125, pulse: glowPulse)
-                                Text("EŞLEŞ")
-                                    .font(ABFont.body(size * 0.038, weight: .bold))
-                                    .tracking(2.6)
-                                    .foregroundStyle(.white)
-                                    .shadow(color: ABColor.lavenderSoft.opacity(0.85), radius: 6)
-                            }
-                            .offset(y: size * 0.01)
+                            // Only the star flashes; the label stays steady just below it.
+                            CosmicSparkStar(size: size * 0.17, pulse: glowPulse)
+                                .opacity(starFlash)
+                                .scaleEffect(0.92 + 0.08 * starFlash)
+                                .offset(y: -size * 0.025)
+                            Text("EŞLEŞ")
+                                .font(ABFont.body(size * 0.038, weight: .bold))
+                                .tracking(2.6)
+                                .foregroundStyle(.white)
+                                .shadow(color: ABColor.lavenderSoft.opacity(0.85), radius: 6)
+                                .offset(y: size * 0.105)
+                            Image(systemName: "chevron.down")
+                                .font(.system(size: size * 0.03, weight: .semibold))
+                                .foregroundStyle(ABColor.lavenderSoft.opacity(0.9))
+                                .offset(y: size * 0.16)
                         }
                     } else {
                         VStack(spacing: 5) {
@@ -115,10 +128,45 @@ struct CosmicMatchWheel: View {
         }
     }
 
-    private var centerDiameter: CGFloat { size * 0.40 }
+    private var centerDiameter: CGFloat { size * 0.45 }
+
+    /// Purple while searching, soft gold on the result screen.
+    private var accent: Color { isRevealed ? ABColor.warm : ABColor.lavender }
+    private var accentSoft: Color { isRevealed ? Color(hex: "#F6E7CF") : ABColor.lavenderSoft }
+
+    /// Matched sign inside a dark sphere with a soft gold rim.
+    private var revealedCenter: some View {
+        let d = size * 0.30
+        let warm = ABColor.warm
+        return ZStack {
+            Circle().fill(
+                RadialGradient(
+                    colors: [Color(hex: "#4A3B4D"), Color(hex: "#150E18"), Color(hex: "#07050A")],
+                    center: UnitPoint(x: 0.35, y: 0.3),
+                    startRadius: 2, endRadius: d * 0.7
+                )
+            )
+            .frame(width: d, height: d)
+            Circle()
+                .stroke(
+                    LinearGradient(colors: [warm.opacity(0.95), warm.opacity(0.25)], startPoint: .top, endPoint: .bottom),
+                    lineWidth: 1.6
+                )
+                .frame(width: d, height: d)
+            Circle()
+                .stroke(warm.opacity(0.4), lineWidth: 6)
+                .blur(radius: 7)
+                .frame(width: d, height: d)
+            Text(revealedGlyph ?? "✦")
+                .font(.system(size: d * 0.5))
+                .foregroundStyle(warm)
+                .shadow(color: warm.opacity(0.7), radius: 8)
+        }
+    }
 
     private func centerRing<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
         let d = centerDiameter
+        let attention = !isSpinning && !isRevealed
         return ZStack {
             Circle()
                 .fill(
@@ -152,6 +200,58 @@ struct CosmicMatchWheel: View {
                 .frame(width: d * 0.92, height: d * 0.92)
                 .opacity(0.7)
 
+            if attention {
+                // Raised 3D bevel: bright top edge, dark bottom edge.
+                Circle()
+                    .stroke(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(0.95),
+                                ABColor.lavenderSoft.opacity(0.6),
+                                ABColor.lavender.opacity(0.35),
+                                Color.black.opacity(0.55)
+                            ],
+                            startPoint: .top, endPoint: .bottom
+                        ),
+                        lineWidth: 4
+                    )
+                    .frame(width: d, height: d)
+
+                // Inner shadow for depth.
+                Circle()
+                    .stroke(Color.black.opacity(0.55), lineWidth: 12)
+                    .frame(width: d, height: d)
+                    .blur(radius: 7)
+                    .offset(y: 4)
+                    .clipShape(Circle())
+
+                // Glossy specular highlight on the upper cap.
+                Ellipse()
+                    .fill(
+                        LinearGradient(
+                            colors: [Color.white.opacity(0.42), .clear],
+                            startPoint: .top, endPoint: .bottom
+                        )
+                    )
+                    .frame(width: d * 0.62, height: d * 0.26)
+                    .offset(y: -d * 0.34)
+                    .blur(radius: 1.5)
+
+                // Rim flashes in sync with the star.
+                Circle()
+                    .stroke(ABColor.lavenderSoft, lineWidth: 5)
+                    .frame(width: d, height: d)
+                    .blur(radius: 5)
+                    .opacity(0.15 + 0.85 * starFlash)
+
+                // "Click me" ripple radiating outward.
+                Circle()
+                    .stroke(ABColor.lavenderSoft.opacity(0.8), lineWidth: 2)
+                    .frame(width: d, height: d)
+                    .scaleEffect(1 + 0.45 * ripple)
+                    .opacity((1 - ripple) * 0.75)
+            }
+
             if !isRevealed {
                 Circle()
                     .trim(from: 0, to: 0.22)
@@ -170,6 +270,7 @@ struct CosmicMatchWheel: View {
 
             content()
         }
+        .shadow(color: Color.black.opacity(attention ? 0.55 : 0), radius: 10, y: 8)
         .scaleEffect(isRevealed || isSpinning || reduceMotion ? 1 : (0.97 + 0.03 * glowPulse))
     }
 
@@ -191,7 +292,7 @@ struct CosmicMatchWheel: View {
             Circle()
                 .fill(
                     RadialGradient(
-                        colors: [Color.clear, ABColor.lavender.opacity(0.22), Color.clear],
+                        colors: [Color.clear, accent.opacity(0.22), Color.clear],
                         center: .center,
                         startRadius: size * 0.38,
                         endRadius: size * 0.66
@@ -245,10 +346,10 @@ struct CosmicMatchWheel: View {
                     AngularGradient(
                         colors: [
                             Color.clear,
-                            ABColor.lavender.opacity(0.22),
-                            ABColor.lavenderSoft.opacity(0.18),
+                            accent.opacity(0.22),
+                            accentSoft.opacity(0.18),
                             Color.clear,
-                            ABColor.lavender.opacity(0.32),
+                            accent.opacity(0.32),
                             Color.clear
                         ],
                         center: .center
@@ -263,9 +364,9 @@ struct CosmicMatchWheel: View {
                     AngularGradient(
                         colors: [
                             Color.clear,
-                            ABColor.lavenderSoft.opacity(0.16),
+                            accentSoft.opacity(0.16),
                             Color.clear,
-                            ABColor.lavender.opacity(0.28),
+                            accent.opacity(0.28),
                             Color.clear
                         ],
                         center: .center
@@ -275,19 +376,27 @@ struct CosmicMatchWheel: View {
                 .blur(radius: 18)
                 .rotationEffect(.degrees(-nebulaRotation * 0.7))
         }
-        .opacity(isSpinning ? 1 : 0)
+        .opacity(isSpinning ? 1 : (isRevealed ? 0.6 : 0))
         .animation(.easeInOut(duration: 0.55), value: isSpinning)
+        .animation(.easeInOut(duration: 0.55), value: isRevealed)
         .blendMode(.screen)
         .allowsHitTesting(false)
     }
 
     private var searchOrbitRings: some View {
         ZStack {
+            if isRevealed {
+                Circle().stroke(accent.opacity(0.35), lineWidth: 0.8)
+                    .frame(width: size * 1.10, height: size * 1.10)
+                Ellipse().stroke(accentSoft.opacity(0.25), lineWidth: 0.8)
+                    .frame(width: size * 1.30, height: size * 1.0)
+                    .rotationEffect(.degrees(-18))
+            }
             Circle()
                 .trim(from: 0.08, to: 0.46)
                 .stroke(
                     AngularGradient(
-                        colors: [Color.clear, ABColor.lavenderSoft, ABColor.lavender, Color.clear],
+                        colors: [Color.clear, accentSoft, accent, Color.clear],
                         center: .center
                     ),
                     style: StrokeStyle(lineWidth: 2.4, lineCap: .round)
@@ -300,7 +409,7 @@ struct CosmicMatchWheel: View {
                 .trim(from: 0.58, to: 0.88)
                 .stroke(
                     AngularGradient(
-                        colors: [Color.clear, Color.white.opacity(0.85), ABColor.lavenderSoft.opacity(0.4), Color.clear],
+                        colors: [Color.clear, Color.white.opacity(0.85), accentSoft.opacity(0.4), Color.clear],
                         center: .center
                     ),
                     style: StrokeStyle(lineWidth: 1.6, lineCap: .round)
@@ -310,26 +419,28 @@ struct CosmicMatchWheel: View {
 
             Circle()
                 .stroke(
-                    ABColor.lavender.opacity(0.18),
+                    accent.opacity(0.18),
                     style: StrokeStyle(lineWidth: 1, dash: [2, 7])
                 )
                 .frame(width: size * 1.24, height: size * 1.24)
                 .rotationEffect(.degrees(-nebulaRotation * 0.5))
         }
-        .opacity(isSpinning ? 1 : 0)
+        .opacity(isSpinning ? 1 : (isRevealed ? 0.6 : 0))
         .animation(.easeInOut(duration: 0.55), value: isSpinning)
+        .animation(.easeInOut(duration: 0.55), value: isRevealed)
         .allowsHitTesting(false)
     }
 
     private var searchPlanets: some View {
         ZStack {
-            SearchPlanet(diameter: size * 0.16)
+            SearchPlanet(diameter: size * 0.16, tint: accent)
                 .offset(x: -size * 0.50, y: -size * 0.40)
-            SearchPlanet(diameter: size * 0.13)
+            SearchPlanet(diameter: size * 0.13, tint: accent)
                 .offset(x: size * 0.48, y: size * 0.44)
         }
         .opacity(isSpinning ? 1 : 0)
         .animation(.easeInOut(duration: 0.55), value: isSpinning)
+        .animation(.easeInOut(duration: 0.55), value: isRevealed)
         .allowsHitTesting(false)
     }
 
@@ -341,7 +452,7 @@ struct CosmicMatchWheel: View {
                 let ang = Double(i) / Double(count) * 2 * .pi
                 let r = radius + (i % 3 == 0 ? 16 : (i % 3 == 1 ? -10 : 4))
                 let sz = CGFloat(i % 3 == 0 ? 15 : (i % 3 == 1 ? 9 : 12))
-                Image(systemName: i % 2 == 0 ? "sparkle" : "star.fill")
+                Image(systemName: "sparkle")
                     .font(.system(size: sz, weight: .semibold))
                     .foregroundStyle(.white)
                     .opacity((0.55 + 0.45 * sin(streakRotation * .pi / 180 + Double(i))) * glowOpacity)
@@ -381,9 +492,9 @@ struct CosmicMatchWheel: View {
         )
         .fill(
             RadialGradient(
-                colors: [ABColor.lavender.opacity(0.0), ABColor.lavender.opacity(0.5)],
+                colors: [ABColor.warm.opacity(0.0), ABColor.warm.opacity(0.55)],
                 center: .center,
-                startRadius: size * 0.10,
+                startRadius: size * 0.16,
                 endRadius: size * 0.50
             )
         )
@@ -399,7 +510,7 @@ struct CosmicMatchWheel: View {
         return Circle()
             .fill(
                 RadialGradient(
-                    colors: [Color.white.opacity(0.55), ABColor.lavender.opacity(0.0)],
+                    colors: [Color.white.opacity(0.55), ABColor.warm.opacity(0.0)],
                     center: .center, startRadius: 1, endRadius: 28
                 )
             )
@@ -441,6 +552,15 @@ struct CosmicMatchWheel: View {
         }
         glowOpacity = 0.42
         glowPulse = 1
+        // Attention-grabbing on/off flash of the center star.
+        starFlash = 1
+        withAnimation(.easeInOut(duration: 0.7).repeatForever(autoreverses: true)) {
+            starFlash = 0.12
+        }
+        ripple = 0
+        withAnimation(.easeOut(duration: 1.4).repeatForever(autoreverses: false)) {
+            ripple = 1
+        }
         withAnimation(.easeInOut(duration: 1.7).repeatForever(autoreverses: true)) {
             glowPulse = 1.1
             glowOpacity = 0.78
@@ -463,18 +583,19 @@ struct CosmicMatchWheel: View {
 
 private struct SearchPlanet: View {
     var diameter: CGFloat
+    var tint: Color = ABColor.lavender
 
     var body: some View {
         ZStack {
             Circle()
-                .fill(ABColor.lavender.opacity(0.28))
+                .fill(tint.opacity(0.28))
                 .frame(width: diameter * 1.55, height: diameter * 1.55)
                 .blur(radius: 10)
             Circle()
                 .fill(
                     RadialGradient(
                         colors: [
-                            Color(hex: "#5A4A78"),
+                            Color(hex: "#6A5A62"),
                             Color(hex: "#1A1028"),
                             Color(hex: "#07040E")
                         ],
@@ -485,15 +606,15 @@ private struct SearchPlanet: View {
                 )
                 .frame(width: diameter, height: diameter)
             Circle()
-                .stroke(ABColor.lavenderSoft.opacity(0.22), lineWidth: 1)
+                .stroke(tint.opacity(0.22), lineWidth: 1)
                 .frame(width: diameter, height: diameter)
         }
-        .shadow(color: ABColor.lavender.opacity(0.45), radius: 10)
+        .shadow(color: tint.opacity(0.45), radius: 10)
     }
 }
 
 /// Four-pointed compass star with a white core, lens flare, and purple bloom.
-private struct CosmicSparkStar: View {
+struct CosmicSparkStar: View {
     var size: CGFloat
     var pulse: CGFloat = 1
 
@@ -566,7 +687,7 @@ private struct CosmicSparkStar: View {
     }
 }
 
-private struct FourPointStar: Shape {
+struct FourPointStar: Shape {
     func path(in rect: CGRect) -> Path {
         let c = CGPoint(x: rect.midX, y: rect.midY)
         let outer = min(rect.width, rect.height) / 2
@@ -673,9 +794,10 @@ private struct ZodiacWheelDisk: View {
                 let rad = angle * .pi / 180
 
                 Text(sign.glyph)
-                    .font(.system(size: size * 0.078, weight: .medium))
-                    .foregroundStyle(Color(hex: "#F4F1E6").opacity(0.96))
-                    .shadow(color: .white.opacity(0.32), radius: 3)
+                    .font(.system(size: size * 0.082, weight: .semibold))
+                    .foregroundStyle(Color.white)
+                    .shadow(color: .white.opacity(0.75), radius: 4)
+                    .shadow(color: Color(hex: "#FFE3B0").opacity(0.5), radius: 8)
                     .offset(
                         x: size * 0.31 * sin(rad),
                         y: -size * 0.31 * cos(rad)
@@ -684,8 +806,8 @@ private struct ZodiacWheelDisk: View {
                 Text(sign.labelTR.uppercased(with: Locale(identifier: "tr_TR")))
                     .font(.system(size: size * 0.033, weight: .semibold, design: .rounded))
                     .tracking(0.6)
-                    .foregroundStyle(Color(hex: "#EDEADE").opacity(0.92))
-                    .shadow(color: .white.opacity(0.22), radius: 2)
+                    .foregroundStyle(Color.white)
+                    .shadow(color: .white.opacity(0.4), radius: 2.5)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
                     .rotationEffect(.degrees(angle))
@@ -733,7 +855,27 @@ struct AstroBondEmblem: View {
 }
 
 struct AstroBondLogoMark: View {
+    /// Result screen variant: a bright four-point star between ASTR and BOND.
+    var flare: Bool = false
+
     var body: some View {
+        if flare {
+            HStack(spacing: 2) {
+                Text("ASTR")
+                SiriusStar(size: 20)
+                    .frame(width: 34, height: 34)
+                Text("BOND")
+            }
+            .font(ABFont.display(17, weight: .regular))
+            .tracking(5)
+            .foregroundStyle(Color.white.opacity(0.95))
+            .frame(height: 44)
+        } else {
+            plain
+        }
+    }
+
+    private var plain: some View {
         VStack(spacing: 7) {
             Text("✦")
                 .font(.system(size: 12, weight: .semibold))
@@ -760,4 +902,9 @@ private struct CosmicWedgeShape: Shape {
         path.closeSubpath()
         return path
     }
+}
+
+extension ABColor {
+    /// Soft gold/beige used on the match-result screen.
+    static let warm = Color(hex: "#EBD3B0")
 }

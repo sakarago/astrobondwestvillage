@@ -44,6 +44,7 @@ final class MatchViewModel {
     var hasUnrevealedCandidates: Bool { !pool.isEmpty }
     var canSpinForNewMatch: Bool { canMatch && hasUnrevealedCandidates }
     var quotaLabel: String {
+        if DailyRevealQuotaStore.isUnlimited { return "Bugün sınırsız eşleşme" }
         let used = DailyRevealQuotaStore.dailyLimit - remainingReveals
         return "Bugün \(used)/\(DailyRevealQuotaStore.dailyLimit) eşleşme"
     }
@@ -113,7 +114,8 @@ final class MatchViewModel {
         phase = .spinning
 
         withAnimation(.easeInOut(duration: spinDuration)) {
-            wheelRotation += 360 * 1.35
+            // Whole turns only, so the matched sign lands where its highlight is drawn.
+            wheelRotation += 360 * 2
         }
 
         spinTask = Task {
@@ -279,22 +281,44 @@ struct MatchHomeView: View {
             ZStack {
                 CosmicBackdrop()
 
-                GeometryReader { geo in
-                    let tabClearance: CGFloat = 118
-                    let usable = max(geo.size.height - tabClearance, 320)
-                    let wheelSize = min(geo.size.width * 0.78, usable * 0.44, 320)
+                // Warm nebula + moons behind the match result.
+                Color.clear
+                    .ignoresSafeArea()
+                    .overlay {
+                        Image("reveal_bg")
+                            .resizable()
+                            .scaledToFill()
+                    }
+                    .clipped()
+                    .opacity(model.phase == .revealed ? 1 : 0)
+                    .animation(.easeInOut(duration: 0.8), value: model.phase)
+                    .allowsHitTesting(false)
 
-                    VStack(spacing: 0) {
+                RevealSkyDecor()
+                    .opacity(model.phase == .revealed ? 1 : 0)
+                    .animation(.easeInOut(duration: 0.8), value: model.phase)
+
+                // Positions are fractions of the screen height, measured from the design mock.
+                GeometryReader { geo in
+                    let w = geo.size.width
+                    let h = geo.size.height
+                    let revealed = model.phase == .revealed
+                    let wheelSize = revealed ? min(w * 0.74, h * 0.40) : min(w * 0.80, h * 0.41)
+                    let wheelY = h * 0.174 + wheelSize / 2
+
+                    ZStack(alignment: .top) {
                         header
-                            .padding(.top, 8)
+                            .padding(.top, h * 0.044)
+                            .frame(maxWidth: .infinity, alignment: .top)
                         wheelStack(size: wheelSize)
-                            .padding(.top, 2)
+                            .position(x: w / 2, y: wheelY)
                         bottomArea
                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                            .layoutPriority(1)
                             .padding(.horizontal, 22)
+                            .padding(.top, revealed ? wheelY + wheelSize / 2 + 14 : h * 0.633 - 11)
                     }
-                    .frame(width: geo.size.width, height: geo.size.height, alignment: .top)
+                    .frame(width: w, height: h, alignment: .top)
+                    .animation(.spring(response: 0.6, dampingFraction: 0.85), value: model.phase)
                 }
             }
             .toolbar(.hidden, for: .navigationBar)
@@ -310,13 +334,21 @@ struct MatchHomeView: View {
                 }
             }
             .onChange(of: model.phase) { _, phase in
-                compactTabBar?.wrappedValue = phase == .revealed
+                compactTabBar?.wrappedValue = false
             }
             .onDisappear { compactTabBar?.wrappedValue = false }
             .alert("Günlük eşleşme hakkın doldu", isPresented: $showDailyLimit) {
                 Button("Tamam", role: .cancel) {}
             } message: {
                 Text("Yeni eşleşmeler için yarın tekrar dene. Bugünkü eşleşmelerine aşağıdan dönebilirsin.")
+            }
+            .alert("Eşleşme bulunamadı", isPresented: Binding(
+                get: { model.message != nil && model.phase == .idle },
+                set: { if !$0 { model.message = nil } }
+            )) {
+                Button("Tamam", role: .cancel) {}
+            } message: {
+                Text(failureText)
             }
             .alert("Yeni eşleşme yok", isPresented: $showNoCandidates) {
                 Button("Tamam", role: .cancel) {}
@@ -359,9 +391,17 @@ struct MatchHomeView: View {
         }
     }
 
+    private var failureText: String {
+        let m = model.message ?? ""
+        if m.contains("hakkın doldu"), DailyRevealQuotaStore.isUnlimited {
+            return "\(m)\nSunucu günlük 3 eşleşme sınırı uyguluyor. Test için Supabase'de profiles.is_premium = true yapabilirsin."
+        }
+        return m
+    }
+
     private var header: some View {
-        VStack(spacing: 8) {
-            AstroBondLogoMark()
+        VStack(spacing: 5) {
+            AstroBondLogoMark(flare: model.phase == .revealed)
             Text("BAĞ GÖRÜNENDEN ÖNCE BAŞLAR")
                 .font(ABFont.body(10, weight: .medium))
                 .tracking(2.2)
@@ -424,7 +464,6 @@ struct MatchHomeView: View {
                             .padding(.top, 6)
                     }
                 }
-                .padding(.top, 8)
                 .padding(.bottom, 120)
             }
             .transition(.opacity)
@@ -448,19 +487,10 @@ struct MatchHomeView: View {
         case .revealed:
             if let match = model.active {
                 VStack(spacing: 10) {
-                    matchedProfileCard(match)
-                    if !model.todaysAccepted.isEmpty {
-                        todaysMatchesStrip
-                    }
-                    if model.canSpinForNewMatch {
-                        Text("Başka biri için çarkı tekrar çevir")
-                            .font(ABFont.body(12, weight: .medium))
-                            .foregroundStyle(Color.white.opacity(0.45))
-                    }
+                    revealedCard(match)
+                    revealedActions
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                .padding(.top, 8)
-                .padding(.bottom, 36)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
@@ -508,7 +538,9 @@ struct MatchHomeView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private func matchedProfileCard(_ match: MatchCard) -> some View {
+    // MARK: - Reveal ("Eşleşme sonucu") card + actions
+
+    private func revealedCard(_ match: MatchCard) -> some View {
         let score = BondStory.report(
             mySun: model.mySun,
             their: match,
@@ -516,122 +548,202 @@ struct MatchHomeView: View {
             myChart: model.myChart,
             theirChart: model.theirChart
         ).overall
+        let warm = ABColor.warm
 
-        return VStack(spacing: 14) {
-            HStack {
-                thumbButton(up: false) {
-                    if let id = session.user?.id { model.reject(myUserId: id) }
-                }
-                Spacer()
-                thumbButton(up: true) {
-                    if let id = session.user?.id { model.acceptReveal(myUserId: id) }
-                }
-            }
-
-            Button {
-                model.detailCard = match
-            } label: {
-                HStack(spacing: 16) {
-                    PersonAvatar(
-                        name: match.displayName,
-                        photoURL: match.photoURL,
-                        cartoonAvatarId: match.cartoonAvatarId,
-                        sunSign: match.sunSign,
-                        unlocked: false,
-                        size: 100
+        return HStack(alignment: .top, spacing: 16) {
+            // Zodiac sphere instead of a photo.
+            ZStack {
+                Circle().fill(
+                    RadialGradient(
+                        colors: [Color(hex: "#5B4B5E"), Color(hex: "#1A121D"), Color(hex: "#09060C")],
+                        center: UnitPoint(x: 0.35, y: 0.3),
+                        startRadius: 2, endRadius: 70
                     )
-                    .opacity(0.84)
+                )
+                // Moon-like surface: rim light on the left + soft craters.
+                Circle().fill(
+                    RadialGradient(colors: [warm.opacity(0.38), .clear],
+                                   center: UnitPoint(x: 0.05, y: 0.5), startRadius: 0, endRadius: 70)
+                )
+                ForEach(Array([(-22.0, -26.0, 14.0), (18.0, -30.0, 9.0), (28.0, 6.0, 16.0),
+                               (-30.0, 18.0, 10.0), (4.0, 30.0, 12.0), (-8.0, -4.0, 7.0)].enumerated()), id: \.offset) { _, c in
+                    Circle()
+                        .fill(Color.black.opacity(0.22))
+                        .overlay(Circle().stroke(warm.opacity(0.15), lineWidth: 0.6))
+                        .frame(width: c.2, height: c.2)
+                        .offset(x: c.0, y: c.1)
+                }
+                Circle().strokeBorder(
+                    LinearGradient(colors: [warm.opacity(0.95), warm.opacity(0.2)], startPoint: .topLeading, endPoint: .bottomTrailing),
+                    lineWidth: 1.6
+                )
+                Text(match.sunSign?.glyph ?? "✦")
+                    .font(.system(size: 46))
+                    .foregroundStyle(warm)
+                    .shadow(color: warm.opacity(0.6), radius: 8)
+            }
+            .frame(width: 96, height: 96)
+            .clipShape(Circle())
+            .shadow(color: warm.opacity(0.28), radius: 12)
 
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(match.displayName)
-                            .font(ABFont.display(20))
-                            .foregroundStyle(.white)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-
-                        if match.age > 0 {
-                            Text("\(match.age)")
-                                .font(ABFont.body(13, weight: .medium))
-                                .foregroundStyle(Color.white.opacity(0.55))
+            VStack(alignment: .leading, spacing: 9) {
+                HStack(alignment: .top) {
+                    Text(match.displayName)
+                        .font(ABFont.display(24, weight: .regular))
+                        .foregroundStyle(.white)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                    Spacer(minLength: 4)
+                    Menu {
+                        Button("Gizle", systemImage: "eye.slash") {
+                            if let id = session.user?.id { model.reject(myUserId: id) }
                         }
+                    } label: {
+                        Image(systemName: "ellipsis")
+                            .rotationEffect(.degrees(90))
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundStyle(Color.white.opacity(0.7))
+                            .frame(width: 28, height: 24)
+                    }
+                }
 
-                        Divider().background(Color.white.opacity(0.14))
-
-                        if let sign = match.sunSign {
-                            HStack(spacing: 10) {
-                                ZStack {
-                                    Circle().stroke(Color.white.opacity(0.25), lineWidth: 1)
-                                        .frame(width: 40, height: 40)
-                                    Text(sign.lineGlyph)
-                                        .font(.system(size: 19))
-                                        .foregroundStyle(.white)
-                                }
-                                VStack(alignment: .leading, spacing: 1) {
-                                    Text(sign.labelTR.uppercased())
-                                        .font(ABFont.body(14, weight: .bold))
-                                        .tracking(1)
-                                        .foregroundStyle(.white)
-                                    Text(sign.dateRangeText)
-                                        .font(ABFont.body(11))
-                                        .foregroundStyle(Color.white.opacity(0.45))
-                                }
-                            }
-                        }
-
-                        HStack(alignment: .firstTextBaseline, spacing: 8) {
-                            Image(systemName: "heart.fill")
-                                .font(.system(size: 18))
-                                .foregroundStyle(Color(hex: "#E4E8EF"))
-                            Text("%\(score)")
-                                .font(ABFont.display(19, weight: .bold))
+                if let sign = match.sunSign {
+                    HStack(spacing: 10) {
+                        Text(sign.glyph)
+                            .font(.system(size: 17))
+                            .foregroundStyle(warm)
+                            .frame(width: 34, height: 34)
+                            .overlay(Circle().stroke(warm.opacity(0.5), lineWidth: 1))
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(sign.labelTR.uppercased(with: Locale(identifier: "tr_TR")))
+                                .font(ABFont.body(14, weight: .bold))
+                                .tracking(0.8)
                                 .foregroundStyle(.white)
-                            Text("UYUMLU")
-                                .font(ABFont.body(12, weight: .bold))
-                                .tracking(1)
+                            Text(sign.dateRangeText)
+                                .font(ABFont.body(11.5))
                                 .foregroundStyle(Color.white.opacity(0.6))
                         }
                     }
                 }
-            }
-            .buttonStyle(.plain)
 
-            Text("Profili gör")
-                .font(ABFont.body(12, weight: .medium))
-                .foregroundStyle(ABColor.lavenderSoft.opacity(0.85))
+                HStack(spacing: 8) {
+                    Image(systemName: "heart.fill")
+                        .font(.system(size: 17))
+                        .foregroundStyle(warm)
+                    Text("%\(score)")
+                        .font(ABFont.display(21, weight: .bold))
+                        .foregroundStyle(.white)
+                    Text("Astro Uyum")
+                        .font(ABFont.display(14, weight: .regular))
+                        .foregroundStyle(Color.white.opacity(0.75))
+                }
+
+                Button {
+                    model.detailCard = match
+                } label: {
+                    HStack(spacing: 6) {
+                        Text("Profili gör")
+                        Image(systemName: "chevron.right").font(.system(size: 11, weight: .semibold))
+                    }
+                    .font(ABFont.body(13.5, weight: .medium))
+                    .foregroundStyle(Color.white.opacity(0.9))
+                }
+                .buttonStyle(.plain)
+            }
         }
-        .padding(16)
+        .padding(14)
         .background(
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .stroke(
-                    LinearGradient(
-                        colors: [ABColor.lavenderSoft.opacity(0.5), ABColor.lavender.opacity(0.28)],
-                        startPoint: .top, endPoint: .bottom
-                    ),
-                    lineWidth: 4
-                )
-                .blur(radius: 6)
+            RoundedRectangle(cornerRadius: 26, style: .continuous)
+                .fill(Color.black.opacity(0.42))
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
+            RoundedRectangle(cornerRadius: 26, style: .continuous)
                 .strokeBorder(
                     LinearGradient(
-                        colors: [Color(hex: "#E2DDFF").opacity(0.55), ABColor.lavender.opacity(0.24)],
-                        startPoint: .top, endPoint: .bottom
+                        colors: [warm.opacity(0.75), warm.opacity(0.18)],
+                        startPoint: .topLeading, endPoint: .bottomTrailing
                     ),
-                    lineWidth: 1
+                    lineWidth: 1.2
                 )
         )
+        .shadow(color: warm.opacity(0.12), radius: 14)
     }
 
-    private func thumbButton(up: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: up ? "hand.thumbsup.fill" : "hand.thumbsdown.fill")
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(.white)
-                .frame(width: 40, height: 40)
-                .background(Circle().fill(Color.white.opacity(0.06)))
-                .overlay(
-                    Circle().stroke(ABColor.lavender.opacity(up ? 0.9 : 0.6), lineWidth: 1.2)
-                )
+    private var revealedActions: some View {
+        HStack(spacing: 0) {
+            Spacer()
+            revealButton(icon: "heart.fill", label: "İlgimi çekti") {
+                if let id = session.user?.id { model.acceptReveal(myUserId: id) }
+            }
+            Spacer()
+            revealButton(icon: "sparkle", label: "Yeni bir eşleşme") {
+                guard let id = session.user?.id else { return }
+                model.reject(myUserId: id)
+                Task {
+                    try? await Task.sleep(nanoseconds: 450_000_000)
+                    startSpin()
+                }
+            }
+            Spacer()
+        }
+        .background(alignment: .top) {
+            ZStack {
+                Ellipse().stroke(ABColor.warm.opacity(0.35), lineWidth: 1)
+                    .frame(width: 360, height: 70)
+                    .rotationEffect(.degrees(-4))
+                Ellipse().stroke(ABColor.warm.opacity(0.18), lineWidth: 1)
+                    .frame(width: 390, height: 96)
+                    .rotationEffect(.degrees(3))
+            }
+            .offset(y: 4)
+            .allowsHitTesting(false)
+        }
+    }
+
+    private func revealButton(icon: String, label: String, action: @escaping () -> Void) -> some View {
+        let isHeart = icon == "heart.fill"
+        let glow = isHeart ? Color(hex: "#E7B8FF") : Color(hex: "#FFD36B")
+        return Button(action: action) {
+            VStack(spacing: 8) {
+                ZStack {
+                    // Soft halo
+                    Circle().fill(glow.opacity(0.35)).frame(width: 104, height: 104).blur(radius: 18)
+                    // Glassy body
+                    Circle().fill(RadialGradient(colors: [glow.opacity(0.42), Color(hex: "#1A1322").opacity(0.85)],
+                                                 center: UnitPoint(x: 0.5, y: 0.3), startRadius: 2, endRadius: 52))
+                        .frame(width: 88, height: 88)
+                    // Top highlight
+                    Circle().fill(LinearGradient(colors: [Color.white.opacity(0.35), .clear], startPoint: .top, endPoint: .center))
+                        .frame(width: 80, height: 80)
+                        .offset(y: -3)
+                        .mask(Circle().frame(width: 88, height: 88))
+                    Circle().strokeBorder(
+                        LinearGradient(colors: [Color(hex: "#FFF3D6"), glow, glow.opacity(0.35)], startPoint: .top, endPoint: .bottom),
+                        lineWidth: 2.4
+                    )
+                    .frame(width: 88, height: 88)
+                    Circle().strokeBorder(glow.opacity(0.35), lineWidth: 1).frame(width: 98, height: 98)
+
+                    if isHeart {
+                        Image(systemName: "heart.fill")
+                            .font(.system(size: 38, weight: .semibold))
+                            .foregroundStyle(LinearGradient(colors: [.white, Color(hex: "#E9C8FF")], startPoint: .top, endPoint: .bottom))
+                            .shadow(color: glow, radius: 8)
+                            .shadow(color: glow.opacity(0.8), radius: 16)
+                    } else {
+                        FourPointStar()
+                            .fill(LinearGradient(colors: [.white, Color(hex: "#FFD36B")], startPoint: .top, endPoint: .bottom))
+                            .frame(width: 44, height: 44)
+                            .shadow(color: glow, radius: 8)
+                            .shadow(color: glow.opacity(0.8), radius: 16)
+                    }
+                }
+                .frame(width: 104, height: 104)
+                Text(label)
+                    .font(ABFont.body(14, weight: .semibold))
+                    .foregroundStyle(Color.white)
+                    .shadow(color: .black.opacity(0.6), radius: 3)
+            }
         }
         .buttonStyle(.plain)
     }
@@ -731,15 +843,16 @@ private struct BondSettingsPanel: View {
     @Binding var prefs: MatchPrefsStore.Snapshot
 
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 13) {
             orientationSection
             bondieSection
         }
+        .padding(.horizontal, 23)
         .frame(maxWidth: .infinity)
     }
 
     private var orientationSection: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 3) {
             sectionHeading("Eşleşme tercihin nedir?")
             HStack(spacing: 8) {
                 ForEach(MatchOrientation.allCases) { option in
@@ -763,9 +876,9 @@ private struct BondSettingsPanel: View {
     }
 
     private var bondieSection: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 8) {
             sectionHeading("Nasıl bir bağ kurmak istiyorsun?")
-            LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 7), GridItem(.flexible(), spacing: 7)], spacing: 7) {
                 ForEach(MatchIntent.allCases) { item in
                     SelectablePill(title: item.bondLabel, selected: intents.contains(item)) {
                         toggleIntent(item)
@@ -776,17 +889,22 @@ private struct BondSettingsPanel: View {
     }
 
     private func sectionHeading(_ title: String) -> some View {
-        Text(title)
-            .font(ABFont.display(18, weight: .regular))
-            .multilineTextAlignment(.center)
-            .foregroundStyle(
-                LinearGradient(
-                    colors: [Color.white, Color(hex: "#E4E2F2").opacity(0.88)],
-                    startPoint: .top, endPoint: .bottom
+        VStack(spacing: 6) {
+            Text(title)
+                .font(ABFont.display(18, weight: .regular))
+                .multilineTextAlignment(.center)
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [Color.white, Color(hex: "#E4E2F2").opacity(0.88)],
+                        startPoint: .top, endPoint: .bottom
+                    )
                 )
-            )
-            .fixedSize(horizontal: false, vertical: true)
-            .frame(maxWidth: .infinity)
+                .fixedSize(horizontal: false, vertical: true)
+            Capsule()
+                .fill(ABColor.lavender.opacity(0.85))
+                .frame(width: 26, height: 3)
+        }
+        .frame(maxWidth: .infinity)
     }
 
     private func toggleIntent(_ item: MatchIntent) {
@@ -842,15 +960,15 @@ private struct SelectablePill: View {
                 .font(ABFont.body(13, weight: .medium))
                 .foregroundStyle(Color.white.opacity(selected ? 1 : 0.9))
                 .padding(.horizontal, 12)
-                .frame(height: 44)
+                .frame(height: 37)
                 .frame(maxWidth: .infinity)
                 .background {
                     Capsule(style: .continuous)
-                        .fill(selected ? ABColor.lavender.opacity(0.38) : Color.white.opacity(0.07))
+                        .fill(selected ? ABColor.lavender.opacity(0.38) : Color(hex: "#12101A").opacity(0.88))
                 }
                 .overlay(
                     Capsule(style: .continuous)
-                        .stroke(ABColor.lavender.opacity(selected ? 0.9 : 0.32), lineWidth: 1)
+                        .stroke(ABColor.lavender.opacity(selected ? 0.9 : 0.5), lineWidth: 1)
                 )
                 .shadow(color: ABColor.lavender.opacity(selected ? 0.28 : 0), radius: selected ? 12 : 0, y: 4)
         }

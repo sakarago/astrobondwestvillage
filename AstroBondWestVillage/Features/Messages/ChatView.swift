@@ -178,11 +178,11 @@ struct ChatView: View {
                         ForEach(groupedMessages, id: \.day) { group in
                             Text(group.label)
                                 .font(ABFont.body(12, weight: .semibold))
-                                .foregroundStyle(ABColor.inkMuted)
+                                .foregroundStyle(Self.roseSoft)
                                 .padding(.horizontal, 14)
                                 .padding(.vertical, 6)
-                                .background(Capsule().fill(Color.white.opacity(0.06)))
-                                .overlay(Capsule().strokeBorder(ABColor.lavenderSoft.opacity(0.6), lineWidth: 1))
+                                .background(Capsule().fill(Color.black.opacity(0.35)))
+                                .overlay(Capsule().strokeBorder(Self.rose.opacity(0.45), lineWidth: 1))
                                 .frame(maxWidth: .infinity)
 
                             ForEach(group.messages) { msg in
@@ -219,7 +219,10 @@ struct ChatView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .ignoresSafeArea(.keyboard, edges: .bottom)
         .background {
-            CosmicBackdrop()
+            Color.clear
+                .overlay { Image("chat_bg").resizable().scaledToFill() }
+                .clipped()
+                .overlay(Color.black.opacity(0.22))
                 .ignoresSafeArea(.container)
         }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillChangeFrameNotification)) { note in
@@ -277,80 +280,100 @@ struct ChatView: View {
         }
     }
 
-    private var header: some View {
-        HStack(spacing: 12) {
-            Button(action: goBack) {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(ABColor.lavender)
-                    .frame(width: 40, height: 40)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Geri")
+    private static let rose = Color(hex: "#E8B9A0")
+    private static let roseSoft = Color(hex: "#F3D9C8")
 
-            Spacer(minLength: 0)
-
-            Button {
-                resignKeyboard()
-                showSinastri = true
-            } label: {
-                HStack(spacing: 10) {
-                    PersonAvatar(
-                        name: model.conversation.otherName,
-                        photoURL: model.conversation.otherPhotoURL,
-                        cartoonAvatarId: model.conversation.otherCartoonAvatarId,
-                        sunSign: model.conversation.otherSunSign,
-                        unlocked: model.photoUnlocked,
-                        size: 44
-                    )
-                    VStack(spacing: 1) {
-                        Text(model.conversation.otherName)
-                            .font(ABFont.display(20))
-                            .foregroundStyle(ABColor.ink)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.75)
-                        Text("Sinastriyi gör")
-                            .font(ABFont.body(12, weight: .medium))
-                            .foregroundStyle(ABColor.inkMuted)
-                    }
-                }
-            }
-            .buttonStyle(.plain)
-
-            Spacer(minLength: 0)
-
-            HStack(spacing: 6) {
-                circleIcon("phone")
-                Menu {
-                    Button("Profili Görüntüle", systemImage: "person") {
-                        resignKeyboard()
-                        showSinastri = true
-                    }
-                    Button("Sessize Al", systemImage: "bell.slash") {}
-                    Button("Engelle", systemImage: "hand.raised", role: .destructive) {}
-                } label: {
-                    circleIcon("ellipsis")
-                }
-            }
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .background {
-            Color(hex: "#0A0A0C").opacity(0.7)
-                .background(.ultraThinMaterial)
-                .ignoresSafeArea(edges: .top)
-        }
+    private var astroScore: Int {
+        BondStory.report(
+            mySun: model.mySun,
+            their: model.otherAsCard,
+            intent: MatchPrefsStore.shared.snapshot.intent,
+            myChart: model.myChart,
+            theirChart: nil
+        ).overall
     }
 
-    private func circleIcon(_ name: String) -> some View {
-        Image(systemName: name)
-            .font(.system(size: 15, weight: .semibold))
-            .foregroundStyle(ABColor.lavender)
-            .frame(width: 38, height: 38)
-            .background(Circle().fill(Color.white.opacity(0.06)))
-            .overlay(Circle().strokeBorder(ABColor.lavenderSoft.opacity(0.7), lineWidth: 1))
-            .shadow(color: ABColor.lavender.opacity(0.22), radius: 8)
+    private func openSinastri() {
+        resignKeyboard()
+        showSinastri = true
+    }
+
+    private var header: some View {
+        VStack(spacing: 8) {
+            ZStack {
+                AstroBondLogoMark(flare: true)
+                HStack {
+                    Button(action: goBack) {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 19, weight: .semibold))
+                            .foregroundStyle(Color.white)
+                            .frame(width: 40, height: 40)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Geri")
+                    Spacer()
+                }
+            }
+
+            HStack(spacing: 12) {
+                Button(action: openSinastri) {
+                    HStack(spacing: 12) {
+                        PersonAvatar(
+                            name: model.conversation.otherName,
+                            photoURL: model.conversation.otherPhotoURL,
+                            cartoonAvatarId: model.conversation.otherCartoonAvatarId,
+                            sunSign: model.conversation.otherSunSign,
+                            unlocked: model.photoUnlocked,
+                            size: 54
+                        )
+                        .overlay(Circle().strokeBorder(Self.rose, lineWidth: 1.6))
+                        .shadow(color: Self.rose.opacity(0.35), radius: 8)
+
+                        HStack(spacing: 6) {
+                            Text(model.conversation.otherName)
+                                .font(ABFont.display(21, weight: .regular))
+                                .foregroundStyle(Color.white)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.75)
+                            Text("☾").font(.system(size: 15)).foregroundStyle(Self.roseSoft)
+                        }
+                    }
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Ortak sinastriyi aç")
+
+                Spacer(minLength: 8)
+
+                Button(action: openSinastri) {
+                    VStack(spacing: 2) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "heart")
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundStyle(Color(hex: "#F28B82"))
+                            Text("%\(astroScore)")
+                                .font(ABFont.display(20, weight: .regular))
+                                .foregroundStyle(Color.white)
+                        }
+                        Text("Astro Uyum")
+                            .font(ABFont.body(12, weight: .medium))
+                            .foregroundStyle(Self.roseSoft.opacity(0.85))
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 9)
+                    .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(Color.black.opacity(0.4)))
+                    .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(Self.rose.opacity(0.55), lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 2)
+        .padding(.bottom, 10)
+        .background {
+            LinearGradient(colors: [Color.black.opacity(0.7), Color.black.opacity(0.35)], startPoint: .top, endPoint: .bottom)
+                .ignoresSafeArea(edges: .top)
+        }
     }
 
     private func bubble(_ msg: ChatMessage) -> some View {
@@ -360,14 +383,6 @@ struct ChatView: View {
                 Spacer(minLength: 48)
                 bubbleBody(msg, mine: true)
             } else {
-                PersonAvatar(
-                    name: model.conversation.otherName,
-                    photoURL: model.conversation.otherPhotoURL,
-                    cartoonAvatarId: model.conversation.otherCartoonAvatarId,
-                    sunSign: model.conversation.otherSunSign,
-                    unlocked: model.photoUnlocked,
-                    size: 40
-                )
                 bubbleBody(msg, mine: false)
                 Spacer(minLength: 48)
             }
@@ -376,43 +391,37 @@ struct ChatView: View {
     }
 
     private func bubbleBody(_ msg: ChatMessage, mine: Bool) -> some View {
-        VStack(alignment: mine ? .trailing : .leading, spacing: 6) {
+        let ink = Color(hex: "#2B2237")
+        return VStack(alignment: mine ? .trailing : .leading, spacing: 6) {
             Text(msg.text)
-                .font(ABFont.body(16))
-                .foregroundStyle(ABColor.ink)
+                .font(ABFont.display(17, weight: .regular))
+                .foregroundStyle(mine ? Color(hex: "#F6E9E1") : ink)
                 .multilineTextAlignment(mine ? .trailing : .leading)
                 .fixedSize(horizontal: false, vertical: true)
 
             HStack(spacing: 5) {
                 Text(timeString(msg.sentAt))
                     .font(ABFont.body(11))
-                    .foregroundStyle(ABColor.inkMuted)
+                    .foregroundStyle(mine ? Self.roseSoft.opacity(0.7) : ink.opacity(0.5))
                 if mine {
                     Image(systemName: "checkmark")
                         .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(ABColor.lavender)
+                        .foregroundStyle(Self.rose)
                 }
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .frame(maxWidth: 280, alignment: mine ? .trailing : .leading)
+        .padding(.horizontal, 18)
+        .padding(.vertical, 13)
+        .frame(maxWidth: 300, alignment: mine ? .trailing : .leading)
         .background {
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(mine ? ABColor.lavender.opacity(0.18) : Color.white.opacity(0.06))
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .fill(mine ? Color.black.opacity(0.52) : Color(hex: "#D9C2B8").opacity(0.94))
         }
         .overlay(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .strokeBorder(
-                    LinearGradient(
-                        colors: [ABColor.lavenderSoft, ABColor.lavender.opacity(0.5)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    lineWidth: 1.1
-                )
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .strokeBorder(mine ? Self.rose.opacity(0.4) : Color.white.opacity(0.35), lineWidth: 1)
         )
-        .shadow(color: ABColor.lavender.opacity(0.22), radius: 10)
+        .shadow(color: .black.opacity(0.25), radius: 8, y: 3)
     }
 
     private func timeString(_ date: Date) -> String {
@@ -426,21 +435,22 @@ struct ChatView: View {
     }
 
     private var composer: some View {
-        HStack(spacing: 12) {
-            Button {
-                resignKeyboard()
-                showQuestions = true
+        HStack(spacing: 10) {
+            Menu {
+                Button("Soru Keşfet", systemImage: "sparkle") {
+                    resignKeyboard()
+                    showQuestions = true
+                }
+                Button("Ortak Sinastri", systemImage: "circle.hexagongrid", action: openSinastri)
             } label: {
-                Image(systemName: "sparkle")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(ABColor.lavenderSoft)
-                    .frame(width: 40, height: 40)
-                    .background(Circle().fill(Color.white.opacity(0.08)))
-                    .overlay(Circle().strokeBorder(ABColor.lavenderSoft.opacity(0.8), lineWidth: 1.2))
-                    .shadow(color: ABColor.lavender.opacity(0.4), radius: 8)
+                Image(systemName: "plus")
+                    .font(.system(size: 20, weight: .regular))
+                    .foregroundStyle(Color.white)
+                    .frame(width: 46, height: 46)
+                    .background(Circle().fill(Color.black.opacity(0.45)))
+                    .overlay(Circle().strokeBorder(Self.rose.opacity(0.55), lineWidth: 1))
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Soru keşfet")
+            .accessibilityLabel("Ekle")
 
             ChatComposerField(
                 text: $draft,
@@ -448,51 +458,54 @@ struct ChatView: View {
                 isFocused: $isComposerFocused,
                 onSubmit: sendTapped
             )
-            .frame(minHeight: 22, maxHeight: 72)
+            .frame(height: 22)
+            .padding(.horizontal, 18)
+            .padding(.vertical, 12)
+            .background(Capsule(style: .continuous).fill(Color.black.opacity(0.42)))
+            .overlay(Capsule(style: .continuous).strokeBorder(Self.rose.opacity(0.45), lineWidth: 1))
+
+            Button {
+                resignKeyboard()
+                showQuestions = true
+            } label: {
+                Image(systemName: "sparkle")
+                    .font(.system(size: 22, weight: .semibold))
+                    .foregroundStyle(Color.white)
+                    .shadow(color: Self.roseSoft, radius: 6)
+                    .frame(width: 54, height: 54)
+                    .background(Circle().fill(Color.black.opacity(0.5)))
+                    .overlay(
+                        Circle().strokeBorder(
+                            LinearGradient(colors: [Color(hex: "#FFE3CF"), Self.rose, Color(hex: "#C98A6E")], startPoint: .top, endPoint: .bottom),
+                            lineWidth: 2.2
+                        )
+                    )
+                    .shadow(color: Self.rose.opacity(0.7), radius: 12)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Soru keşfet")
 
             Button(action: canSend ? sendTapped : resignKeyboard) {
-                Image(systemName: canSend ? "paperplane.fill" : "chevron.down")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(canSend || isComposerFocused ? Color.white : ABColor.inkMuted)
-                    .frame(width: 44, height: 44)
+                Image(systemName: canSend ? "paperplane.fill" : (isComposerFocused ? "chevron.down" : "paperplane"))
+                    .font(.system(size: 17, weight: .medium))
+                    .foregroundStyle(canSend ? Color(hex: "#2B2237") : Color.white)
+                    .frame(width: 46, height: 46)
                     .background {
-                        Circle().fill(
-                            canSend
-                                ? AnyShapeStyle(
-                                    LinearGradient(
-                                        colors: [ABColor.lavenderSoft, ABColor.lavender],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                                : AnyShapeStyle(Color.white.opacity(isComposerFocused ? 0.12 : 0.06))
-                        )
+                        Circle().fill(canSend ? AnyShapeStyle(Self.rose) : AnyShapeStyle(Color.black.opacity(0.45)))
                     }
-                    .overlay(Circle().strokeBorder(ABColor.lavenderSoft.opacity(0.7), lineWidth: 1))
-                    .shadow(color: ABColor.lavender.opacity(canSend ? 0.28 : 0.12), radius: 8)
+                    .overlay(Circle().strokeBorder(Self.rose.opacity(0.55), lineWidth: 1))
             }
             .buttonStyle(.plain)
             .disabled(!canSend && !isComposerFocused)
             .accessibilityLabel(canSend ? "Gönder" : "Klavye kapat")
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
-        .background(Capsule(style: .continuous).fill(Color.white.opacity(0.06)))
-        .overlay(
-            Capsule(style: .continuous)
-                .strokeBorder(
-                    LinearGradient(
-                        colors: [ABColor.lavenderSoft, ABColor.lavender.opacity(0.5)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    lineWidth: 1.2
-                )
-        )
-        .shadow(color: ABColor.lavender.opacity(0.18), radius: 12)
-        .padding(.horizontal, 14)
-        .padding(.top, 8)
+        .padding(.horizontal, 12)
+        .padding(.top, 10)
         .padding(.bottom, 8)
+        .background {
+            LinearGradient(colors: [.clear, Color.black.opacity(0.55)], startPoint: .top, endPoint: .bottom)
+                .ignoresSafeArea(edges: .bottom)
+        }
     }
 
     private func sendTapped() {
@@ -545,8 +558,8 @@ private struct ChatComposerField: UIViewRepresentable {
         field.borderStyle = .none
         field.backgroundColor = .clear
         field.textColor = .white
-        field.tintColor = UIColor(red: 0.79, green: 0.72, blue: 1.0, alpha: 1)
-        field.font = .systemFont(ofSize: 16, weight: .regular)
+        field.tintColor = UIColor(red: 0.91, green: 0.73, blue: 0.63, alpha: 1)
+        field.font = UIFont(descriptor: UIFont.systemFont(ofSize: 16).fontDescriptor.withDesign(.serif) ?? UIFont.systemFont(ofSize: 16).fontDescriptor, size: 16)
         field.returnKeyType = .send
         field.autocorrectionType = .yes
         field.autocapitalizationType = .sentences
