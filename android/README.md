@@ -17,9 +17,15 @@ cd android && ./gradlew :app:assembleDebug
 ## Status
 
 - [x] Step 1: Gradle project, crystal theme (`ui/theme`), 4-tab shell (`ui/nav`), Turkish strings
-- [ ] Step 2: Supabase auth + onboarding
-- [ ] Step 3: Ephemeris + compatibility
-- [ ] Step 4–7: Match, Messages, Discover, Profile/Settings/notifications
+- [x] Step 2: Supabase auth (`data/Repositories.kt`, `session/`), welcome/sign-in/sign-up, onboarding (name, avatar, birth data, Turkey locations from `assets/locations.json`, preferences)
+- [x] Step 3 (engine): Swiss Ephemeris via NDK/JNI (`cpp/`, `astro/SwissEph.kt`), natal chart (`astro/ChartEngine.kt`), compatibility (`domain/Compatibility.kt`), chart JSON compatible with iOS rows (`domain/Chart.kt`).
+  Verified on emulator: J2000 Sun 280.3689°, Moon 223.3238°.
+- [ ] Step 3 (UI): chart wheel / profile chart, report screens
+- [ ] Step 4: Match wheel / reveal flow (+ daily quota; `isUnlimited` must NOT be ported)
+- [ ] Step 5: Messages + chat (+ question discovery), realtime
+- [ ] Step 6: Discover (DailyNoteEngine / DiscoverContent 1:1 port)
+- [ ] Step 7: Profile, settings, 09:00 daily notification
 
-Notes: `DailyRevealQuotaStore.isUnlimited` (iOS test flag) must NOT be ported as unlimited.
-Crystal glass is approximated with translucent fills (no backdrop blur); body font is SansSerif until a rounded font is bundled.
+Notes: Crystal glass is approximated with translucent fills (no backdrop blur); body font is SansSerif until a rounded font is bundled; cartoon avatars are a simplified flat drawing using the iOS colour table; Google/Apple/phone sign-in are stubs as on iOS.
+Supabase URL/anon key are read at build time from the iOS `SupabaseCredentials.swift` (or `local.properties` `supabase.url` / `supabase.anonKey`).
+Email sign-up needs email confirmation OFF on the Supabase project (same limitation as iOS).

@@ -37,7 +37,7 @@ import com.astrobond.app.ui.theme.crystalCapsule
  * Eşleşme tab selected by default.
  */
 @Composable
-fun MainShell() {
+fun MainShell(session: com.astrobond.app.session.SessionViewModel? = null) {
     var selected by rememberSaveable { mutableIntStateOf(AppTab.Match.ordinal) }
 
     CosmicBackdrop {

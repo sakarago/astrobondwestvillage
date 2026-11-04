@@ -18,4 +18,64 @@
     <string name="bond_sex">SexBond</string>
     <string name="bond_business">BusinessBond</string>
     <string name="bond_friend">FriendBond</string>
+
+    <!-- Welcome / auth -->
+    <string name="brand">ASTROBOND</string>
+    <string name="tagline">BAĞ GÖRÜNENDEN ÖNCE BAŞLAR</string>
+    <string name="signup">Kaydol</string>
+    <string name="already_member">Zaten Üyeyim</string>
+    <string name="continue_email">E-posta ile Devam Et</string>
+    <string name="continue_phone">Telefon No. ile Devam Et</string>
+    <string name="phone_closed">Telefon kaydı henüz açık değil. E-posta ile kaydol.</string>
+    <string name="legal_agree">Devam ederek Hizmet Şartları\'nı ve Gizlilik Politikası\'nı kabul etmiş olursun.</string>
+    <string name="legal_required">Devam etmek için sözleşmeyi onaylamalısın.</string>
+    <string name="login_title">Yolculuğa Devam Et</string>
+    <string name="login_sub">E-posta ile giriş yap.</string>
+    <string name="email_hint">E-posta adresi</string>
+    <string name="password_hint">Parola</string>
+    <string name="login">Giriş Yap</string>
+    <string name="logging_in">Giriş yapılıyor...</string>
+    <string name="invalid_login_input">Geçerli bir e-posta ve şifre gir.</string>
+    <string name="email_title">E-posta</string>
+    <string name="contact_sub">Hesabını güvende tutmak ve sana ulaşabilmek için kullanacağız.</string>
+    <string name="email_valid">E-posta adresi geçerli</string>
+    <string name="email_invalid">Geçerli bir e-posta adresi gir</string>
+    <string name="continue_btn">Devam Et</string>
+    <string name="set_password">Şifre Belirle</string>
+    <string name="set_password_sub">Güçlü ama hatırlaması kolay bir şifre seç.</string>
+    <string name="password_tip">Büyük harf ve rakam eklemek güvenliği artırır.</string>
+    <string name="create_account_failed">Hesap oluşturulamadı.</string>
+
+    <!-- Onboarding -->
+    <string name="ob_who">Sen kimsin?</string>
+    <string name="ob_who_sub">İsim ve cinsiyet — eşleşmeler için.</string>
+    <string name="ob_name">İSİM</string>
+    <string name="ob_gender">CİNSİYET</string>
+    <string name="ob_avatar">AVATARINI SEÇ</string>
+    <string name="ob_birth">Doğum bilgilerin</string>
+    <string name="ob_birth_sub">Haritan için gerekli — gizli tutulur.</string>
+    <string name="ob_birth_date">Doğum tarihi</string>
+    <string name="ob_time_known">Doğum saatimi biliyorum</string>
+    <string name="ob_time">Saat</string>
+    <string name="ob_city">ŞEHİR</string>
+    <string name="ob_district">SEMT / İLÇE</string>
+    <string name="ob_city_search">İl ara — Çanakkale, Van…</string>
+    <string name="ob_seek">Kimi arıyorsun?</string>
+    <string name="ob_seek_sub">Eşleşme adaylarını filtreler.</string>
+    <string name="ob_seek_label">CİNSİYET TERCİHİ</string>
+    <string name="back">Geri</string>
+    <string name="next">Devam</string>
+    <string name="make_chart">Haritamı oluştur</string>
+    <string name="switch_account">Farklı hesapla giriş yap</string>
+    <string name="chart_label">DOĞUM HARİTAN</string>
+    <string name="chart_building">AstroBond Profilin Oluşturuluyor</string>
+    <string name="chart_ready">Haritan Hazırlandı</string>
+    <string name="chart_step1">Gezegen konumları hesaplanıyor</string>
+    <string name="chart_step2">Evlerin hizalanışı çiziliyor</string>
+    <string name="chart_step3">Yükselen burcun bulunuyor</string>
+    <string name="chart_step4">Haritan şekilleniyor</string>
+    <string name="sun_label">Güneş</string>
+    <string name="moon_label">Ay</string>
+    <string name="rising_label">Yükselen</string>
+    <string name="retry">Tekrar dene</string>
 </resources>
