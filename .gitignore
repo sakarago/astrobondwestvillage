@@ -8,3 +8,15 @@ DerivedData/
 .env
 .env.*
 *.pem
+
+# Android
+android/.gradle/
+android/build/
+android/**/build/
+android/local.properties
+android/.idea/
+android/*.iml
+android/captures/
+android/app/release/
+*.jks
+*.keystore
