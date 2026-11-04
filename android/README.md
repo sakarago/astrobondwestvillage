@@ -22,7 +22,7 @@ cd android && ./gradlew :app:assembleDebug
   Verified on emulator: J2000 Sun 280.3689°, Moon 223.3238°.
 - [ ] Step 3 (UI): chart wheel / profile chart, report screens
 - [x] Step 4: Match tab (wheel, 6s spin, reveal card, accept/new, today strip, Sinastri detail, bond tiers, 3/day quota). Not yet ported: iOS wheel atmosphere effects, dual synastry wheel, match prefs sheet (age/location), chat hand-off (step 5)
-- [ ] Step 5: Messages + chat (+ question discovery), realtime
+- [x] Step 5: Messages inbox, chat (history, send, realtime inserts, mark-read, photo gate after 10 messages, Astro Uyum score, shared Sinastri), question discovery (hand-written bank, 23/day; no on-device AI), Match → chat hand-off. Not yet verified against a live account.
 - [ ] Step 6: Discover (DailyNoteEngine / DiscoverContent 1:1 port)
 - [ ] Step 7: Profile, settings, 09:00 daily notification
 

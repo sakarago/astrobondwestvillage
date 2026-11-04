@@ -78,6 +78,8 @@ class MatchViewModel(app: Application) : AndroidViewModel(app) {
         isLoading = false
     }
 
+    fun updateTheirChart(c: NatalChart?) { theirChart = c }
+
     fun reload() { viewModelScope.launch { load() } }
 
     fun persistPrefs(next: MatchPrefs) { prefs = next; stores.prefs = next }
@@ -116,7 +118,24 @@ class MatchViewModel(app: Application) : AndroidViewModel(app) {
 
     fun reject() { val a = active ?: return; uid?.let { stores.reject(it, a) }; dismissReveal(); refreshLocal() }
 
-    fun acceptReveal() { val a = active ?: return; uid?.let { stores.accept(it, a) }; dismissReveal(); refreshLocal() }
+    fun acceptReveal() {
+        val a = active ?: return
+        uid?.let { stores.accept(it, a) }
+        ConversationsStore.upsert(ConversationSummary("pending-${a.id}", a.id, a.displayName, a.photoURL, a.cartoonAvatarId, a.sunSign, FIRST_MESSAGE_HINT, System.currentTimeMillis(), 0))
+        viewModelScope.launch { ConversationsStore.ensureConversation(a.id) }
+        dismissReveal(); refreshLocal()
+    }
+
+    /** Accept + open the chat in the Messages tab (iOS `message(card:)`). */
+    fun messageCard(card: MatchCard) {
+        uid?.let { stores.accept(it, card) }; refreshLocal()
+        viewModelScope.launch {
+            try {
+                val conv = MessagingRepo.getOrCreateConversation(card.id)
+                ConversationsStore.upsert(conv); ChatNavigator.pending.value = conv
+            } catch (e: Exception) { message = e.message }
+        }
+    }
 
     fun accept(card: MatchCard) { uid?.let { stores.accept(it, card) }; refreshLocal() }
 

@@ -105,7 +105,7 @@ fun MatchDetailScreen(vm: MatchViewModel, card: MatchCard, onBack: () -> Unit) {
         report.snapshots.forEach { s ->
             Card { Text(s.eyebrow, style = ABFont.label(11f), color = DT.Accent, letterSpacing = 1.5.sp); Text(s.body, style = ABFont.body(13.5f), color = Color.White.copy(0.85f)) }
         }
-        GlowButton(stringResource(R.string.send_message), { vm.accept(card); vm.message = null; onBack() }, showSparkle = false)
+        GlowButton(stringResource(R.string.send_message), { vm.messageCard(card); onBack() }, showSparkle = false)
     }
 }
 

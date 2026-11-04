@@ -108,4 +108,24 @@
     <string name="send_message">Mesaj gönder</string>
     <string name="you">Sen</string>
     <string name="msgs_soon">Mesajlaşma yakında burada olacak.</string>
+
+    <!-- Messages -->
+    <string name="recent_matches">SON EŞLEŞMELER</string>
+    <string name="messages_label">MESAJLAR</string>
+    <string name="inbox_empty">Henüz mesajın yok. Çarktan eşleş, sonra buradan yazışmaya devam et.</string>
+    <string name="photo_gate">Gerçek fotoğraf %1$d mesaj sonra açılır · %2$d/%1$d</string>
+    <string name="today">Bugün</string>
+    <string name="yesterday">Dün</string>
+    <string name="compose_hint">Mesaj yaz...</string>
+    <string name="discover_question">Soru Keşfet</string>
+    <string name="shared_synastry">Ortak Sinastri</string>
+    <string name="question_title">Bir Soru Keşfet</string>
+    <string name="question_card_title">Sana Özel Soru</string>
+    <string name="question_intro">Birbirinizi daha iyi tanımanız için seçilmiş sorulardan birini keşfet.</string>
+    <string name="question_remaining">Bugün %1$d soru hakkın var.</string>
+    <string name="question_share">Sohbette Paylaş</string>
+    <string name="question_another">Başka Soru Göster</string>
+    <string name="question_limit_title">Günlük soru hakkın doldu</string>
+    <string name="question_limit_body">Kullanılmayan haklar ertesi güne devretmez. Yarın yeniden dene.</string>
+    <string name="no_session">Oturum bulunamadı.</string>
 </resources>

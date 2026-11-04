@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -26,7 +28,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.testTag
 import com.astrobond.app.ui.screens.DiscoverScreen
 import com.astrobond.app.ui.match.MatchScreen
-import com.astrobond.app.ui.screens.MessagesScreen
 import com.astrobond.app.ui.screens.ProfileScreen
 import com.astrobond.app.ui.theme.ABColor
 import com.astrobond.app.ui.theme.CosmicBackdrop
@@ -40,12 +41,14 @@ import com.astrobond.app.ui.theme.crystalCapsule
 fun MainShell(session: com.astrobond.app.session.SessionViewModel? = null) {
     var selected by rememberSaveable { mutableIntStateOf(AppTab.Match.ordinal) }
 
+    val pending by com.astrobond.app.data.ChatNavigator.pending.collectAsState()
+    LaunchedEffect(pending) { if (pending != null) selected = AppTab.Messages.ordinal }
     CosmicBackdrop {
         Box(Modifier.fillMaxSize()) {
             // iOS keeps all four bodies mounted; here only the selected tab composes and
             // per-screen state lives in ViewModels / rememberSaveable.
             TabBody(AppTab.entries[selected], session)
-            WestVillageTabBar(
+            if (!com.astrobond.app.ui.Chrome.hideTabBar) WestVillageTabBar(
                 selected = selected,
                 onSelect = { selected = it },
                 modifier = Modifier.align(Alignment.BottomCenter),
@@ -58,7 +61,7 @@ fun MainShell(session: com.astrobond.app.session.SessionViewModel? = null) {
 private fun TabBody(tab: AppTab, session: com.astrobond.app.session.SessionViewModel?) = when (tab) {
     AppTab.Discover -> DiscoverScreen()
     AppTab.Match -> MatchScreen(session)
-    AppTab.Messages -> MessagesScreen()
+    AppTab.Messages -> com.astrobond.app.ui.messages.MessagesScreen(session)
     AppTab.Profile -> ProfileScreen()
 }
 
