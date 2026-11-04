@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">AstroBond</string>
+
+    <!-- Tabs (same order as iOS MainTabView) -->
+    <string name="tab_discover">Keşfet</string>
+    <string name="tab_match">Eşleşme</string>
+    <string name="tab_messages">Mesajlar</string>
+    <string name="tab_profile">Profil</string>
+
+    <!-- Placeholders until each feature is ported -->
+    <string name="soon_title">Çok yakında</string>
+    <string name="soon_body">Bu ekran yakında burada olacak ✨</string>
+    <string name="daily_notification_body">Bugünün mesajı seni bekliyor ✨ Kartını seç; evrenin bugün sana söylediği şeyi keşfet.</string>
+
+    <!-- Bond kinds: English names are intentional (see AndroidHandoff.md) -->
+    <string name="bond_romantic">RomanticBond</string>
+    <string name="bond_sex">SexBond</string>
+    <string name="bond_business">BusinessBond</string>
+    <string name="bond_friend">FriendBond</string>
+</resources>
