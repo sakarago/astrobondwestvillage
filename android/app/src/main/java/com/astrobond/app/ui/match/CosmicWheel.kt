@@ -2,8 +2,9 @@ package com.astrobond.app.ui.match
 
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -41,8 +42,30 @@ fun CosmicWheel(size: Dp, rotation: Float, spinning: Boolean, revealed: Boolean,
     val angle by animateFloatAsState(rotation, tween(if (spinning) 6000 else 0, easing = FastOutSlowInEasing), label = "wheel")
     val pulse by rememberInfiniteTransition(label = "pulse").animateFloat(0.55f, 1f, infiniteRepeatable(tween(1400), RepeatMode.Reverse), label = "p")
     val accent = if (revealed) Warm else ABColor.Lavender
-    Box(Modifier.size(size).clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, enabled = !spinning && !revealed, onClick = onTap), contentAlignment = Alignment.Center) {
-        Canvas(Modifier.size(size).rotate(angle)) {
+    // Manual rotation (Android addition): drag around the wheel's centre while idle; tap still spins.
+    var drag by remember { mutableFloatStateOf(0f) }
+    val idle = !spinning && !revealed
+    Box(
+        Modifier.size(size)
+            .pointerInput(idle) {
+                if (!idle) return@pointerInput
+                detectTapGestures { onTap() }
+            }
+            .pointerInput(idle) {
+                if (!idle) return@pointerInput
+                detectDragGestures { change, dragAmount ->
+                    val c = Offset(this.size.width / 2f, this.size.height / 2f)
+                    val p = change.position - c
+                    val prev = p - dragAmount
+                    val a1 = Math.toDegrees(kotlin.math.atan2(prev.y, prev.x).toDouble())
+                    val a2 = Math.toDegrees(kotlin.math.atan2(p.y, p.x).toDouble())
+                    drag += (a2 - a1).toFloat()
+                    change.consume()
+                }
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        Canvas(Modifier.size(size).rotate(angle + drag)) {
             val r = this.size.minDimension / 2
             val c = center
             drawCircle(Brush.radialGradient(listOf(accent.copy(0.22f), Color.Transparent), c, r), r)
