@@ -436,22 +436,6 @@ struct ChatView: View {
 
     private var composer: some View {
         HStack(spacing: 10) {
-            Menu {
-                Button("Soru Keşfet", systemImage: "sparkle") {
-                    resignKeyboard()
-                    showQuestions = true
-                }
-                Button("Ortak Sinastri", systemImage: "circle.hexagongrid", action: openSinastri)
-            } label: {
-                Image(systemName: "plus")
-                    .font(.system(size: 20, weight: .regular))
-                    .foregroundStyle(Color.white)
-                    .frame(width: 46, height: 46)
-                    .background(Circle().fill(Color.black.opacity(0.45)))
-                    .overlay(Circle().strokeBorder(Self.rose.opacity(0.55), lineWidth: 1))
-            }
-            .accessibilityLabel("Ekle")
-
             ChatComposerField(
                 text: $draft,
                 placeholder: "Mesaj yaz...",

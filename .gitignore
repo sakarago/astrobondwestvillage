@@ -20,3 +20,4 @@ android/captures/
 android/app/release/
 *.jks
 *.keystore
+android/.kotlin/

@@ -17,13 +17,15 @@ struct QuestionDiscoverSheet: View {
         VStack(spacing: 16) {
             header
             if let category, isLoading, question == nil {
+                questionSubtitle
                 ProgressView()
-                    .tint(ABColor.lavenderSoft)
-                    .frame(maxWidth: .infinity, minHeight: 240)
-                    .crystalPlate(cornerRadius: 26)
+                    .tint(Color(hex: "#F3C6D6"))
+                    .frame(maxWidth: .infinity, minHeight: 330)
+                    .background { cardBackground(category) }
                     .accessibilityLabel(category.title)
             } else if let question, let category {
-                questionCard(question)
+                questionSubtitle
+                questionCard(question, category: category)
                     .opacity(isLoading ? 0.4 : 1)
                 actions(category: category, question: question)
                     .disabled(isLoading)
@@ -41,7 +43,8 @@ struct QuestionDiscoverSheet: View {
         .background { CosmicBackdrop().ignoresSafeArea() }
         .presentationDetents([.large])
         .presentationDragIndicator(.visible)
-        .onAppear { remaining = DailyQuestionQuotaStore.shared.remaining(for: userId) }
+        .onAppear { remaining = DailyQuestionQuotaStore.shared.remaining(for: userId)
+        }
         .alert("Günlük soru hakkın doldu", isPresented: $showLimit) {
             Button("Tamam", role: .cancel) {}
         } message: {
@@ -53,7 +56,7 @@ struct QuestionDiscoverSheet: View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: question == nil ? "sparkle" : "sparkles")
                 .font(.system(size: 22, weight: .medium))
-                .foregroundStyle(ABColor.lavenderSoft)
+                .foregroundStyle(Color(hex: "#F3C6D6"))
             Text(question == nil ? "Bir Soru Keşfet" : "Sana Özel Soru")
                 .font(ABFont.display(24, weight: .regular))
                 .foregroundStyle(ABColor.ink)
@@ -62,7 +65,7 @@ struct QuestionDiscoverSheet: View {
                 Text("Bugün").font(ABFont.body(10)).foregroundStyle(ABColor.inkMuted)
                 Text("\(remaining)")
                     .font(ABFont.display(26, weight: .regular))
-                    .foregroundStyle(ABColor.lavenderSoft)
+                    .foregroundStyle(Color(hex: "#F3C6D6"))
                 Text("soru hakkın var.").font(ABFont.body(9)).foregroundStyle(ABColor.inkMuted)
             }
             Button { dismiss() } label: {
@@ -80,21 +83,33 @@ struct QuestionDiscoverSheet: View {
         LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
             ForEach(QuestionCategory.allCases) { cat in
                 Button { pick(cat) } label: {
-                    VStack(spacing: 8) {
-                        Image(systemName: cat.icon)
-                            .font(.system(size: 26, weight: .light))
-                            .foregroundStyle(ABColor.lavenderSoft)
-                        Text(cat.title)
-                            .font(ABFont.body(16, weight: .semibold))
-                            .foregroundStyle(ABColor.ink)
-                        Text(cat.subtitle)
-                            .font(ABFont.body(11))
-                            .foregroundStyle(ABColor.inkMuted)
-                            .multilineTextAlignment(.center)
+                    let shape = RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    ZStack {
+                        Color.clear
+                            .overlay { Image("q_\(cat.rawValue)").resizable().scaledToFill() }
+                            .clipShape(shape)
+                        shape.fill(LinearGradient(colors: [.black.opacity(0.05), .black.opacity(0.55)], startPoint: .top, endPoint: .bottom))
+                        VStack(spacing: 6) {
+                            Image(systemName: cat.icon)
+                                .symbolRenderingMode(.monochrome)
+                                .font(.system(size: 28, weight: .light))
+                                .foregroundStyle(Color(hex: "#F3C6D6"))
+                                .shadow(color: .black.opacity(0.4), radius: 4)
+                            Text(cat.title)
+                                .font(ABFont.display(18, weight: .regular))
+                                .foregroundStyle(.white)
+                            Text(cat.subtitle)
+                                .font(ABFont.body(11))
+                                .foregroundStyle(.white.opacity(0.82))
+                                .multilineTextAlignment(.center)
+                        }
+                        .padding(.horizontal, 8).padding(.top, 38)
+                        shape.strokeBorder(
+                            LinearGradient(colors: [Color(hex: "#E8B9A6").opacity(0.75), Color(hex: "#8B6E7E").opacity(0.4)],
+                                           startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 1)
                     }
-                    .padding(.horizontal, 8)
-                    .frame(maxWidth: .infinity, minHeight: 128)
-                    .crystalPlate(cornerRadius: 22)
+                    .frame(height: 164)
+                    .clipShape(shape)
                     .opacity(remaining == 0 ? 0.5 : 1)
                 }
                 .buttonStyle(.plain)
@@ -102,41 +117,82 @@ struct QuestionDiscoverSheet: View {
         }
     }
 
-    private func questionCard(_ text: String) -> some View {
-        VStack(spacing: 18) {
-            Image(systemName: "sparkle")
-                .font(.system(size: 24, weight: .light))
-                .foregroundStyle(ABColor.lavenderSoft)
-            Text(text)
-                .font(ABFont.display(24, weight: .regular))
-                .foregroundStyle(ABColor.ink)
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
+    private func cardBackground(_ cat: QuestionCategory) -> some View {
+        let shape = RoundedRectangle(cornerRadius: 26, style: .continuous)
+        return ZStack {
+            Color.clear.overlay { Image("q_\(cat.rawValue)").resizable().scaledToFill() }.clipShape(shape)
+            shape.fill(LinearGradient(colors: [.black.opacity(0.15), .black.opacity(0.45)], startPoint: .top, endPoint: .bottom))
+            shape.strokeBorder(
+                LinearGradient(colors: [Color(hex: "#E8B9A6").opacity(0.7), Color(hex: "#8B6E7E").opacity(0.35)],
+                               startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 1)
         }
-        .padding(28)
-        .frame(maxWidth: .infinity, minHeight: 240)
-        .crystalPlate(cornerRadius: 26)
+    }
+
+    private var questionSubtitle: some View {
+        Text("Bu soru, birbirinizi daha iyi tanımanız için seçildi. Dilerseniz sohbetinizde paylaşın.")
+            .font(ABFont.body(13))
+            .foregroundStyle(ABColor.inkMuted)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func questionCard(_ text: String, category: QuestionCategory) -> some View {
+        VStack(spacing: 22) {
+            Image(systemName: "sparkle")
+                .font(.system(size: 34, weight: .ultraLight))
+                .foregroundStyle(Color(hex: "#F1C9A0"))
+                .shadow(color: Color(hex: "#F1C9A0").opacity(0.8), radius: 8)
+            Text(text)
+                .font(ABFont.display(26, weight: .regular))
+                .foregroundStyle(Color(hex: "#F3D9D0"))
+                .multilineTextAlignment(.center)
+                .lineSpacing(4)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: 6) {
+                Capsule().fill(Color(hex: "#E8B9A6").opacity(0.6)).frame(width: 52, height: 1)
+                Circle().strokeBorder(Color(hex: "#E8B9A6"), lineWidth: 1).frame(width: 6, height: 6)
+                Capsule().fill(Color(hex: "#E8B9A6").opacity(0.6)).frame(width: 52, height: 1)
+            }
+        }
+        .padding(.horizontal, 28).padding(.vertical, 34)
+        .frame(maxWidth: .infinity, minHeight: 330)
+        .background { cardBackground(category) }
         .id(text)
         .transition(.opacity)
     }
 
     private func actions(category: QuestionCategory, question: String) -> some View {
         VStack(spacing: 12) {
-            CrystalCTAButton(title: "Sohbette Paylaş") {
+            Button {
                 onShare(question)
                 dismiss()
+            } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: "paperplane")
+                    Text("Sohbette Paylaş")
+                }
+                .font(ABFont.display(19, weight: .regular))
+                .foregroundStyle(Color(hex: "#FFF1EA"))
+                .frame(maxWidth: .infinity, minHeight: 56)
+                .background(
+                    Capsule().fill(LinearGradient(colors: [Color(hex: "#8A6068").opacity(0.75), Color(hex: "#3B2330").opacity(0.85)],
+                                                  startPoint: .top, endPoint: .bottom))
+                )
+                .overlay(Capsule().strokeBorder(Color(hex: "#F0B9A8").opacity(0.9), lineWidth: 1.2))
+                .shadow(color: Color(hex: "#E8A090").opacity(0.45), radius: 14)
             }
+            .buttonStyle(.plain)
             Button {
                 reroll(category, current: question)
             } label: {
-                HStack(spacing: 8) {
+                HStack(spacing: 10) {
                     Image(systemName: "shuffle")
                     Text("Başka Soru Göster")
                 }
-                .font(ABFont.body(16, weight: .semibold))
-                .foregroundStyle(ABColor.ink)
+                .font(ABFont.display(18, weight: .regular))
+                .foregroundStyle(Color(hex: "#F3D9D0"))
                 .frame(maxWidth: .infinity, minHeight: 54)
-                .crystalPlate(cornerRadius: 27)
+                .background(Capsule().fill(Color.white.opacity(0.04)))
+                .overlay(Capsule().strokeBorder(Color(hex: "#E8B9A6").opacity(0.4), lineWidth: 1))
             }
             .buttonStyle(.plain)
         }
