@@ -70,7 +70,7 @@ struct ChartCalculationStepView: View {
                 HStack(spacing: 8) {
                     ForEach(0..<phases.count, id: \.self) { i in
                         Capsule()
-                            .fill(i <= phaseIndex ? gold : Color.white.opacity(0.18))
+                            .fill(i <= phaseIndex ? gold : ABColor.veil.opacity(0.18))
                             .frame(width: i == phaseIndex ? 22 : 7, height: 7)
                             .animation(.spring(duration: 0.5), value: phaseIndex)
                     }
@@ -140,7 +140,7 @@ struct ChartCalculationStepView: View {
         ZStack {
             ForEach(0..<count, id: \.self) { i in
                 Circle()
-                    .fill(Color.white.opacity(0.95))
+                    .fill(ABColor.veil.opacity(0.95))
                     .frame(width: 5, height: 5)
                     .shadow(color: gold.opacity(0.9), radius: 4)
                     .offset(y: -radius)
@@ -156,7 +156,7 @@ struct ChartCalculationStepView: View {
                 .foregroundStyle(Color(hex: "#9AA0AB"))
             Text(message)
                 .font(ABFont.body(15))
-                .foregroundStyle(Color.white.opacity(0.85))
+                .foregroundStyle(ABColor.ink.opacity(0.85))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 36)
             GlowCTAButton(title: "Geri Dön", action: onBack)
@@ -191,11 +191,11 @@ struct ChartCalculationStepView: View {
                     .frame(maxWidth: .infinity)
                     .aspectRatio(1, contentMode: .fit)
                     .padding(8)
-                    .background(Color.black.opacity(0.28))
+                    .background(ABColor.panel.opacity(0.28))
                     .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
                     .overlay(
                         RoundedRectangle(cornerRadius: 28, style: .continuous)
-                            .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                            .stroke(ABColor.veil.opacity(0.12), lineWidth: 1)
                     )
                     .padding(.horizontal, 20)
                     .padding(.top, 16)
@@ -217,7 +217,7 @@ struct ChartCalculationStepView: View {
                 .foregroundStyle(gold)
             Text(sign.glyph)
                 .font(.system(size: 22))
-                .foregroundStyle(.white)
+                .foregroundStyle(ABColor.ink)
             Text(sign.labelTR)
                 .font(ABFont.body(11, weight: .medium))
                 .foregroundStyle(ABColor.inkMuted)

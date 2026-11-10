@@ -35,13 +35,13 @@ struct MatchPrefsSheet: View {
                                                 .strokeBorder(
                                                     prefs.intent == intent
                                                         ? ABColor.lavenderSoft.opacity(0.8)
-                                                        : Color.white.opacity(0.12),
+                                                        : ABColor.veil.opacity(0.12),
                                                     lineWidth: prefs.intent == intent ? 1.4 : 1
                                                 )
                                         )
                                         .background(
                                             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                                .fill(prefs.intent == intent ? ABColor.lavender.opacity(0.2) : Color.white.opacity(0.04))
+                                                .fill(prefs.intent == intent ? ABColor.lavender.opacity(0.2) : ABColor.veil.opacity(0.04))
                                         )
                                     }
                                     .buttonStyle(.plain)
@@ -62,11 +62,11 @@ struct MatchPrefsSheet: View {
                                     } label: {
                                         Text(gender.labelTR)
                                             .font(ABFont.body(13, weight: .semibold))
-                                            .foregroundStyle(on ? Color.white : ABColor.inkMuted)
+                                            .foregroundStyle(on ? ABColor.ink : ABColor.inkMuted)
                                             .frame(maxWidth: .infinity)
                                             .padding(.vertical, 10)
-                                            .background(Capsule().fill(on ? ABColor.lavender.opacity(0.45) : Color.white.opacity(0.06)))
-                                            .overlay(Capsule().strokeBorder(Color.white.opacity(on ? 0.35 : 0.12), lineWidth: 1))
+                                            .background(Capsule().fill(on ? ABColor.lavender.opacity(0.45) : ABColor.veil.opacity(0.06)))
+                                            .overlay(Capsule().strokeBorder(ABColor.veil.opacity(on ? 0.35 : 0.12), lineWidth: 1))
                                     }
                                     .buttonStyle(.plain)
                                 }
@@ -378,7 +378,7 @@ struct MatchDetailSheet: View {
     private var bondSeal: some View {
         VStack(spacing: 7) {
             ZStack {
-                Circle().stroke(Color.white.opacity(0.12), lineWidth: 6)
+                Circle().stroke(ABColor.veil.opacity(0.12), lineWidth: 6)
                 Circle()
                     .stroke(
                         AngularGradient(colors: [ABColor.lavender, mineTint, ABColor.lavenderSoft, ABColor.lavender], center: .center),
@@ -414,7 +414,7 @@ struct MatchDetailSheet: View {
                     Text(report.bondTier.english)
                         .font(ABFont.display(24))
                         .foregroundStyle(
-                            LinearGradient(colors: [.white, ABColor.lavenderSoft], startPoint: .top, endPoint: .bottom)
+                            LinearGradient(colors: [ABColor.ink, ABColor.lavenderSoft], startPoint: .top, endPoint: .bottom)
                         )
                         .multilineTextAlignment(.center)
                         .minimumScaleFactor(0.7)
@@ -486,7 +486,7 @@ struct MatchDetailSheet: View {
         let fraction = CGFloat(pct) / 100
         return VStack(spacing: 7) {
             ZStack {
-                Circle().stroke(Color.white.opacity(0.10), lineWidth: 3)
+                Circle().stroke(ABColor.veil.opacity(0.10), lineWidth: 3)
                 Circle()
                     .trim(from: 0, to: fraction)
                     .stroke(
@@ -510,7 +510,7 @@ struct MatchDetailSheet: View {
                 .lineLimit(1)
             Text(kind.note)
                 .font(ABFont.body(10.5))
-                .foregroundStyle(.white.opacity(0.55))
+                .foregroundStyle(ABColor.ink.opacity(0.55))
                 .multilineTextAlignment(.center)
                 .lineLimit(2)
                 .minimumScaleFactor(0.8)
@@ -530,7 +530,7 @@ struct MatchDetailSheet: View {
                     .frame(maxWidth: .infinity)
                     .aspectRatio(1, contentMode: .fit)
                     .padding(8)
-                    .background(Color.black.opacity(0.28))
+                    .background(ABColor.panel.opacity(0.28))
                     .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
             } else {
                 SynastryWheelCanvas(points: points, mineColor: mineTint, theirColor: theirTint)
@@ -598,7 +598,7 @@ struct MatchDetailSheet: View {
                     ZStack {
                         Circle().fill(Color(hex: "#E8C39A").opacity(0.16))
                         Circle().strokeBorder(Color(hex: "#E8C39A").opacity(0.5), lineWidth: 1)
-                        Text("☋").font(.system(size: 18)).foregroundStyle(Color(hex: "#F3DEC2"))
+                        Text("☋").font(.system(size: 18)).foregroundStyle(Color.adaptive(light: "#8A6240", dark: "#F3DEC2"))
                     }
                     .frame(width: 42, height: 42)
                     VStack(alignment: .leading, spacing: 2) {
@@ -607,7 +607,7 @@ struct MatchDetailSheet: View {
                             .foregroundStyle(ABColor.ink)
                         Text(rare.badgeSubtitle)
                             .font(ABFont.body(11, weight: .medium))
-                            .foregroundStyle(Color(hex: "#F3DEC2").opacity(0.9))
+                            .foregroundStyle(Color.adaptive(light: "#8A6240", dark: "#F3DEC2").opacity(0.9))
                     }
                     Spacer(minLength: 0)
                 }
@@ -616,7 +616,7 @@ struct MatchDetailSheet: View {
                     Text(rare.heading)
                         .font(ABFont.body(11, weight: .bold))
                         .tracking(1.5)
-                        .foregroundStyle(Color(hex: "#E8C39A"))
+                        .foregroundStyle(Color.adaptive(light: "#A9743F", dark: "#E8C39A"))
                     Text(rare.note)
                         .font(ABFont.body(13.5))
                         .foregroundStyle(ABColor.ink.opacity(0.82))
@@ -706,7 +706,7 @@ struct MatchDetailSheet: View {
             }
             Text(snap.body)
                 .font(ABFont.body(13.5, weight: .medium))
-                .foregroundStyle(.white.opacity(0.9))
+                .foregroundStyle(ABColor.ink.opacity(0.9))
                 .lineSpacing(3)
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
@@ -813,7 +813,7 @@ struct MatchDetailSheet: View {
     // MARK: Shared bits
 
     private var hairline: some View {
-        Rectangle().fill(Color.white.opacity(0.08)).frame(height: 1)
+        Rectangle().fill(ABColor.veil.opacity(0.08)).frame(height: 1)
     }
 
     private func sectionHeader(title: String, subtitle: String? = nil) -> some View {

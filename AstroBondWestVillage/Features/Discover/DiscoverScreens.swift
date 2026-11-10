@@ -36,8 +36,9 @@ private struct AIStatusLine: View {
 struct TarotFlowView: View {
     let sky: UserSky
     @Environment(\.dismiss) private var dismiss
-    private let th = Th(light: false)
-    private let lav = Color(hex: "#C9B6FF")
+    @Environment(\.colorScheme) private var scheme
+    private var th: Th { Th(light: scheme == .light) }
+    private var lav: Color { Color.adaptive(light: "#6C56D6", dark: "#C9B6FF") }
 
     private enum Stage { case pick, opening, result }
     @State private var stage: Stage = .pick
@@ -88,10 +89,10 @@ struct TarotFlowView: View {
         VStack(spacing: 14) {
             topBar(share: nil)
             Spacer().frame(height: 14)
-            Text("Günün Mesajı").font(ABFont.display(38, weight: .regular)).foregroundStyle(.white)
-            Capsule().fill(Color.white.opacity(0.7)).frame(width: 38, height: 1.5)
+            Text("Günün Mesajı").font(ABFont.display(38, weight: .regular)).foregroundStyle(th.primary)
+            Capsule().fill(th.primary.opacity(0.5)).frame(width: 38, height: 1.5)
             Text("Evren, bugün sana ne söylüyor?\nİçinden geçenle uyumlanan kartı seç.")
-                .font(ABFont.body(14)).multilineTextAlignment(.center).foregroundStyle(.white.opacity(0.78)).lineSpacing(3)
+                .font(ABFont.body(14)).multilineTextAlignment(.center).foregroundStyle(th.primary.opacity(0.78)).lineSpacing(3)
                 .padding(.top, 4).fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
             ZStack {
@@ -105,7 +106,7 @@ struct TarotFlowView: View {
                 // vertical beam + sparkle
                 Capsule().fill(LinearGradient(colors: [.clear, lav.opacity(0.7), .clear], startPoint: .top, endPoint: .bottom))
                     .frame(width: 1.5, height: 330)
-                Image(systemName: "sparkle").font(.system(size: 26, weight: .light)).foregroundStyle(.white)
+                Image(systemName: "sparkle").font(.system(size: 26, weight: .light)).foregroundStyle(th.primary)
                     .shadow(color: lav, radius: 8).offset(y: -160)
                     .scaleEffect(pulse ? 1.15 : 0.9)
                 Image(systemName: "sparkle").font(.system(size: 10)).foregroundStyle(lav).offset(y: 165)
@@ -125,13 +126,13 @@ struct TarotFlowView: View {
             .onAppear { withAnimation(.easeInOut(duration: 2.4).repeatForever(autoreverses: true)) { pulse = true } }
             Spacer(minLength: 0)
             Text("Bugün 1 kart hakkın var.")
-                .font(ABFont.body(13.5, weight: .medium)).foregroundStyle(.white)
+                .font(ABFont.body(13.5, weight: .medium)).foregroundStyle(th.primary)
                 .frame(maxWidth: .infinity).padding(.vertical, 13)
-                .background(Capsule().fill(Color.white.opacity(0.07)))
+                .background(Capsule().fill((th.light ? Color.white.opacity(0.7) : Color.white.opacity(0.07))))
                 .overlay(Capsule().strokeBorder(lav.opacity(0.45), lineWidth: 1))
                 .padding(.horizontal, 6)
             Text("Kartların üzerinde gez, hisset\nve seni çağıranı seç.")
-                .font(ABFont.body(12.5)).foregroundStyle(.white.opacity(0.7)).multilineTextAlignment(.center).lineSpacing(3).fixedSize(horizontal: false, vertical: true)
+                .font(ABFont.body(12.5)).foregroundStyle(th.primary.opacity(0.7)).multilineTextAlignment(.center).lineSpacing(3).fixedSize(horizontal: false, vertical: true)
             Spacer().frame(height: 112)
         }
         .padding(.horizontal, 20)
@@ -169,8 +170,8 @@ struct TarotFlowView: View {
                     .rotation3DEffect(.degrees(pulse ? 8 : -8), axis: (x: 0, y: 1, z: 0))
             }
             .frame(height: 420)
-            Text("Mesajın seninle buluşuyor...").font(ABFont.display(22, weight: .regular)).foregroundStyle(.white)
-            Text("Evrenin rehberliğinde.").font(ABFont.body(13)).foregroundStyle(.white.opacity(0.7))
+            Text("Mesajın seninle buluşuyor...").font(ABFont.display(22, weight: .regular)).foregroundStyle(th.primary)
+            Text("Evrenin rehberliğinde.").font(ABFont.body(13)).foregroundStyle(th.primary.opacity(0.7))
             Spacer()
             Spacer().frame(height: 100)
         }
@@ -190,31 +191,31 @@ struct TarotFlowView: View {
                 }
                 .frame(height: 300)
                 Text(r.title)
-                    .font(ABFont.display(28, weight: .regular)).foregroundStyle(.white)
+                    .font(ABFont.display(28, weight: .regular)).foregroundStyle(th.primary)
                     .multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
                 Text(r.body)
-                    .font(ABFont.body(14)).foregroundStyle(.white.opacity(0.78)).lineSpacing(4)
+                    .font(ABFont.body(14)).foregroundStyle(th.primary.opacity(0.78)).lineSpacing(4)
                     .multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
                 VStack(spacing: 8) {
                     Text("BUGÜN KENDİNE SOR").font(ABFont.body(10.5, weight: .semibold)).tracking(2).foregroundStyle(lav)
                     Button { showReflect = true } label: {
                         HStack {
-                            Text(r.question).font(ABFont.body(14.5, weight: .medium)).foregroundStyle(.white)
+                            Text(r.question).font(ABFont.body(14.5, weight: .medium)).foregroundStyle(th.primary)
                                 .multilineTextAlignment(.leading)
                             Spacer()
                             Image(systemName: hasNote ? "checkmark.circle.fill" : "chevron.right")
-                                .foregroundStyle(hasNote ? lav : .white.opacity(0.5))
+                                .foregroundStyle(hasNote ? lav : th.primary.opacity(0.5))
                         }
                         .padding(16)
-                        .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(Color.white.opacity(0.07)))
+                        .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill((th.light ? Color.white.opacity(0.7) : Color.white.opacity(0.07))))
                         .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(lav.opacity(0.4), lineWidth: 1))
                     }
                     .buttonStyle(.plain)
                 }
                 .padding(.top, 6)
-                AIStatusLine(state: aiState, th: Th(light: false))
+                AIStatusLine(state: aiState, th: th)
                 Text("Günde bir kart çekebilirsin; yarın yeniden gel.")
-                    .font(ABFont.body(11.5)).foregroundStyle(.white.opacity(0.5))
+                    .font(ABFont.body(11.5)).foregroundStyle(th.primary.opacity(0.5))
             }
             .padding(.horizontal, 20).padding(.top, 8).padding(.bottom, 130)
         }
@@ -261,7 +262,7 @@ struct EventsListView: View {
         DiscoverScreen(backdrop: .night, title: "Yaklaşan Gökyüzü\nOlayları", subtitle: "Yakın zamanda bizi neler bekliyor?") {
             PillChips(items: chips, selection: $filter)
             if events.isEmpty {
-                Text("Bu kategoride yakın zamanda olay yok.").font(ABFont.body(13)).foregroundStyle(.white.opacity(0.6))
+                Text("Bu kategoride yakın zamanda olay yok.").font(ABFont.body(13)).foregroundStyle(ABColor.inkMuted)
             }
             ForEach(events) { e in
                 NavigationLink(value: DiscoverRoute.event(e.id)) {
@@ -281,7 +282,8 @@ struct EventDetailView: View {
     let event: SkyEvent
     let sky: UserSky
     @Environment(\.dismiss) private var dismiss
-    private let th = Th(light: false)
+    @Environment(\.colorScheme) private var scheme
+    private var th: Th { Th(light: scheme == .light) }
     @State private var aiNote: DiscoverNote?
     @State private var aiState: AIStatusLine.State = .idle
 
@@ -321,15 +323,15 @@ struct EventDetailView: View {
                     }
                     VStack(alignment: .leading, spacing: 12) {
                         Text(label).font(ABFont.body(11, weight: .semibold)).tracking(2.4).foregroundStyle(th.accent)
-                        Text(event.title).font(ABFont.display(36, weight: .regular)).foregroundStyle(.white)
-                        Text(event.dateText).font(ABFont.body(14, weight: .medium)).foregroundStyle(DT.accentSoft)
-                        Text(event.blurb).font(ABFont.body(14.5)).foregroundStyle(.white.opacity(0.8)).lineSpacing(4)
+                        Text(event.title).font(ABFont.display(36, weight: .regular)).foregroundStyle(th.primary)
+                        Text(event.dateText).font(ABFont.body(14, weight: .medium)).foregroundStyle(th.light ? th.accent : DT.accentSoft)
+                        Text(event.blurb).font(ABFont.body(14.5)).foregroundStyle(th.primary.opacity(0.8)).lineSpacing(4)
                             .fixedSize(horizontal: false, vertical: true)
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("Sana Etki").font(ABFont.display(20, weight: .medium)).foregroundStyle(.white)
+                            Text("Sana Etki").font(ABFont.display(20, weight: .medium)).foregroundStyle(th.primary)
                             AIStatusLine(state: aiState, th: th)
                             ForEach(note.sections) { s in
-                                Text(s.text).font(ABFont.body(13.5)).foregroundStyle(.white.opacity(0.78)).lineSpacing(3)
+                                Text(s.text).font(ABFont.body(13.5)).foregroundStyle(th.primary.opacity(0.78)).lineSpacing(3)
                                     .fixedSize(horizontal: false, vertical: true)
                             }
                         }
@@ -548,6 +550,7 @@ struct NoteDetailPage: View {
     let baseNote: DiscoverNote
     let sky: UserSky
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var scheme
     @State private var aiNote: DiscoverNote?
     @State private var aiState: AIStatusLine.State = .idle
 
@@ -556,7 +559,7 @@ struct NoteDetailPage: View {
     private var note: DiscoverNote { aiNote ?? baseNote }
 
     var body: some View {
-        let th = Th(light: note.backdrop.isLight)
+        let th = Th(light: note.backdrop.isLight || scheme == .light)
         ZStack {
             ScreenBackdropView(backdrop: note.backdrop)
             ScrollView(showsIndicators: false) {
@@ -607,7 +610,9 @@ struct ReflectionSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var text = ""
     @FocusState private var focused: Bool
-    private let lav = Color(hex: "#C9B6FF")
+    @Environment(\.colorScheme) private var scheme
+    private var th: Th { Th(light: scheme == .light) }
+    private var lav: Color { Color.adaptive(light: "#6C56D6", dark: "#C9B6FF") }
 
     var body: some View {
         ZStack {
@@ -616,22 +621,22 @@ struct ReflectionSheet: View {
                 HStack {
                     Text("BUGÜN KENDİNE SOR").font(ABFont.body(10.5, weight: .semibold)).tracking(2).foregroundStyle(lav)
                     Spacer()
-                    Button("Kapat") { save(); dismiss() }.font(ABFont.body(14)).foregroundStyle(.white.opacity(0.8))
+                    Button("Kapat") { save(); dismiss() }.font(ABFont.body(14)).foregroundStyle(th.primary.opacity(0.8))
                 }
-                Text(question).font(ABFont.display(26, weight: .regular)).foregroundStyle(.white)
+                Text(question).font(ABFont.display(26, weight: .regular)).foregroundStyle(th.primary)
                     .fixedSize(horizontal: false, vertical: true)
                 Text("Aklına gelen ilk cevabı yaz. Notun sadece bu cihazda saklanır.")
-                    .font(ABFont.body(13)).foregroundStyle(.white.opacity(0.65))
+                    .font(ABFont.body(13)).foregroundStyle(th.primary.opacity(0.65))
                 TextEditor(text: $text)
                     .focused($focused)
                     .scrollContentBackground(.hidden)
-                    .font(ABFont.body(15)).foregroundStyle(.white)
+                    .font(ABFont.body(15)).foregroundStyle(th.primary)
                     .padding(12)
                     .frame(minHeight: 180, maxHeight: 280)
-                    .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(Color.white.opacity(0.07)))
+                    .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill((th.light ? Color.white.opacity(0.7) : Color.white.opacity(0.07))))
                     .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(lav.opacity(0.4), lineWidth: 1))
                 Button { save(); dismiss() } label: {
-                    Text("Kaydet").font(ABFont.body(15, weight: .semibold)).foregroundStyle(Color(hex: "#1A1033"))
+                    Text("Kaydet").font(ABFont.body(15, weight: .semibold)).foregroundStyle(scheme == .light ? Color.white : Color(hex: "#1A1033"))
                         .frame(maxWidth: .infinity).padding(.vertical, 14)
                         .background(Capsule().fill(lav))
                 }
@@ -639,7 +644,6 @@ struct ReflectionSheet: View {
             }
             .padding(22)
         }
-        .preferredColorScheme(.dark)
         .presentationDetents([.large])
         .onAppear {
             text = UserDefaults.standard.string(forKey: key) ?? ""

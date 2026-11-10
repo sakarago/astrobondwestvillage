@@ -56,7 +56,7 @@ struct QuestionDiscoverSheet: View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: question == nil ? "sparkle" : "sparkles")
                 .font(.system(size: 22, weight: .medium))
-                .foregroundStyle(Color(hex: "#F3C6D6"))
+                .foregroundStyle(Color.adaptive(light: "#C0708E", dark: "#F3C6D6"))
             Text(question == nil ? "Bir Soru Keşfet" : "Sana Özel Soru")
                 .font(ABFont.display(24, weight: .regular))
                 .foregroundStyle(ABColor.ink)
@@ -65,7 +65,7 @@ struct QuestionDiscoverSheet: View {
                 Text("Bugün").font(ABFont.body(10)).foregroundStyle(ABColor.inkMuted)
                 Text("\(remaining)")
                     .font(ABFont.display(26, weight: .regular))
-                    .foregroundStyle(Color(hex: "#F3C6D6"))
+                    .foregroundStyle(Color.adaptive(light: "#C0708E", dark: "#F3C6D6"))
                 Text("soru hakkın var.").font(ABFont.body(9)).foregroundStyle(ABColor.inkMuted)
             }
             Button { dismiss() } label: {

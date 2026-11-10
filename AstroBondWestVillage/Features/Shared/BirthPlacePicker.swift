@@ -31,7 +31,7 @@ struct BirthPlacePicker: View {
                 }
                 .padding(.horizontal, 14)
                 .padding(.vertical, 12)
-                .background(Capsule(style: .continuous).fill(Color.white.opacity(0.06)))
+                .background(Capsule(style: .continuous).fill(ABColor.veil.opacity(0.06)))
                 .overlay(
                     Capsule(style: .continuous)
                         .strokeBorder(ABColor.lavenderSoft.opacity(0.35), lineWidth: 1)
@@ -56,12 +56,12 @@ struct BirthPlacePicker: View {
                             .padding(.vertical, 12)
                             .background {
                                 Capsule(style: .continuous)
-                                    .fill(district.id == d.id ? ABColor.lavender.opacity(0.28) : Color.white.opacity(0.06))
+                                    .fill(district.id == d.id ? ABColor.lavender.opacity(0.28) : ABColor.veil.opacity(0.06))
                             }
                             .overlay(
                                 Capsule(style: .continuous)
                                     .strokeBorder(
-                                        district.id == d.id ? ABColor.lavenderSoft.opacity(0.55) : Color.white.opacity(0.12),
+                                        district.id == d.id ? ABColor.lavenderSoft.opacity(0.55) : ABColor.veil.opacity(0.12),
                                         lineWidth: 1
                                     )
                             )
@@ -108,7 +108,7 @@ struct BirthPlacePicker: View {
                             }
                         }
                     }
-                    .listRowBackground(Color.white.opacity(0.04))
+                    .listRowBackground(ABColor.veil.opacity(0.04))
                 }
             }
             .listStyle(.plain)
@@ -123,7 +123,7 @@ struct BirthPlacePicker: View {
                 }
             }
         }
-        .preferredColorScheme(.dark)
+        
         .presentationDetents([.medium, .large])
     }
 }

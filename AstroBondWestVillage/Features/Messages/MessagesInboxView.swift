@@ -26,7 +26,7 @@ struct MessagesInboxView: View {
                                 if let error = store.error, !error.isEmpty {
                                     Text(error)
                                         .font(ABFont.body(13, weight: .medium))
-                                        .foregroundStyle(Color.white.opacity(0.75))
+                                        .foregroundStyle(ABColor.ink.opacity(0.75))
                                         .padding(.horizontal, 4)
                                 }
 
@@ -91,7 +91,7 @@ struct MessagesInboxView: View {
             } label: {
                 Image(systemName: "house")
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(ABColor.ink)
                     .frame(width: 42, height: 42)
                     .background(
                         Circle()
@@ -145,7 +145,7 @@ struct MessagesInboxView: View {
                                             Circle()
                                                 .fill(ABColor.lavender)
                                                 .frame(width: 11, height: 11)
-                                                .overlay(Circle().stroke(Color.white.opacity(0.2), lineWidth: 2))
+                                                .overlay(Circle().stroke(ABColor.veil.opacity(0.2), lineWidth: 2))
                                         }
                                     }
                                     Text(conv.otherName)

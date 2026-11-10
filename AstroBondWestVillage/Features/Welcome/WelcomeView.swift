@@ -86,7 +86,7 @@ struct WelcomeView: View {
         }
         .sheet(isPresented: $showLegal) {
             NavigationStack { LegalAgreementView() }
-                .preferredColorScheme(.dark)
+                
         }
     }
 
@@ -229,7 +229,7 @@ struct WelcomeView: View {
             Text("ASTROBOND")
                 .font(ABFont.display(16, weight: .regular))
                 .tracking(8)
-                .foregroundStyle(Color.white.opacity(0.96))
+                .foregroundStyle(ABColor.ink.opacity(0.96))
                 .padding(.leading, 9)
 
             Text("BAĞ GÖRÜNENDEN ÖNCE BAŞLAR")
@@ -248,14 +248,14 @@ struct WelcomeView: View {
         } label: {
             Image(systemName: "chevron.left")
                 .font(.system(size: 17, weight: .semibold))
-                .foregroundStyle(Color.white.opacity(0.95))
+                .foregroundStyle(ABColor.ink.opacity(0.95))
                 .frame(width: 42, height: 42)
                 .background(
                     Circle()
-                        .fill(Color.white.opacity(0.06))
+                        .fill(ABColor.veil.opacity(0.06))
                         .background(.ultraThinMaterial.opacity(0.6), in: Circle())
                 )
-                .overlay(Circle().strokeBorder(Color.white.opacity(0.14), lineWidth: 1))
+                .overlay(Circle().strokeBorder(ABColor.veil.opacity(0.14), lineWidth: 1))
         }
         .buttonStyle(.plain)
     }
@@ -300,12 +300,12 @@ struct WelcomeView: View {
             }
 
             HStack(spacing: 12) {
-                Rectangle().fill(Color.white.opacity(0.14)).frame(height: 1)
+                Rectangle().fill(ABColor.veil.opacity(0.14)).frame(height: 1)
                 Text("veya şununla devam et")
                     .font(ABFont.body(13.5))
                     .foregroundStyle(Color(hex: "#8E8FA3"))
                     .fixedSize()
-                Rectangle().fill(Color.white.opacity(0.14)).frame(height: 1)
+                Rectangle().fill(ABColor.veil.opacity(0.14)).frame(height: 1)
             }
             .padding(.top, 18)
 
@@ -313,12 +313,12 @@ struct WelcomeView: View {
                 SocialButton(label: "Google") {
                     Text("G")
                         .font(.system(size: 18, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(ABColor.ink)
                 }
                 SocialButton(label: "Apple") {
                     Image(systemName: "apple.logo")
                         .font(.system(size: 19))
-                        .foregroundStyle(Color.white)
+                        .foregroundStyle(ABColor.ink)
                 }
             }
             .padding(.top, 16)
@@ -330,7 +330,7 @@ struct WelcomeView: View {
             if showTermsNotice {
                 Text("Devam etmek için sözleşmeyi onaylamalısın.")
                     .font(ABFont.body(12, weight: .medium))
-                    .foregroundStyle(Color.white.opacity(0.96))
+                    .foregroundStyle(ABColor.ink.opacity(0.96))
                     .padding(.horizontal, 12)
                     .padding(.vertical, 10)
                     .background(
@@ -432,18 +432,18 @@ private struct SocialButton<Icon: View>: View {
                 icon()
                 Text(label)
                     .font(ABFont.body(16.5, weight: .semibold))
-                    .foregroundStyle(Color.white.opacity(0.95))
+                    .foregroundStyle(ABColor.ink.opacity(0.95))
             }
             .frame(maxWidth: .infinity)
             .frame(height: 54)
             .background(
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(Color.white.opacity(0.05))
+                    .fill(ABColor.veil.opacity(0.05))
                     .background(.ultraThinMaterial.opacity(0.5), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .strokeBorder(Color.white.opacity(0.13), lineWidth: 1)
+                    .strokeBorder(ABColor.veil.opacity(0.13), lineWidth: 1)
             )
         }
         .buttonStyle(.plain)
@@ -530,7 +530,7 @@ private struct WelcomeSplashView: View {
                     Text("ASTROBOND")
                         .font(ABFont.display(22, weight: .regular))
                         .tracking(9)
-                        .foregroundStyle(Color.white.opacity(0.97))
+                        .foregroundStyle(ABColor.ink.opacity(0.97))
                         .padding(.leading, 10)
 
                     Text("BAĞ GÖRÜNENDEN ÖNCE BAŞLAR")

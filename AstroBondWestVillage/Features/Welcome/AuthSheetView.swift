@@ -42,7 +42,7 @@ struct AuthSheetView: View {
                                 Text("ASTROBOND")
                                     .font(ABFont.display(17, weight: .regular))
                                     .tracking(6.5)
-                                    .foregroundStyle(Color.white.opacity(0.95))
+                                    .foregroundStyle(ABColor.ink.opacity(0.95))
                                     .padding(.leading, 6.5)
                             }
                             .padding(.top, 12)
@@ -50,33 +50,33 @@ struct AuthSheetView: View {
                             VStack(spacing: 14) {
                                 Text("Yolculuğa Devam Et")
                                     .font(ABFont.display(24))
-                                    .foregroundStyle(.white)
+                                    .foregroundStyle(ABColor.ink)
 
                                 Text("Google, Apple ya da e-posta ile giriş yap.")
                                     .font(ABFont.body(14))
-                                    .foregroundStyle(Color.white.opacity(0.62))
+                                    .foregroundStyle(ABColor.ink.opacity(0.62))
                             }
 
                             HStack(spacing: 12) {
                                 loginProvider("Google") {
                                     Text("G")
                                         .font(.system(size: 18, weight: .bold, design: .rounded))
-                                        .foregroundStyle(.white)
+                                        .foregroundStyle(ABColor.ink)
                                 }
                                 loginProvider("Apple") {
                                     Image(systemName: "apple.logo")
                                         .font(.system(size: 18, weight: .medium))
-                                        .foregroundStyle(.white)
+                                        .foregroundStyle(ABColor.ink)
                                 }
                             }
                             .padding(.horizontal, 28)
 
                             HStack(spacing: 12) {
-                                Rectangle().fill(Color.white.opacity(0.1)).frame(height: 0.8)
+                                Rectangle().fill(ABColor.veil.opacity(0.1)).frame(height: 0.8)
                                 Text("veya e-posta ile")
                                     .font(ABFont.body(12))
-                                    .foregroundStyle(Color.white.opacity(0.4))
-                                Rectangle().fill(Color.white.opacity(0.1)).frame(height: 0.8)
+                                    .foregroundStyle(ABColor.ink.opacity(0.4))
+                                Rectangle().fill(ABColor.veil.opacity(0.1)).frame(height: 0.8)
                             }
                             .padding(.horizontal, 28)
 
@@ -99,7 +99,7 @@ struct AuthSheetView: View {
                                             .keyboardType(.emailAddress)
                                             .textContentType(.username)
                                             .font(ABFont.body(16.5))
-                                            .foregroundStyle(.white)
+                                            .foregroundStyle(ABColor.ink)
                                             .tint(Color(hex: "#9AA0AB"))
                                             .focused($isEmailFocused)
                                             .submitLabel(.next)
@@ -129,7 +129,7 @@ struct AuthSheetView: View {
                                             .textInputAutocapitalization(.never)
                                             .textContentType(.password)
                                             .font(ABFont.body(16.5))
-                                            .foregroundStyle(.white)
+                                            .foregroundStyle(ABColor.ink)
                                             .tint(Color(hex: "#9AA0AB"))
                                             .focused($isPasswordFocused)
                                             .submitLabel(.go)
@@ -182,7 +182,7 @@ struct AuthSheetView: View {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button { dismiss() } label: {
                         Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(Color.white.opacity(0.3))
+                            .foregroundStyle(ABColor.ink.opacity(0.3))
                             .font(.system(size: 22))
                     }
                 }
@@ -209,7 +209,7 @@ struct AuthSheetView: View {
                 icon()
                 Text(label)
                     .font(ABFont.body(15.5, weight: .semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(ABColor.ink)
             }
             .frame(maxWidth: .infinity)
             .frame(height: 52)

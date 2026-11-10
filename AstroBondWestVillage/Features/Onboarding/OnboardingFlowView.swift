@@ -113,7 +113,7 @@ struct OnboardingFlowView: View {
         HStack(spacing: 8) {
             ForEach(0..<4, id: \.self) { i in
                 Capsule()
-                    .fill(i <= model.step ? ABColor.lavenderSoft : Color.white.opacity(0.15))
+                    .fill(i <= model.step ? ABColor.lavenderSoft : ABColor.veil.opacity(0.15))
                     .frame(height: 4)
             }
         }
@@ -286,12 +286,12 @@ struct OnboardingFlowView: View {
                 .padding(.vertical, 12)
                 .background {
                     Capsule(style: .continuous)
-                        .fill(selected ? ABColor.lavender.opacity(0.28) : Color.white.opacity(0.06))
+                        .fill(selected ? ABColor.lavender.opacity(0.28) : ABColor.veil.opacity(0.06))
                 }
                 .overlay(
                     Capsule(style: .continuous)
                         .strokeBorder(
-                            selected ? ABColor.lavenderSoft.opacity(0.55) : Color.white.opacity(0.12),
+                            selected ? ABColor.lavenderSoft.opacity(0.55) : ABColor.veil.opacity(0.12),
                             lineWidth: 1
                         )
                 )

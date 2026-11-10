@@ -263,6 +263,7 @@ final class MatchViewModel {
 }
 
 struct MatchHomeView: View {
+    @Environment(\.colorScheme) private var scheme
     @Environment(SessionStore.self) private var session
     @Environment(\.hideTabBar) private var hideTabBar
     @Environment(\.compactTabBar) private var compactTabBar
@@ -290,12 +291,12 @@ struct MatchHomeView: View {
                             .scaledToFill()
                     }
                     .clipped()
-                    .opacity(model.phase == .revealed ? 1 : 0)
+                    .opacity(model.phase == .revealed ? (scheme == .light ? 0.16 : 1) : 0)
                     .animation(.easeInOut(duration: 0.8), value: model.phase)
                     .allowsHitTesting(false)
 
                 RevealSkyDecor()
-                    .opacity(model.phase == .revealed ? 1 : 0)
+                    .opacity(model.phase == .revealed && scheme != .light ? 1 : 0)
                     .animation(.easeInOut(duration: 0.8), value: model.phase)
 
                 // Positions are fractions of the screen height, measured from the design mock.
@@ -405,7 +406,7 @@ struct MatchHomeView: View {
             Text("BAĞ GÖRÜNENDEN ÖNCE BAŞLAR")
                 .font(ABFont.body(10, weight: .medium))
                 .tracking(2.2)
-                .foregroundStyle(Color.white.opacity(0.55))
+                .foregroundStyle(ABColor.ink.opacity(0.55))
             Text(model.quotaLabel)
                 .font(ABFont.body(11, weight: .medium))
                 .foregroundStyle(ABColor.lavenderSoft)
@@ -441,7 +442,7 @@ struct MatchHomeView: View {
                     if showSelectionNotice {
                         Text("Önce bağ ve eşleşme tercihinden seçim yap, sonra çarkın ortasına bas.")
                             .font(ABFont.body(12.5, weight: .medium))
-                            .foregroundStyle(Color.white.opacity(0.95))
+                            .foregroundStyle(ABColor.ink.opacity(0.95))
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 14)
                             .padding(.vertical, 10)
@@ -472,11 +473,11 @@ struct MatchHomeView: View {
             VStack(spacing: 10) {
                 Text("Eşleşme aranıyor...")
                     .font(ABFont.display(26, weight: .regular))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(ABColor.ink)
                     .multilineTextAlignment(.center)
                 Text("Yıldızlar seninle uyumlu ruhları keşfediyor.")
                     .font(ABFont.body(14))
-                    .foregroundStyle(Color.white.opacity(0.55))
+                    .foregroundStyle(ABColor.ink.opacity(0.55))
                     .multilineTextAlignment(.center)
             }
             .padding(.horizontal, 28)
@@ -500,7 +501,7 @@ struct MatchHomeView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text("BUGÜNKÜ EŞLEŞMELER")
                 .font(ABFont.body(10, weight: .bold))
-                .foregroundStyle(Color.white.opacity(0.45))
+                .foregroundStyle(ABColor.ink.opacity(0.45))
                 .padding(.leading, 2)
 
             ScrollView(.horizontal, showsIndicators: false) {
@@ -525,7 +526,7 @@ struct MatchHomeView: View {
                                 }
                                 Text(rec.displayName.components(separatedBy: " ").first ?? rec.displayName)
                                     .font(ABFont.body(11, weight: .medium))
-                                    .foregroundStyle(Color.white.opacity(0.75))
+                                    .foregroundStyle(ABColor.ink.opacity(0.75))
                                     .lineLimit(1)
                             }
                             .frame(width: 64)
@@ -568,7 +569,7 @@ struct MatchHomeView: View {
                 ForEach(Array([(-22.0, -26.0, 14.0), (18.0, -30.0, 9.0), (28.0, 6.0, 16.0),
                                (-30.0, 18.0, 10.0), (4.0, 30.0, 12.0), (-8.0, -4.0, 7.0)].enumerated()), id: \.offset) { _, c in
                     Circle()
-                        .fill(Color.black.opacity(0.22))
+                        .fill(ABColor.panel.opacity(0.22))
                         .overlay(Circle().stroke(warm.opacity(0.15), lineWidth: 0.6))
                         .frame(width: c.2, height: c.2)
                         .offset(x: c.0, y: c.1)
@@ -590,7 +591,7 @@ struct MatchHomeView: View {
                 HStack(alignment: .top) {
                     Text(match.displayName)
                         .font(ABFont.display(24, weight: .regular))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(ABColor.ink)
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
                     Spacer(minLength: 4)
@@ -602,7 +603,7 @@ struct MatchHomeView: View {
                         Image(systemName: "ellipsis")
                             .rotationEffect(.degrees(90))
                             .font(.system(size: 15, weight: .bold))
-                            .foregroundStyle(Color.white.opacity(0.7))
+                            .foregroundStyle(ABColor.ink.opacity(0.7))
                             .frame(width: 28, height: 24)
                     }
                 }
@@ -618,10 +619,10 @@ struct MatchHomeView: View {
                             Text(sign.labelTR.uppercased(with: Locale(identifier: "tr_TR")))
                                 .font(ABFont.body(14, weight: .bold))
                                 .tracking(0.8)
-                                .foregroundStyle(.white)
+                                .foregroundStyle(ABColor.ink)
                             Text(sign.dateRangeText)
                                 .font(ABFont.body(11.5))
-                                .foregroundStyle(Color.white.opacity(0.6))
+                                .foregroundStyle(ABColor.ink.opacity(0.6))
                         }
                     }
                 }
@@ -632,10 +633,10 @@ struct MatchHomeView: View {
                         .foregroundStyle(warm)
                     Text("%\(score)")
                         .font(ABFont.display(21, weight: .bold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(ABColor.ink)
                     Text("Astro Uyum")
                         .font(ABFont.display(14, weight: .regular))
-                        .foregroundStyle(Color.white.opacity(0.75))
+                        .foregroundStyle(ABColor.ink.opacity(0.75))
                 }
 
                 Button {
@@ -646,7 +647,7 @@ struct MatchHomeView: View {
                         Image(systemName: "chevron.right").font(.system(size: 11, weight: .semibold))
                     }
                     .font(ABFont.body(13.5, weight: .medium))
-                    .foregroundStyle(Color.white.opacity(0.9))
+                    .foregroundStyle(ABColor.ink.opacity(0.9))
                 }
                 .buttonStyle(.plain)
             }
@@ -654,7 +655,7 @@ struct MatchHomeView: View {
         .padding(14)
         .background(
             RoundedRectangle(cornerRadius: 26, style: .continuous)
-                .fill(Color.black.opacity(0.42))
+                .fill(ABColor.panel.opacity(0.42))
         )
         .overlay(
             RoundedRectangle(cornerRadius: 26, style: .continuous)
@@ -895,7 +896,7 @@ private struct BondSettingsPanel: View {
                 .multilineTextAlignment(.center)
                 .foregroundStyle(
                     LinearGradient(
-                        colors: [Color.white, Color(hex: "#E4E2F2").opacity(0.88)],
+                        colors: [ABColor.ink, ABColor.ink.opacity(0.88)],
                         startPoint: .top, endPoint: .bottom
                     )
                 )
@@ -958,13 +959,13 @@ private struct SelectablePill: View {
         Button(action: action) {
             Text(title)
                 .font(ABFont.body(13, weight: .medium))
-                .foregroundStyle(Color.white.opacity(selected ? 1 : 0.9))
+                .foregroundStyle(ABColor.ink.opacity(selected ? 1 : 0.9))
                 .padding(.horizontal, 12)
                 .frame(height: 37)
                 .frame(maxWidth: .infinity)
                 .background {
                     Capsule(style: .continuous)
-                        .fill(selected ? ABColor.lavender.opacity(0.38) : Color(hex: "#12101A").opacity(0.88))
+                        .fill(selected ? ABColor.lavender.opacity(0.38) : ABColor.panel.opacity(0.88))
                 }
                 .overlay(
                     Capsule(style: .continuous)

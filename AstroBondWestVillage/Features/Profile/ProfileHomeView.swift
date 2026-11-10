@@ -15,8 +15,7 @@ struct ProfileHomeView: View {
     @State private var chartMode: ChartPresentationMode = .circle
     @State private var selectedPlanet: PlanetPosition?
     @State private var showPlanetDetail = false
-    @State private var selectedPhotoItem: PhotosPickerItem?
-    @State private var selectedPhotoData: Data?
+    @State private var photos: [ProfilePhoto] = []
     @State private var expandedHouse: Int?
     @State private var expandedPlanet: Planet?
     @State private var expandedAspect: Int?
@@ -35,6 +34,7 @@ struct ProfileHomeView: View {
                     ScrollView(showsIndicators: false) {
                         VStack(alignment: .leading, spacing: 30) {
                             profileHeader(chart: chart)
+                            photosSection
                             chartSection(chart: chart)
                             cosmicProfileSection(chart: chart)
                             housesSection(chart: chart)
@@ -47,6 +47,7 @@ struct ProfileHomeView: View {
                     ScrollView(showsIndicators: false) {
                         VStack(alignment: .leading, spacing: 30) {
                             snapshotHeader(snapshot)
+                            photosSection
                             fallbackChartSection(snapshot)
                         }
                         .padding(.top, 18)
@@ -77,10 +78,6 @@ struct ProfileHomeView: View {
                     .presentationDetents([.medium, .large])
             }
         }
-        .task(id: selectedPhotoItem) {
-            guard let selectedPhotoItem else { return }
-            selectedPhotoData = try? await selectedPhotoItem.loadTransferable(type: Data.self)
-        }
     }
 
     private func load() async {
@@ -90,6 +87,7 @@ struct ProfileHomeView: View {
         defer { isLoading = false }
         do {
             snapshot = try await profiles.fetchSnapshot(userId: id)
+            photos = (try? await ProfilePhotoService().fetchPhotos(userId: id)) ?? photos
             natalChart = try await ChartService.shared.ensureOwnChart(userId: id)
         } catch {
             self.error = error.localizedDescription
@@ -103,7 +101,7 @@ struct ProfileHomeView: View {
                 .scaleEffect(1.4)
             Text("Haritan yükleniyor...")
                 .font(ABFont.body(16))
-                .foregroundStyle(Color.white.opacity(0.6))
+                .foregroundStyle(ABColor.ink.opacity(0.6))
         }
     }
 
@@ -114,10 +112,10 @@ struct ProfileHomeView: View {
                 .foregroundStyle(Color(hex: "#CDD2DB"))
             Text("Henüz bir doğum haritan yok")
                 .font(ABFont.display(22, weight: .regular))
-                .foregroundStyle(.white)
+                .foregroundStyle(ABColor.ink)
             Text("Doğum bilgilerini girerek profilini tamamla.")
                 .font(ABFont.body(16))
-                .foregroundStyle(Color.white.opacity(0.6))
+                .foregroundStyle(ABColor.ink.opacity(0.6))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
             if let error {
@@ -132,11 +130,11 @@ struct ProfileHomeView: View {
             } label: {
                 Text("Yeniden Dene")
                     .font(ABFont.body(15, weight: .medium))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(ABColor.ink)
                     .padding(.horizontal, 24)
                     .padding(.vertical, 12)
                     .background(.ultraThinMaterial, in: Capsule())
-                    .overlay(Capsule().stroke(Color.white.opacity(0.2), lineWidth: 0.8))
+                    .overlay(Capsule().stroke(ABColor.veil.opacity(0.2), lineWidth: 0.8))
             }
             .buttonStyle(.plain)
             .padding(.top, 8)
@@ -149,12 +147,19 @@ struct ProfileHomeView: View {
         } label: {
             Image(systemName: "gearshape")
                 .font(.system(size: 17, weight: .medium))
-                .foregroundStyle(.white)
+                .foregroundStyle(ABColor.ink)
                 .frame(width: 40, height: 40)
                 .background(.ultraThinMaterial, in: Circle())
-                .overlay(Circle().stroke(Color.white.opacity(0.14), lineWidth: 0.8))
+                .overlay(Circle().stroke(ABColor.veil.opacity(0.14), lineWidth: 0.8))
         }
         .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private var photosSection: some View {
+        if let id = session.user?.id {
+            ProfilePhotosSection(userId: id, photos: $photos) { url in snapshot?.photoURL = url }
+        }
     }
 
     // MARK: Header
@@ -167,7 +172,7 @@ struct ProfileHomeView: View {
                     .font(ABFont.display(22, weight: .regular))
                     .foregroundStyle(
                         LinearGradient(
-                            colors: [Color.white, Color(hex: "#D9DCE6")],
+                            colors: [ABColor.ink, ABColor.ink.opacity(0.85)],
                             startPoint: .top, endPoint: .bottom
                         )
                     )
@@ -191,7 +196,7 @@ struct ProfileHomeView: View {
             VStack(alignment: .leading, spacing: 5) {
                 Text(displayName)
                     .font(ABFont.display(22, weight: .regular))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(ABColor.ink)
                 HStack(spacing: 8) {
                     bigThreeChip("☉", snap.sunSign?.labelTR ?? "—")
                     bigThreeChip("☽", snap.moonSign?.labelTR ?? "—")
@@ -218,53 +223,38 @@ struct ProfileHomeView: View {
                 .foregroundStyle(Color(hex: "#CDD2DB"))
             Text(name)
                 .font(ABFont.body(11, weight: .semibold))
-                .foregroundStyle(Color.white.opacity(0.8))
+                .foregroundStyle(ABColor.ink.opacity(0.8))
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
-        .background(Capsule().fill(Color.white.opacity(0.07)))
-        .overlay(Capsule().stroke(Color.white.opacity(0.1), lineWidth: 0.6))
+        .background(Capsule().fill(ABColor.veil.opacity(0.07)))
+        .overlay(Capsule().stroke(ABColor.veil.opacity(0.1), lineWidth: 0.6))
     }
 
     private func profileAvatar(sign: ZodiacSign) -> some View {
         ZStack(alignment: .bottomTrailing) {
             Group {
-                if let selectedPhotoData, let uiImage = UIImage(data: selectedPhotoData) {
-                    Image(uiImage: uiImage).resizable().scaledToFill()
-                } else {
-                    PersonAvatar(
-                        name: displayName,
-                        photoURL: snapshot?.photoURL,
-                        cartoonAvatarId: snapshot?.cartoonAvatarId,
-                        sunSign: sign,
-                        unlocked: true,
-                        size: 60
-                    )
-                }
+                PersonAvatar(
+                    name: displayName,
+                    photoURL: snapshot?.photoURL,
+                    cartoonAvatarId: snapshot?.cartoonAvatarId,
+                    sunSign: sign,
+                    unlocked: true,
+                    size: 60
+                )
             }
             .frame(width: 60, height: 60)
             .clipShape(Circle())
             .overlay(
                 Circle().stroke(
                     LinearGradient(
-                        colors: [Color.white.opacity(0.85), lavender.opacity(0.55)],
+                        colors: [ABColor.veil.opacity(0.85), lavender.opacity(0.55)],
                         startPoint: .topLeading, endPoint: .bottomTrailing
                     ),
                     lineWidth: 1.4
                 )
             )
             .shadow(color: lavender.opacity(0.35), radius: 12, y: 5)
-
-            PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
-                Image(systemName: "plus")
-                    .font(.system(size: 8, weight: .bold))
-                    .foregroundStyle(Color(hex: "#16161A"))
-                    .padding(5)
-                    .background(Color(hex: "#E4E8EF"))
-                    .clipShape(Circle())
-            }
-            .buttonStyle(.plain)
-            .offset(x: -1, y: -1)
         }
     }
 
@@ -280,21 +270,21 @@ struct ProfileHomeView: View {
                     .font(ABFont.body(10.5, weight: .semibold))
                     .tracking(2.6)
                     .padding(.leading, 4)
-                    .foregroundStyle(Color(hex: "#B7BDC7"))
+                    .foregroundStyle(Color.adaptive(light: "#8A7F92", dark: "#B7BDC7"))
                     .fixedSize(horizontal: true, vertical: false)
             }
             Text(title)
                 .font(ABFont.display(24, weight: .regular))
                 .foregroundStyle(
                     LinearGradient(
-                        colors: [Color.white, Color(hex: "#D2D7DF").opacity(0.8)],
+                        colors: [ABColor.ink, ABColor.ink.opacity(0.8)],
                         startPoint: .top, endPoint: .bottom
                     )
                 )
             if let subtitle {
                 Text(subtitle)
                     .font(ABFont.body(12.5))
-                    .foregroundStyle(Color.white.opacity(0.45))
+                    .foregroundStyle(ABColor.ink.opacity(0.45))
             }
         }
         .padding(.horizontal, 28)
@@ -312,11 +302,11 @@ struct ProfileHomeView: View {
                 .frame(maxWidth: .infinity)
                 .aspectRatio(1, contentMode: .fit)
                 .padding(10)
-                .background(Color.black.opacity(0.28))
+                .background(ABColor.panel.opacity(0.28))
                 .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: 28, style: .continuous)
-                        .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                        .stroke(ABColor.veil.opacity(0.12), lineWidth: 1)
                 )
                 .padding(.horizontal, 20)
                 .padding(.vertical, 8)
@@ -334,7 +324,7 @@ struct ProfileHomeView: View {
                     .tint(Color(hex: "#CDD2DB"))
                 Text("Haritan hesaplanıyor…")
                     .font(ABFont.body(13))
-                    .foregroundStyle(Color.white.opacity(0.55))
+                    .foregroundStyle(ABColor.ink.opacity(0.55))
                     .multilineTextAlignment(.center)
                 if let error {
                     Text(error)
@@ -346,7 +336,7 @@ struct ProfileHomeView: View {
                     } label: {
                         Text("Yeniden Dene")
                             .font(ABFont.body(14, weight: .medium))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(ABColor.ink)
                             .padding(.horizontal, 18)
                             .padding(.vertical, 10)
                             .background(.ultraThinMaterial, in: Capsule())
@@ -369,7 +359,7 @@ struct ProfileHomeView: View {
                     VStack(spacing: 8) {
                         Text(mode.rawValue)
                             .font(ABFont.body(12, weight: .semibold))
-                            .foregroundStyle(chartMode == mode ? .white : Color.white.opacity(0.4))
+                            .foregroundStyle(chartMode == mode ? ABColor.ink : ABColor.veil.opacity(0.4))
                             .fixedSize(horizontal: true, vertical: false)
                         Rectangle()
                             .fill(chartMode == mode ? lavender : Color.clear)
@@ -397,21 +387,21 @@ struct ProfileHomeView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(planet.planet.name)
                                 .font(ABFont.body(15, weight: .medium))
-                                .foregroundStyle(.white)
+                                .foregroundStyle(ABColor.ink)
                             Text("\(planet.sign.labelTR) • \(planet.house). Ev")
                                 .font(ABFont.body(12))
-                                .foregroundStyle(Color.white.opacity(0.5))
+                                .foregroundStyle(ABColor.ink.opacity(0.5))
                         }
                         Spacer()
                         Text(degreeText(planet))
                             .font(ABFont.body(13, weight: .medium))
-                            .foregroundStyle(Color.white.opacity(0.6))
+                            .foregroundStyle(ABColor.ink.opacity(0.6))
                     }
                     .padding(.vertical, 14)
                 }
                 .buttonStyle(.plain)
                 if index < chart.planets.count - 1 {
-                    Divider().background(Color.white.opacity(0.08))
+                    Divider().background(ABColor.veil.opacity(0.08))
                 }
             }
         }
@@ -445,10 +435,10 @@ struct ProfileHomeView: View {
                 Text(label.uppercased())
                     .font(ABFont.body(9, weight: .semibold))
                     .tracking(1.2)
-                    .foregroundStyle(Color.white.opacity(0.45))
+                    .foregroundStyle(ABColor.ink.opacity(0.45))
                 Text(value)
                     .font(ABFont.body(14, weight: .medium))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(ABColor.ink)
             }
             Spacer()
         }
@@ -476,18 +466,18 @@ struct ProfileHomeView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("\(planet.planet.name) \(planet.sign.labelTR)")
                             .font(ABFont.body(15, weight: .medium))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(ABColor.ink)
                         Text("\(planet.house). Ev\(planet.isRetrograde ? " • Retro ℞" : "")")
                             .font(ABFont.body(12))
-                            .foregroundStyle(Color.white.opacity(0.45))
+                            .foregroundStyle(ABColor.ink.opacity(0.45))
                     }
                     Spacer()
                     Text(degreeText(planet))
                         .font(ABFont.body(13, weight: .medium))
-                        .foregroundStyle(Color.white.opacity(0.6))
+                        .foregroundStyle(ABColor.ink.opacity(0.6))
                     Image(systemName: isOpen ? "chevron.up" : "chevron.down")
                         .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(Color.white.opacity(0.35))
+                        .foregroundStyle(ABColor.ink.opacity(0.35))
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 13)
@@ -499,7 +489,7 @@ struct ProfileHomeView: View {
                     Rectangle().fill(tint.opacity(0.3)).frame(height: 0.8).padding(.bottom, 2)
                     Text(AstralReadings.planet(planet.planet, planet.sign))
                         .font(ABFont.body(13.5))
-                        .foregroundStyle(Color.white.opacity(0.78))
+                        .foregroundStyle(ABColor.ink.opacity(0.78))
                         .lineSpacing(4)
                 }
                 .padding(.horizontal, 16)
@@ -545,17 +535,17 @@ struct ProfileHomeView: View {
                                 .foregroundStyle(tint)
                             Text(house.sign.labelTR)
                                 .font(ABFont.body(14, weight: .medium))
-                                .foregroundStyle(.white)
+                                .foregroundStyle(ABColor.ink)
                         }
                         Text(house.theme)
                             .font(ABFont.body(11.5))
-                            .foregroundStyle(Color.white.opacity(0.5))
+                            .foregroundStyle(ABColor.ink.opacity(0.5))
                             .lineLimit(1)
                     }
                     Spacer()
                     Image(systemName: isOpen ? "chevron.up" : "chevron.down")
                         .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(Color.white.opacity(0.3))
+                        .foregroundStyle(ABColor.ink.opacity(0.3))
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
@@ -570,13 +560,13 @@ struct ProfileHomeView: View {
                         .foregroundStyle(Color(hex: "#CDD2DB"))
                     Text(AstralReadings.house(house: house.number, sign: house.sign))
                         .font(ABFont.body(13.5))
-                        .foregroundStyle(Color.white.opacity(0.78))
+                        .foregroundStyle(ABColor.ink.opacity(0.78))
                         .lineSpacing(4)
                     if !house.planets.isEmpty {
-                        Divider().background(Color.white.opacity(0.08))
+                        Divider().background(ABColor.veil.opacity(0.08))
                         Text("Bu evdeki gezegenler")
                             .font(ABFont.body(12))
-                            .foregroundStyle(Color.white.opacity(0.4))
+                            .foregroundStyle(ABColor.ink.opacity(0.4))
                         HStack(spacing: 12) {
                             ForEach(house.planets, id: \.self) { planet in
                                 HStack(spacing: 5) {
@@ -585,7 +575,7 @@ struct ProfileHomeView: View {
                                         .foregroundStyle(planetTint(planet))
                                     Text(planet.name)
                                         .font(ABFont.body(12.5, weight: .medium))
-                                        .foregroundStyle(.white)
+                                        .foregroundStyle(ABColor.ink)
                                 }
                             }
                         }
@@ -634,7 +624,7 @@ struct ProfileHomeView: View {
                 Spacer()
                 Text(aspect.isExact ? "Tam" : String(format: "%.1f°", aspect.orb))
                     .font(ABFont.body(12))
-                    .foregroundStyle(Color.white.opacity(0.5))
+                    .foregroundStyle(ABColor.ink.opacity(0.5))
             }
             HStack(spacing: 10) {
                 Text(aspect.planet1.glyph).foregroundStyle(planetTint(aspect.planet1))
@@ -642,7 +632,7 @@ struct ProfileHomeView: View {
                 Text(aspect.planet2.glyph).foregroundStyle(planetTint(aspect.planet2))
                 Text("\(aspect.planet1.name) – \(aspect.planet2.name)")
                     .font(ABFont.body(14, weight: .medium))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(ABColor.ink)
                     .lineLimit(1)
             }
             .font(.system(size: 18))
@@ -651,7 +641,7 @@ struct ProfileHomeView: View {
                 .foregroundStyle(Color(hex: "#CDD2DB"))
             Text(AstralReadings.aspect(aspect))
                 .font(ABFont.body(13))
-                .foregroundStyle(Color.white.opacity(isOpen ? 0.82 : 0.55))
+                .foregroundStyle(ABColor.ink.opacity(isOpen ? 0.82 : 0.55))
                 .lineSpacing(4)
                 .lineLimit(isOpen ? nil : 2)
             if !isOpen {
@@ -803,7 +793,7 @@ private struct ProfilePlanetDetailSheet: View {
             CosmicBackdrop()
             VStack(spacing: 0) {
                 Capsule()
-                    .fill(Color.white.opacity(0.3))
+                    .fill(ABColor.veil.opacity(0.3))
                     .frame(width: 36, height: 4)
                     .padding(.top, 12)
                 ScrollView {
@@ -813,20 +803,20 @@ private struct ProfilePlanetDetailSheet: View {
                             .padding(.top, 20)
                         Text(planet.planet.name)
                             .font(ABFont.display(26))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(ABColor.ink)
                         Text("\(planet.sign.glyph) \(planet.sign.labelTR) · Ev \(planet.house)\(planet.isRetrograde ? " · ℞" : "")")
                             .font(ABFont.body(16, weight: .medium))
                             .foregroundStyle(Color(hex: "#CDD2DB"))
                         Text(String(format: "%.1f° %@", planet.degree, planet.sign.labelTR))
                             .font(ABFont.body(14))
-                            .foregroundStyle(Color.white.opacity(0.5))
+                            .foregroundStyle(ABColor.ink.opacity(0.5))
                         VStack(alignment: .leading, spacing: 10) {
                             Text("Ne Anlama Gelir?")
                                 .font(ABFont.body(15, weight: .semibold))
                                 .foregroundStyle(Color(hex: "#CDD2DB"))
                             Text(AstralReadings.planet(planet.planet, planet.sign))
                                 .font(ABFont.body(15))
-                                .foregroundStyle(Color.white.opacity(0.82))
+                                .foregroundStyle(ABColor.ink.opacity(0.82))
                                 .lineSpacing(4)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -860,7 +850,7 @@ private struct ProfileGlowBubble: ViewModifier {
                         .blur(radius: 7)
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                         .fill(.ultraThinMaterial)
-                        .environment(\.colorScheme, .dark)
+                        
                         .opacity(0.5)
                 }
             }

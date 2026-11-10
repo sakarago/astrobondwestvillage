@@ -103,6 +103,7 @@ final class ChatViewModel {
 }
 
 struct ChatView: View {
+    @Environment(\.colorScheme) private var scheme
     @Environment(SessionStore.self) private var session
     @Environment(\.dismiss) private var dismiss
     @Environment(\.hideTabBar) private var hideTabBar
@@ -181,7 +182,7 @@ struct ChatView: View {
                                 .foregroundStyle(Self.roseSoft)
                                 .padding(.horizontal, 14)
                                 .padding(.vertical, 6)
-                                .background(Capsule().fill(Color.black.opacity(0.35)))
+                                .background(Capsule().fill(glass(0.35)))
                                 .overlay(Capsule().strokeBorder(Self.rose.opacity(0.45), lineWidth: 1))
                                 .frame(maxWidth: .infinity)
 
@@ -219,11 +220,15 @@ struct ChatView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .ignoresSafeArea(.keyboard, edges: .bottom)
         .background {
-            Color.clear
-                .overlay { Image("chat_bg").resizable().scaledToFill() }
-                .clipped()
-                .overlay(Color.black.opacity(0.22))
-                .ignoresSafeArea(.container)
+            ZStack {
+                if scheme == .light { CosmicBackdrop() }
+                Color.clear
+                    .overlay { Image("chat_bg").resizable().scaledToFill() }
+                    .clipped()
+                    .opacity(scheme == .light ? 0.10 : 1)
+                    .overlay(scheme == .light ? Color.clear : Color.black.opacity(0.22))
+            }
+            .ignoresSafeArea(.container)
         }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillChangeFrameNotification)) { note in
             let duration = (note.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? Double) ?? 0.25
@@ -280,8 +285,12 @@ struct ChatView: View {
         }
     }
 
-    private static let rose = Color(hex: "#E8B9A0")
-    private static let roseSoft = Color(hex: "#F3D9C8")
+    private static let rose = Color.adaptive(light: "#D4967C", dark: "#E8B9A0")
+    private static let roseSoft = Color.adaptive(light: "#9C5E50", dark: "#F3D9C8")
+    /// Glass fill for chrome over the chat photo.
+    private func glass(_ darkOpacity: Double) -> Color {
+        scheme == .light ? Color.white.opacity(0.74) : Color.black.opacity(darkOpacity)
+    }
 
     private var astroScore: Int {
         BondStory.report(
@@ -306,7 +315,7 @@ struct ChatView: View {
                     Button(action: goBack) {
                         Image(systemName: "chevron.left")
                             .font(.system(size: 19, weight: .semibold))
-                            .foregroundStyle(Color.white)
+                            .foregroundStyle(ABColor.ink)
                             .frame(width: 40, height: 40)
                             .contentShape(Rectangle())
                     }
@@ -333,7 +342,7 @@ struct ChatView: View {
                         HStack(spacing: 6) {
                             Text(model.conversation.otherName)
                                 .font(ABFont.display(21, weight: .regular))
-                                .foregroundStyle(Color.white)
+                                .foregroundStyle(ABColor.ink)
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.75)
                             Text("☾").font(.system(size: 15)).foregroundStyle(Self.roseSoft)
@@ -353,7 +362,7 @@ struct ChatView: View {
                                 .foregroundStyle(Color(hex: "#F28B82"))
                             Text("%\(astroScore)")
                                 .font(ABFont.display(20, weight: .regular))
-                                .foregroundStyle(Color.white)
+                                .foregroundStyle(ABColor.ink)
                         }
                         Text("Astro Uyum")
                             .font(ABFont.body(12, weight: .medium))
@@ -361,7 +370,7 @@ struct ChatView: View {
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 9)
-                    .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(Color.black.opacity(0.4)))
+                    .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(glass(0.4)))
                     .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(Self.rose.opacity(0.55), lineWidth: 1))
                 }
                 .buttonStyle(.plain)
@@ -371,7 +380,7 @@ struct ChatView: View {
         .padding(.top, 2)
         .padding(.bottom, 10)
         .background {
-            LinearGradient(colors: [Color.black.opacity(0.7), Color.black.opacity(0.35)], startPoint: .top, endPoint: .bottom)
+            LinearGradient(colors: scheme == .light ? [Color.white.opacity(0.85), Color.white.opacity(0.35)] : [Color.black.opacity(0.7), Color.black.opacity(0.35)], startPoint: .top, endPoint: .bottom)
                 .ignoresSafeArea(edges: .top)
         }
     }
@@ -395,14 +404,14 @@ struct ChatView: View {
         return VStack(alignment: mine ? .trailing : .leading, spacing: 6) {
             Text(msg.text)
                 .font(ABFont.display(17, weight: .regular))
-                .foregroundStyle(mine ? Color(hex: "#F6E9E1") : ink)
+                .foregroundStyle(mine ? (scheme == .light ? ink : Color(hex: "#F6E9E1")) : ink)
                 .multilineTextAlignment(mine ? .trailing : .leading)
                 .fixedSize(horizontal: false, vertical: true)
 
             HStack(spacing: 5) {
                 Text(timeString(msg.sentAt))
                     .font(ABFont.body(11))
-                    .foregroundStyle(mine ? Self.roseSoft.opacity(0.7) : ink.opacity(0.5))
+                    .foregroundStyle(mine ? (scheme == .light ? ink.opacity(0.55) : Self.roseSoft.opacity(0.7)) : ink.opacity(0.5))
                 if mine {
                     Image(systemName: "checkmark")
                         .font(.system(size: 10, weight: .bold))
@@ -415,13 +424,13 @@ struct ChatView: View {
         .frame(maxWidth: 300, alignment: mine ? .trailing : .leading)
         .background {
             RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .fill(mine ? Color.black.opacity(0.52) : Color(hex: "#D9C2B8").opacity(0.94))
+                .fill(mine ? (scheme == .light ? Color(hex: "#F4C9B8") : Color.black.opacity(0.52)) : (scheme == .light ? Color.white.opacity(0.9) : Color(hex: "#D9C2B8").opacity(0.94)))
         }
         .overlay(
             RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .strokeBorder(mine ? Self.rose.opacity(0.4) : Color.white.opacity(0.35), lineWidth: 1)
+                .strokeBorder(mine ? Self.rose.opacity(0.4) : (scheme == .light ? Color(hex: "#E9CBBB") : Color.white).opacity(0.5), lineWidth: 1)
         )
-        .shadow(color: .black.opacity(0.25), radius: 8, y: 3)
+        .shadow(color: (scheme == .light ? ABColor.peachGlow : Color.black).opacity(0.25), radius: 8, y: 3)
     }
 
     private func timeString(_ date: Date) -> String {
@@ -445,7 +454,7 @@ struct ChatView: View {
             .frame(height: 22)
             .padding(.horizontal, 18)
             .padding(.vertical, 12)
-            .background(Capsule(style: .continuous).fill(Color.black.opacity(0.42)))
+            .background(Capsule(style: .continuous).fill(glass(0.42)))
             .overlay(Capsule(style: .continuous).strokeBorder(Self.rose.opacity(0.45), lineWidth: 1))
 
             Button {
@@ -454,10 +463,10 @@ struct ChatView: View {
             } label: {
                 Image(systemName: "sparkle")
                     .font(.system(size: 22, weight: .semibold))
-                    .foregroundStyle(Color.white)
+                    .foregroundStyle(ABColor.ink)
                     .shadow(color: Self.roseSoft, radius: 6)
                     .frame(width: 54, height: 54)
-                    .background(Circle().fill(Color.black.opacity(0.5)))
+                    .background(Circle().fill(glass(0.5)))
                     .overlay(
                         Circle().strokeBorder(
                             LinearGradient(colors: [Color(hex: "#FFE3CF"), Self.rose, Color(hex: "#C98A6E")], startPoint: .top, endPoint: .bottom),
@@ -472,10 +481,10 @@ struct ChatView: View {
             Button(action: canSend ? sendTapped : resignKeyboard) {
                 Image(systemName: canSend ? "paperplane.fill" : (isComposerFocused ? "chevron.down" : "paperplane"))
                     .font(.system(size: 17, weight: .medium))
-                    .foregroundStyle(canSend ? Color(hex: "#2B2237") : Color.white)
+                    .foregroundStyle(canSend ? Color(hex: "#2B2237") : ABColor.ink)
                     .frame(width: 46, height: 46)
                     .background {
-                        Circle().fill(canSend ? AnyShapeStyle(Self.rose) : AnyShapeStyle(Color.black.opacity(0.45)))
+                        Circle().fill(canSend ? AnyShapeStyle(Self.rose) : AnyShapeStyle(glass(0.45)))
                     }
                     .overlay(Circle().strokeBorder(Self.rose.opacity(0.55), lineWidth: 1))
             }
@@ -487,7 +496,7 @@ struct ChatView: View {
         .padding(.top, 10)
         .padding(.bottom, 8)
         .background {
-            LinearGradient(colors: [.clear, Color.black.opacity(0.55)], startPoint: .top, endPoint: .bottom)
+            LinearGradient(colors: [.clear, scheme == .light ? Color(hex: "#FBE9DE").opacity(0.9) : Color.black.opacity(0.55)], startPoint: .top, endPoint: .bottom)
                 .ignoresSafeArea(edges: .bottom)
         }
     }
@@ -541,7 +550,7 @@ private struct ChatComposerField: UIViewRepresentable {
         field.delegate = context.coordinator
         field.borderStyle = .none
         field.backgroundColor = .clear
-        field.textColor = .white
+        field.textColor = UIColor { $0.userInterfaceStyle == .dark ? .white : UIColor(red: 0.17, green: 0.13, blue: 0.22, alpha: 1) }
         field.tintColor = UIColor(red: 0.91, green: 0.73, blue: 0.63, alpha: 1)
         field.font = UIFont(descriptor: UIFont.systemFont(ofSize: 16).fontDescriptor.withDesign(.serif) ?? UIFont.systemFont(ofSize: 16).fontDescriptor, size: 16)
         field.returnKeyType = .send
@@ -550,7 +559,7 @@ private struct ChatComposerField: UIViewRepresentable {
         field.enablesReturnKeyAutomatically = true
         field.attributedPlaceholder = NSAttributedString(
             string: placeholder,
-            attributes: [.foregroundColor: UIColor.white.withAlphaComponent(0.42)]
+            attributes: [.foregroundColor: UIColor { $0.userInterfaceStyle == .dark ? UIColor.white.withAlphaComponent(0.42) : UIColor(red: 0.17, green: 0.13, blue: 0.22, alpha: 0.42) }]
         )
         field.addTarget(context.coordinator, action: #selector(Coordinator.editingChanged), for: .editingChanged)
         field.setContentHuggingPriority(.defaultLow, for: .horizontal)

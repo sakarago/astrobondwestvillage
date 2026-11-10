@@ -149,7 +149,7 @@ struct SettingsView: View {
     }
 
     private var divider: some View {
-        Rectangle().fill(Color.white.opacity(0.08)).frame(height: 1)
+        Rectangle().fill(ABColor.veil.opacity(0.08)).frame(height: 1)
     }
 
     private func sectionLabel(_ text: String) -> some View {
@@ -225,7 +225,7 @@ private struct EditProfileSettingsView: View {
                             field("Ad", $firstName)
                             field("Soyad", $lastName)
                         }
-                        Rectangle().fill(Color.white.opacity(0.08)).frame(height: 1)
+                        Rectangle().fill(ABColor.veil.opacity(0.08)).frame(height: 1)
                         VStack(alignment: .leading, spacing: 6) {
                             Text("E-posta").font(ABFont.body(12, weight: .semibold)).foregroundStyle(ABColor.inkMuted)
                             Text(session.user?.email ?? "—")
@@ -233,14 +233,14 @@ private struct EditProfileSettingsView: View {
                                 .foregroundStyle(ABColor.inkMuted)
                         }
                         .padding(.vertical, 8)
-                        Rectangle().fill(Color.white.opacity(0.08)).frame(height: 1)
+                        Rectangle().fill(ABColor.veil.opacity(0.08)).frame(height: 1)
                         DatePicker("Doğum tarihi", selection: $birthDate, in: ...eighteenYearsAgo, displayedComponents: .date)
                             .tint(ABColor.lavender)
-                            .colorScheme(.dark)
+                            
                             .font(ABFont.body(15))
                             .foregroundStyle(ABColor.ink)
                             .padding(.vertical, 8)
-                        Rectangle().fill(Color.white.opacity(0.08)).frame(height: 1)
+                        Rectangle().fill(ABColor.veil.opacity(0.08)).frame(height: 1)
                         BirthPlacePicker(city: $city, district: $district, compact: true)
                             .padding(.vertical, 8)
                     }

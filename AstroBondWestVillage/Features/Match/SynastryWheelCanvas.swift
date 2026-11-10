@@ -1,5 +1,7 @@
 import SwiftUI
 
+private let wheelInk = Color.adaptive(light: "#4B3A6E", dark: "#FFFFFF")
+
 /// A dedicated, "professional" bi-wheel for the Sinastri detail screen.
 ///
 /// Unlike `CosmicMatchWheel` (the decorative single/dual overlay used for the
@@ -28,17 +30,17 @@ struct SynastryWheelCanvas: View {
             let rHouse = R * 0.330
             let rHole = R * 0.240
 
-            ctx.fill(circlePath(cx, cy, R), with: .color(.black.opacity(0.18)))
+            ctx.fill(circlePath(cx, cy, R), with: .color(Color.adaptive(light: "#FFFFFF", dark: "#000000").opacity(0.45)))
 
             for r in [R, rZod, rMid, rHouse, rHole] {
-                ctx.stroke(circlePath(cx, cy, r), with: .color(.white.opacity(0.5)), lineWidth: 1)
+                ctx.stroke(circlePath(cx, cy, r), with: .color(wheelInk.opacity(0.5)), lineWidth: 1)
             }
 
             // Zodiac wedge dividers
             for i in 0..<12 {
                 let lon = CGFloat(i * 30)
                 var p = Path(); p.move(to: pt(cx, cy, rZod, lon)); p.addLine(to: pt(cx, cy, R, lon))
-                ctx.stroke(p, with: .color(.white.opacity(0.45)), lineWidth: 0.8)
+                ctx.stroke(p, with: .color(wheelInk.opacity(0.45)), lineWidth: 0.8)
             }
 
             // Degree ticks — every 5°, longer every 30°.
@@ -47,7 +49,7 @@ struct SynastryWheelCanvas: View {
                 let major = k % 6 == 0
                 let len: CGFloat = major ? R * 0.030 : R * 0.016
                 var p = Path(); p.move(to: pt(cx, cy, rZod, lon)); p.addLine(to: pt(cx, cy, rZod + len, lon))
-                ctx.stroke(p, with: .color(.white.opacity(major ? 0.55 : 0.24)), lineWidth: major ? 1 : 0.55)
+                ctx.stroke(p, with: .color(wheelInk.opacity(major ? 0.55 : 0.24)), lineWidth: major ? 1 : 0.55)
             }
 
             // Sign glyphs, element-tinted
@@ -67,14 +69,14 @@ struct SynastryWheelCanvas: View {
                 let cusp = ascLon + CGFloat(i * 30)
                 let axis = i % 3 == 0
                 var p = Path(); p.move(to: pt(cx, cy, rHole, cusp)); p.addLine(to: pt(cx, cy, rZod, cusp))
-                ctx.stroke(p, with: .color(.white.opacity(axis ? 0.88 : 0.42)), lineWidth: axis ? 1.5 : 0.75)
+                ctx.stroke(p, with: .color(wheelInk.opacity(axis ? 0.88 : 0.42)), lineWidth: axis ? 1.5 : 0.75)
             }
             for i in 0..<12 {
                 let mid = ascLon + CGFloat(i * 30) + 15
                 ctx.draw(
                     Text("\(i + 1)")
                         .font(.system(size: R * 0.046, weight: .semibold))
-                        .foregroundColor(.white.opacity(0.58)),
+                        .foregroundColor(wheelInk.opacity(0.58)),
                     at: pt(cx, cy, (rHole + rHouse) / 2, mid)
                 )
             }
@@ -108,7 +110,7 @@ struct SynastryWheelCanvas: View {
             ctx.stroke(
                 rim,
                 with: .linearGradient(
-                    Gradient(colors: [Color.white.opacity(0.7), ABColor.lavenderSoft.opacity(0.4), Color.white.opacity(0.12)]),
+                    Gradient(colors: [wheelInk.opacity(0.7), ABColor.lavenderSoft.opacity(0.4), wheelInk.opacity(0.12)]),
                     startPoint: CGPoint(x: cx - rZod, y: cy - rZod),
                     endPoint: CGPoint(x: cx + rZod, y: cy + rZod)
                 ),
@@ -129,10 +131,10 @@ struct SynastryWheelCanvas: View {
             .foregroundColor(color), at: pt(cx, cy, ringOuter - R * 0.072, lon))
         ctx.draw(Text("\(deg)°")
             .font(.system(size: R * 0.040, weight: .semibold))
-            .foregroundColor(.white.opacity(0.85)), at: pt(cx, cy, ringOuter - R * 0.128, lon))
+            .foregroundColor(wheelInk.opacity(0.85)), at: pt(cx, cy, ringOuter - R * 0.128, lon))
         ctx.draw(Text("\(minute)'")
             .font(.system(size: R * 0.036, weight: .regular))
-            .foregroundColor(.white.opacity(0.55)), at: pt(cx, cy, ringOuter - R * 0.176, lon))
+            .foregroundColor(wheelInk.opacity(0.55)), at: pt(cx, cy, ringOuter - R * 0.176, lon))
     }
 
     private func circlePath(_ cx: CGFloat, _ cy: CGFloat, _ r: CGFloat) -> Path {
@@ -187,11 +189,11 @@ struct SynastryKeyView: View {
         .padding(.horizontal, 14)
         .background(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(Color.white.opacity(0.04))
+                .fill(wheelInk.opacity(0.04))
         )
         .overlay(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
+                .strokeBorder(wheelInk.opacity(0.08), lineWidth: 1)
         )
     }
 
@@ -199,7 +201,7 @@ struct SynastryKeyView: View {
         Text(text)
             .font(ABFont.body(10, weight: .bold))
             .tracking(2)
-            .foregroundStyle(.white.opacity(0.45))
+            .foregroundStyle(wheelInk.opacity(0.45))
     }
 
     private func keyRow(glyph: String, name: String, color: Color) -> some View {
@@ -210,7 +212,7 @@ struct SynastryKeyView: View {
                 .frame(width: 18, alignment: .center)
             Text(name)
                 .font(ABFont.body(12, weight: .medium))
-                .foregroundStyle(.white.opacity(0.82))
+                .foregroundStyle(wheelInk.opacity(0.82))
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
         }

@@ -754,16 +754,17 @@ private struct AmbientStarField: View {
 /// Drawn zodiac disk so sign names can be Turkish. Aries sits at the top.
 private struct ZodiacWheelDisk: View {
     var size: CGFloat
+    @Environment(\.colorScheme) private var scheme
+    private var fg: Color { scheme == .light ? Color(hex: "#4B3A6E") : .white }
 
     var body: some View {
         ZStack {
             Circle()
                 .fill(
                     RadialGradient(
-                        colors: [
-                            Color.black.opacity(0.08),
-                            Color(hex: "#07060C").opacity(0.62)
-                        ],
+                        colors: scheme == .light
+                            ? [Color.white.opacity(0.35), Color(hex: "#EBCFD6").opacity(0.78)]
+                            : [Color.black.opacity(0.08), Color(hex: "#07060C").opacity(0.62)],
                         center: .center,
                         startRadius: size * 0.06,
                         endRadius: size * 0.50
@@ -772,7 +773,7 @@ private struct ZodiacWheelDisk: View {
                 .frame(width: size, height: size)
 
             Circle()
-                .stroke(Color.white.opacity(0.22), lineWidth: 8)
+                .stroke(fg.opacity(scheme == .light ? 0.12 : 0.22), lineWidth: 8)
                 .blur(radius: 6)
                 .frame(width: size, height: size)
 
@@ -783,7 +784,7 @@ private struct ZodiacWheelDisk: View {
 
             ForEach(0..<12, id: \.self) { i in
                 Capsule()
-                    .fill(Color.white.opacity(0.30))
+                    .fill(fg.opacity(0.30))
                     .frame(width: 0.85, height: size * 0.28)
                     .offset(y: -size * 0.36)
                     .rotationEffect(.degrees(Double(i) * 30 + 15))
@@ -795,8 +796,8 @@ private struct ZodiacWheelDisk: View {
 
                 Text(sign.glyph)
                     .font(.system(size: size * 0.082, weight: .semibold))
-                    .foregroundStyle(Color.white)
-                    .shadow(color: .white.opacity(0.75), radius: 4)
+                    .foregroundStyle(fg)
+                    .shadow(color: (scheme == .light ? Color.white : fg).opacity(0.75), radius: 4)
                     .shadow(color: Color(hex: "#FFE3B0").opacity(0.5), radius: 8)
                     .offset(
                         x: size * 0.31 * sin(rad),
@@ -806,8 +807,8 @@ private struct ZodiacWheelDisk: View {
                 Text(sign.labelTR.uppercased(with: Locale(identifier: "tr_TR")))
                     .font(.system(size: size * 0.033, weight: .semibold, design: .rounded))
                     .tracking(0.6)
-                    .foregroundStyle(Color.white)
-                    .shadow(color: .white.opacity(0.4), radius: 2.5)
+                    .foregroundStyle(fg)
+                    .shadow(color: (scheme == .light ? Color.white : fg).opacity(0.4), radius: 2.5)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
                     .rotationEffect(.degrees(angle))
@@ -818,19 +819,19 @@ private struct ZodiacWheelDisk: View {
             }
         }
         .frame(width: size, height: size)
-        .shadow(color: Color.white.opacity(0.16), radius: 12)
+        .shadow(color: (scheme == .light ? ABColor.peachGlow : Color.white).opacity(scheme == .light ? 0.35 : 0.16), radius: 12)
     }
 
     private func ring(diameter: CGFloat, line: CGFloat, opacity: Double) -> some View {
         Circle()
-            .stroke(Color.white.opacity(opacity), lineWidth: line)
+            .stroke(fg.opacity(scheme == .light ? opacity * 0.8 : opacity), lineWidth: line)
             .frame(width: diameter, height: diameter)
     }
 }
 
 struct AstroBondEmblem: View {
     var size: CGFloat = 30
-    private let gold = Color(hex: "#E4E8EF")
+    private let gold = Color.adaptive(light: "#8F7FD0", dark: "#E4E8EF")
 
     var body: some View {
         ZStack {
@@ -868,7 +869,7 @@ struct AstroBondLogoMark: View {
             }
             .font(ABFont.display(17, weight: .regular))
             .tracking(5)
-            .foregroundStyle(Color.white.opacity(0.95))
+            .foregroundStyle(ABColor.ink.opacity(0.95))
             .frame(height: 44)
         } else {
             plain
@@ -879,11 +880,11 @@ struct AstroBondLogoMark: View {
         VStack(spacing: 7) {
             Text("✦")
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(Color(hex: "#C9CFD9"))
+                .foregroundStyle(Color.adaptive(light: "#8F7FD0", dark: "#C9CFD9"))
             Text("ASTROBOND")
                 .font(ABFont.display(17, weight: .regular))
                 .tracking(6.5)
-                .foregroundStyle(Color.white.opacity(0.95))
+                .foregroundStyle(ABColor.ink.opacity(0.95))
                 .padding(.leading, 6.5)
         }
     }

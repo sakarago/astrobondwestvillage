@@ -3,46 +3,53 @@ import SwiftUI
 /// Crystal glass plate — transparent frost + bevel + soft depth.
 struct CrystalPlateModifier: ViewModifier {
     var cornerRadius: CGFloat = 22
+    @Environment(\.colorScheme) private var scheme
 
     func body(content: Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-        content
-            .background {
-                ZStack {
-                    shape.fill(.ultraThinMaterial)
-                        .environment(\.colorScheme, .dark)
-                    shape.fill(Color.white.opacity(0.04))
-                    shape.fill(
-                        LinearGradient(
-                            colors: [
-                                Color.white.opacity(0.18),
-                                .clear,
-                                Color.black.opacity(0.16)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .blendMode(.overlay)
+        if scheme == .light {
+            content
+                .background {
+                    ZStack {
+                        shape.fill(Color.white.opacity(0.72))
+                        shape.fill(LinearGradient(colors: [Color.white.opacity(0.85), .clear, Color(hex: "#F6D9CB").opacity(0.45)],
+                                                  startPoint: .topLeading, endPoint: .bottomTrailing))
+                    }
                 }
-            }
-            .clipShape(shape)
-            .overlay(
-                shape.strokeBorder(
-                    LinearGradient(
-                        colors: [
-                            Color.white.opacity(0.50),
-                            ABColor.lavenderSoft.opacity(0.22),
-                            Color.white.opacity(0.06)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    lineWidth: 1
+                .clipShape(shape)
+                .overlay(
+                    shape.strokeBorder(
+                        LinearGradient(colors: [Color.white, Color(hex: "#E9CBBB").opacity(0.7), Color.white.opacity(0.5)],
+                                       startPoint: .topLeading, endPoint: .bottomTrailing),
+                        lineWidth: 1)
                 )
-            )
-            .shadow(color: Color.black.opacity(0.22), radius: 14, y: 8)
-            .shadow(color: ABColor.lavender.opacity(0.12), radius: 16, y: 6)
+                .shadow(color: Color(hex: "#B98B78").opacity(0.22), radius: 14, y: 8)
+        } else {
+            content
+                .background {
+                    ZStack {
+                        shape.fill(.ultraThinMaterial)
+                            .environment(\.colorScheme, .dark)
+                        shape.fill(Color.white.opacity(0.04))
+                        shape.fill(
+                            LinearGradient(
+                                colors: [Color.white.opacity(0.18), .clear, Color.black.opacity(0.16)],
+                                startPoint: .topLeading, endPoint: .bottomTrailing)
+                        )
+                        .blendMode(.overlay)
+                    }
+                }
+                .clipShape(shape)
+                .overlay(
+                    shape.strokeBorder(
+                        LinearGradient(
+                            colors: [Color.white.opacity(0.50), ABColor.lavenderSoft.opacity(0.22), Color.white.opacity(0.06)],
+                            startPoint: .topLeading, endPoint: .bottomTrailing),
+                        lineWidth: 1)
+                )
+                .shadow(color: Color.black.opacity(0.22), radius: 14, y: 8)
+                .shadow(color: ABColor.lavender.opacity(0.12), radius: 16, y: 6)
+        }
     }
 }
 
@@ -62,9 +69,24 @@ private struct CrystalIconBezel: ViewModifier {
     var size: CGFloat
     var cornerRadius: CGFloat
     var pressed: Bool = false
+    @Environment(\.colorScheme) private var scheme
 
     func body(content: Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+        if scheme == .light {
+            content
+                .frame(width: size, height: size)
+                .background {
+                    ZStack {
+                        shape.fill(Color.white.opacity(0.85))
+                        shape.fill(LinearGradient(colors: [Color.white, Color(hex: "#F6DDD0").opacity(0.7)], startPoint: .top, endPoint: .bottom))
+                    }
+                }
+                .overlay(shape.strokeBorder(LinearGradient(colors: [Color.white, Color(hex: "#E3C3B1")], startPoint: .top, endPoint: .bottom), lineWidth: 1.1))
+                .clipShape(shape)
+                .shadow(color: Color(hex: "#B98B78").opacity(pressed ? 0.15 : 0.30), radius: pressed ? 4 : 9, y: pressed ? 2 : 5)
+                .scaleEffect(pressed ? 0.93 : 1)
+        } else {
         content
             .frame(width: size, height: size)
             .background {
@@ -119,6 +141,7 @@ private struct CrystalIconBezel: ViewModifier {
             .shadow(color: Color.black.opacity(pressed ? 0.16 : 0.38), radius: pressed ? 4 : 10, y: pressed ? 2 : 6)
             .shadow(color: ABColor.lavender.opacity(pressed ? 0.10 : 0.26), radius: pressed ? 5 : 12, y: 3)
             .scaleEffect(pressed ? 0.93 : 1)
+        }
     }
 }
 
@@ -146,15 +169,20 @@ struct CrystalCTAButton: View {
     let title: String
     var isEnabled: Bool = true
     let action: () -> Void
+    @Environment(\.colorScheme) private var scheme
 
     var body: some View {
         Button(action: action) {
             Text(title)
                 .font(ABFont.body(16.5, weight: .semibold))
-                .foregroundStyle(Color.white.opacity(isEnabled ? 0.95 : 0.4))
+                .foregroundStyle(ABColor.ctaText.opacity(isEnabled ? 0.95 : 0.4))
                 .frame(maxWidth: .infinity)
                 .frame(height: 54)
                 .background {
+                    if scheme == .light {
+                        Capsule(style: .continuous)
+                            .fill(LinearGradient(colors: [Color(hex: "#F8D3C4"), Color(hex: "#EBA999")], startPoint: .top, endPoint: .bottom))
+                    } else {
                     Capsule(style: .continuous)
                         .fill(.ultraThinMaterial)
                         .environment(\.colorScheme, .dark)
@@ -169,13 +197,14 @@ struct CrystalCTAButton: View {
                                 endPoint: .bottom
                             )
                         )
+                    }
                 }
                 .overlay(
                     Capsule(style: .continuous)
                         .strokeBorder(
                             LinearGradient(
                                 colors: [
-                                    Color.white.opacity(0.60),
+                                    ABColor.glassTint.opacity(0.60),
                                     ABColor.lavenderSoft.opacity(0.35),
                                     ABColor.lavender.opacity(0.22)
                                 ],
@@ -186,8 +215,8 @@ struct CrystalCTAButton: View {
                         )
                 )
                 .clipShape(Capsule(style: .continuous))
-                .shadow(color: Color.black.opacity(0.22), radius: 12, y: 7)
-                .shadow(color: ABColor.lavender.opacity(0.25), radius: 16, y: 5)
+                .shadow(color: (scheme == .light ? ABColor.peachGlow : Color.black).opacity(0.28), radius: 12, y: 7)
+                .shadow(color: (scheme == .light ? ABColor.peachGlow : ABColor.lavender).opacity(0.25), radius: 16, y: 5)
         }
         .buttonStyle(.plain)
         .disabled(!isEnabled)
@@ -201,7 +230,25 @@ struct CrystalCTAButton: View {
 /// the whole app reads closer to the moodier, more mysterious feel the
 /// previous version's background had.
 struct CosmicBackdrop: View {
+    @Environment(\.colorScheme) private var scheme
+
     var body: some View {
+        if scheme == .light { lightBody } else { darkBody }
+    }
+
+    private var lightBody: some View {
+        ZStack {
+            LinearGradient(colors: [Color(hex: "#FFF9F3"), Color(hex: "#FAEBDF"), Color(hex: "#F4DFE0")],
+                           startPoint: .top, endPoint: .bottom)
+            RadialGradient(colors: [Color(hex: "#F9C9B5").opacity(0.55), .clear],
+                           center: .topLeading, startRadius: 10, endRadius: 420)
+            RadialGradient(colors: [Color(hex: "#CDBDF7").opacity(0.45), .clear],
+                           center: .bottomTrailing, startRadius: 10, endRadius: 460)
+        }
+        .ignoresSafeArea()
+    }
+
+    private var darkBody: some View {
         ZStack {
             // Near-black base first, so edges/aspect gaps around the photo
             // (different screen sizes) never show anything lighter.

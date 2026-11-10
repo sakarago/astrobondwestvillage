@@ -49,20 +49,27 @@ private struct StarGen: RandomNumberGenerator {
 
 struct ScreenBackdropView: View {
     var backdrop: ScreenBackdrop = .night
+    @Environment(\.colorScheme) private var scheme
+    private var lt: Bool { scheme == .light }
     var body: some View {
         ZStack {
             switch backdrop {
             case .night:
-                night
+                if lt { lightSky(top: "#FFF9F3", mid: "#FAEBDF", bottom: "#F4DFE0", glow: "#F9C9B5") } else { night }
             case .violet:
-                violet
+                if lt { lightSky(top: "#F8F2FF", mid: "#E9DEFA", bottom: "#F6E6EE", glow: "#CDBDF7") } else { violet }
             case .peach:
                 LinearGradient(colors: [Color(hex: "#FBEEE3"), Color(hex: "#F1D3BE")], startPoint: .top, endPoint: .bottom)
             case .image(let name):
                 Color.clear.overlay { Image(name).resizable().scaledToFill() }.clipped()
-                LinearGradient(colors: [.black.opacity(0.4), .black.opacity(0.82)], startPoint: .top, endPoint: .bottom)
+                if lt {
+                    LinearGradient(colors: [Color(hex: "#FFF6EE").opacity(0.55), Color(hex: "#FFF6EE").opacity(0.92)], startPoint: .top, endPoint: .bottom)
+                } else {
+                    LinearGradient(colors: [.black.opacity(0.4), .black.opacity(0.82)], startPoint: .top, endPoint: .bottom)
+                }
             case .gradient(let hex, let icon):
                 LinearGradient(colors: hex.map { Color(hex: $0) }, startPoint: .topLeading, endPoint: .bottomTrailing)
+                if lt { Color(hex: "#FFF6EE").opacity(0.62) }
                 if let icon {
                     Image(systemName: icon).font(.system(size: 220, weight: .ultraLight))
                         .foregroundStyle(Color.white.opacity(0.06)).offset(x: 90, y: -230)
@@ -70,6 +77,13 @@ struct ScreenBackdropView: View {
             }
         }
         .ignoresSafeArea()
+    }
+
+    private func lightSky(top: String, mid: String, bottom: String, glow: String) -> some View {
+        ZStack {
+            LinearGradient(colors: [Color(hex: top), Color(hex: mid), Color(hex: bottom)], startPoint: .top, endPoint: .bottom)
+            RadialGradient(colors: [Color(hex: glow).opacity(0.5), .clear], center: .topLeading, startRadius: 10, endRadius: 420)
+        }
     }
 
     private var violet: some View {
@@ -115,6 +129,8 @@ struct DiscoverScreen<Content: View>: View {
     var shareText: String? = nil
     @ViewBuilder var content: Content
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var scheme
+    private var t: Th { Th(light: backdrop.isLight || scheme == .light) }
 
     var body: some View {
         ZStack {
@@ -124,29 +140,29 @@ struct DiscoverScreen<Content: View>: View {
                     HStack {
                         Button { dismiss() } label: {
                             Image(systemName: "chevron.left")
-                                .font(.system(size: 15, weight: .semibold)).foregroundStyle(Th(light: backdrop.isLight).primary)
+                                .font(.system(size: 15, weight: .semibold)).foregroundStyle(t.primary)
                                 .frame(width: 36, height: 36)
-                                .background(Circle().fill(Th(light: backdrop.isLight).chipOff))
-                                .overlay(Circle().strokeBorder(Th(light: backdrop.isLight).cardStroke, lineWidth: 1))
+                                .background(Circle().fill(t.chipOff))
+                                .overlay(Circle().strokeBorder(t.cardStroke, lineWidth: 1))
                         }
                         Spacer()
                         if let shareText {
                             ShareLink(item: shareText) {
                                 Image(systemName: "square.and.arrow.up")
-                                    .font(.system(size: 15, weight: .medium)).foregroundStyle(Th(light: backdrop.isLight).primary)
+                                    .font(.system(size: 15, weight: .medium)).foregroundStyle(t.primary)
                                     .frame(width: 36, height: 36)
-                                    .background(Circle().fill(Th(light: backdrop.isLight).chipOff))
-                                    .overlay(Circle().strokeBorder(Th(light: backdrop.isLight).cardStroke, lineWidth: 1))
+                                    .background(Circle().fill(t.chipOff))
+                                    .overlay(Circle().strokeBorder(t.cardStroke, lineWidth: 1))
                             }
                         }
                     }
                     if let title {
                         Text(title)
-                            .font(ABFont.display(34, weight: .regular)).foregroundStyle(Th(light: backdrop.isLight).primary)
+                            .font(ABFont.display(34, weight: .regular)).foregroundStyle(t.primary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     if let subtitle {
-                        Text(subtitle).font(ABFont.body(14)).foregroundStyle(Th(light: backdrop.isLight).secondary)
+                        Text(subtitle).font(ABFont.body(14)).foregroundStyle(t.secondary)
                     }
                     content
                 }
@@ -155,7 +171,7 @@ struct DiscoverScreen<Content: View>: View {
                 .padding(.bottom, 130)
             }
         }
-        .environment(\.th, Th(light: backdrop.isLight))
+        .environment(\.th, t)
         .navigationBarBackButtonHidden(true)
         .toolbar(.hidden, for: .navigationBar)
     }

@@ -1,5 +1,7 @@
 import SwiftUI
 
+private let chartInk = Color.adaptive(light: "#4B3A6E", dark: "#FFFFFF")
+
 /// Time Nomad–style natal wheel:
 /// outer zodiac band (not a pie from the center), house cusps + degree labels,
 /// planet glyphs with anti-collision, inner aspect web, AC/DC/MC/IC.
@@ -77,7 +79,7 @@ struct ChartWheelView: View {
                     let pos = pt(house.cuspLongitude, cuspDegR, center: c, asc: asc)
                     Text(degreeLabel(house.cuspLongitude))
                         .font(.system(size: degFont, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.82))
+                        .foregroundStyle(chartInk.opacity(0.82))
                         .padding(.horizontal, 2.5)
                         .background(Capsule().fill(Color(hex: "#0E0F14").opacity(0.82)))
                         .position(x: pos.x, y: pos.y)
@@ -119,7 +121,7 @@ struct ChartWheelView: View {
                     let pos = pt(midL, romanR, center: c, asc: asc)
                     Text(house.romanNumeral)
                         .font(.system(size: romanFont, weight: .semibold, design: .monospaced))
-                        .foregroundStyle(.white.opacity(0.48))
+                        .foregroundStyle(chartInk.opacity(0.48))
                         .position(x: pos.x, y: pos.y)
                 }
 
@@ -132,7 +134,7 @@ struct ChartWheelView: View {
                             .padding(.horizontal, 4)
                             .padding(.vertical, 2)
                             .background(Capsule().fill(Color(hex: "#12131A").opacity(0.92)))
-                            .overlay(Capsule().stroke(Color.white.opacity(0.22), lineWidth: 0.6))
+                            .overlay(Capsule().stroke(chartInk.opacity(0.22), lineWidth: 0.6))
                             .position(x: pos.x, y: pos.y)
                     }
                 }
@@ -220,9 +222,9 @@ struct ChartWheelView: View {
             ctx.stroke(path, with: .color(signColor(sign).opacity(0.28)), lineWidth: 0.4)
         }
 
-        let ring = Color.white.opacity(0.78)
-        let ringMid = Color.white.opacity(0.42)
-        let ringSoft = Color.white.opacity(0.28)
+        let ring = chartInk.opacity(0.78)
+        let ringMid = chartInk.opacity(0.42)
+        let ringSoft = chartInk.opacity(0.28)
 
         strokeCircle(ctx, c, c1, ring, 1.6)
         strokeCircle(ctx, c, c2, ring, 1.25)
@@ -252,7 +254,7 @@ struct ChartWheelView: View {
             let angular = [1, 4, 7, 10].contains(house.number)
             let outer = pt(house.cuspLongitude, c1, center: c, asc: asc)
             let inner = pt(house.cuspLongitude, angular ? c4 * 0.12 : c4, center: c, asc: asc)
-            line(ctx, outer, inner, angular ? Color.white.opacity(0.88) : ringSoft, angular ? 1.55 : 0.85)
+            line(ctx, outer, inner, angular ? chartInk.opacity(0.88) : ringSoft, angular ? 1.55 : 0.85)
         }
 
         for planet in chart.planets {
@@ -275,7 +277,7 @@ struct ChartWheelView: View {
             ctx.stroke(path, with: .color(color), style: StrokeStyle(lineWidth: lw, dash: dash))
         }
 
-        ctx.fill(Path(ellipseIn: circleRect(c, 3.2)), with: .color(.white.opacity(0.85)))
+        ctx.fill(Path(ellipseIn: circleRect(c, 3.2)), with: .color(chartInk.opacity(0.85)))
     }
 
     private struct LaidOutPlanet {

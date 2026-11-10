@@ -21,13 +21,10 @@ struct PersonAvatar: View {
 
             Group {
                 if unlocked, let photoURL, let url = URL(string: photoURL), !photoURL.isEmpty {
-                    AsyncImage(url: url) { phase in
-                        switch phase {
-                        case .success(let image):
-                            image.resizable().scaledToFill()
-                        default:
-                            fallbackFace
-                        }
+                    // Small avatars use the 256px thumbnail when one exists; legacy URLs fall back to the full image.
+                    let thumb = size <= 120 ? ProfilePhotoService.thumbURL(for: url) : nil
+                    CachedAsyncImage(primary: thumb ?? url, fallback: thumb == nil ? nil : url) {
+                        fallbackFace
                     }
                 } else {
                     fallbackFace
@@ -40,7 +37,7 @@ struct PersonAvatar: View {
         .overlay(
             Circle().strokeBorder(
                 LinearGradient(
-                    colors: [Color.white.opacity(0.55), ABColor.lavenderSoft.opacity(0.3)],
+                    colors: [ABColor.veil.opacity(0.55), ABColor.lavenderSoft.opacity(0.3)],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 ),
@@ -63,11 +60,11 @@ struct PersonAvatar: View {
             if let sunSign {
                 Text(sunSign.glyph)
                     .font(.system(size: size * 0.38))
-                    .foregroundStyle(.white.opacity(0.9))
+                    .foregroundStyle(ABColor.ink.opacity(0.9))
             } else {
                 Text(String(name.prefix(1)).uppercased())
                     .font(ABFont.body(size * 0.36, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.9))
+                    .foregroundStyle(ABColor.ink.opacity(0.9))
             }
         }
     }

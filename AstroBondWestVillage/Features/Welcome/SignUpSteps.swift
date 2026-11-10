@@ -55,7 +55,7 @@ struct SignupShell<Content: View, Bottom: View>: View {
                     Text("ASTROBOND")
                         .font(ABFont.display(17, weight: .regular))
                         .tracking(6.5)
-                        .foregroundStyle(Color.white.opacity(0.95))
+                        .foregroundStyle(ABColor.ink.opacity(0.95))
                         .padding(.leading, 6.5)
                 }
                 .offset(y: -10)
@@ -64,8 +64,8 @@ struct SignupShell<Content: View, Bottom: View>: View {
 
                 VStack(spacing: 14) {
                     ZStack {
-                        Circle().fill(Color.white.opacity(0.08))
-                        Circle().strokeBorder(Color.white.opacity(0.22), lineWidth: 1)
+                        Circle().fill(ABColor.veil.opacity(0.08))
+                        Circle().strokeBorder(ABColor.veil.opacity(0.22), lineWidth: 1)
                         Image(systemName: icon)
                             .font(.system(size: 21, weight: .light))
                             .foregroundStyle(Color(hex: "#C9CFD9"))
@@ -104,7 +104,7 @@ struct SignupShell<Content: View, Bottom: View>: View {
                                 .fill(
                                     i == progressCurrent - 1
                                         ? gold
-                                        : (i < progressCurrent - 1 ? gold.opacity(0.55) : Color.white.opacity(0.18))
+                                        : (i < progressCurrent - 1 ? gold.opacity(0.55) : ABColor.veil.opacity(0.18))
                                 )
                                 .frame(width: i == progressCurrent - 1 ? 18 : 7, height: 7)
                         }
@@ -191,7 +191,7 @@ struct SignupContactStepView: View {
                             .keyboardType(keyboard)
                             .textContentType(contentType)
                             .font(ABFont.body(16.5))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(ABColor.ink)
                             .tint(Color(hex: "#9AA0AB"))
                             .focused($isFieldFocused)
                     }
@@ -254,7 +254,7 @@ struct SignupPasswordStepView: View {
                         .autocorrectionDisabled()
                         .textContentType(.newPassword)
                         .font(ABFont.body(17, weight: .medium))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(ABColor.ink)
                         .focused($isPasswordFieldFocused)
                 }
                 .padding(.vertical, 16)
@@ -266,7 +266,7 @@ struct SignupPasswordStepView: View {
                 HStack {
                     Text("Büyük harf ve rakam eklemek güvenliği artırır.")
                         .font(ABFont.body(11.5))
-                        .foregroundStyle(Color.white.opacity(0.55))
+                        .foregroundStyle(ABColor.ink.opacity(0.55))
                     Spacer()
                 }
                 .padding(.horizontal, 4)
@@ -276,7 +276,7 @@ struct SignupPasswordStepView: View {
                         HStack(spacing: 6) {
                             ForEach(0..<4, id: \.self) { i in
                                 Capsule()
-                                    .fill(i < passwordStrength ? strengthColor : Color.white.opacity(0.10))
+                                    .fill(i < passwordStrength ? strengthColor : ABColor.veil.opacity(0.10))
                                     .frame(height: 4)
                             }
                         }
