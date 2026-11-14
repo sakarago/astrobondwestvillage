@@ -6,8 +6,6 @@ struct CrystalField: View {
     var isSecure: Bool = false
     var keyboard: UIKeyboardType = .default
     var contentType: UITextContentType? = nil
-    @Environment(\.colorScheme) private var scheme
-
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
@@ -33,24 +31,20 @@ struct CrystalField: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 14)
             .background {
-                if scheme == .light {
-                    RoundedRectangle(cornerRadius: 18, style: .continuous).fill(Color.white.opacity(0.78))
-                } else {
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .fill(.ultraThinMaterial)
-                        .environment(\.colorScheme, .dark)
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .fill(Color.white.opacity(0.04))
-                }
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(.ultraThinMaterial)
+                    .environment(\.colorScheme, .dark)
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(Color.white.opacity(0.04))
             }
             .overlay(
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
                     .strokeBorder(
                         LinearGradient(
                             colors: [
-                                ABColor.rim.opacity(scheme == .light ? 0.9 : 0.45),
+                                ABColor.rim.opacity(0.45),
                                 ABColor.lavenderSoft.opacity(0.25),
-                                ABColor.rim.opacity(scheme == .light ? 0.5 : 0.08)
+                                ABColor.rim.opacity(0.08)
                             ],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing

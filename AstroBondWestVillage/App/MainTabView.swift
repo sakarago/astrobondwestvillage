@@ -48,8 +48,6 @@ struct MainTabView: View {
 
 struct WestVillageTabBar: View {
     @Binding var selectedTab: Int
-    @Environment(\.colorScheme) private var scheme
-
     private let items: [(Int, String)] = [
         (0, "sparkles"),
         (1, "heart.fill"),
@@ -71,7 +69,7 @@ struct WestVillageTabBar: View {
                         .background {
                             if selectedTab == index {
                                 Capsule(style: .continuous)
-                                    .fill(scheme == .light ? Color.white.opacity(0.85) : Color.white.opacity(0.10))
+                                    .fill(Color.white.opacity(0.10))
                                     .overlay(
                                         Capsule(style: .continuous)
                                             .strokeBorder(ABColor.lavenderSoft.opacity(0.45), lineWidth: 1)
@@ -84,26 +82,22 @@ struct WestVillageTabBar: View {
         }
         .padding(6)
         .background {
-            if scheme == .light {
-                Capsule(style: .continuous).fill(Color.white.opacity(0.72))
-            } else {
-                Capsule(style: .continuous)
-                    .fill(.ultraThinMaterial)
-                    .environment(\.colorScheme, .dark)
-            }
+            Capsule(style: .continuous)
+                .fill(.ultraThinMaterial)
+                .environment(\.colorScheme, .dark)
         }
         .overlay(
             Capsule(style: .continuous)
                 .strokeBorder(
                     LinearGradient(
-                        colors: scheme == .light ? [Color.white, Color(hex: "#E9CBBB").opacity(0.7)] : [Color.white.opacity(0.50), Color.white.opacity(0.10)],
+                        colors: [Color.white.opacity(0.50), Color.white.opacity(0.10)],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     ),
                     lineWidth: 0.9
                 )
         )
-        .shadow(color: scheme == .light ? Color(hex: "#B98B78").opacity(0.30) : Color.black.opacity(0.28), radius: 18, y: 10)
+        .shadow(color: Color.black.opacity(0.28), radius: 18, y: 10)
         .padding(.horizontal, 28)
         .safeAreaPadding(.bottom)
         .padding(.bottom, 14)

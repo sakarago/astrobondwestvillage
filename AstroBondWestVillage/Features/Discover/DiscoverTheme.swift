@@ -50,7 +50,7 @@ private struct StarGen: RandomNumberGenerator {
 struct ScreenBackdropView: View {
     var backdrop: ScreenBackdrop = .night
     @Environment(\.colorScheme) private var scheme
-    private var lt: Bool { scheme == .light }
+    private var lt: Bool { false }
     var body: some View {
         ZStack {
             switch backdrop {
@@ -130,7 +130,7 @@ struct DiscoverScreen<Content: View>: View {
     @ViewBuilder var content: Content
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var scheme
-    private var t: Th { Th(light: backdrop.isLight || scheme == .light) }
+    private var t: Th { Th(light: backdrop.isLight) }
 
     var body: some View {
         ZStack {
@@ -317,7 +317,7 @@ enum DailyMessageNotifier {
 
 /// Ornate violet tarot card (moon / sun emblems) with lilac foil edges.
 struct VioletTarotCard: View {
-    enum Emblem { case crescent, sun }
+    enum Emblem { case crescent, sun, star }
     var emblem: Emblem
     var width: CGFloat = 110
     var glow: Bool = false
@@ -325,6 +325,7 @@ struct VioletTarotCard: View {
     private let foil = Color(hex: "#E9C9F2")
     private let lilac = Color(hex: "#9B86FF")
     private let rose = Color(hex: "#E8BCD2")
+    private let gold = Color(hex: "#F0CE7E")
 
     var body: some View {
         let h = width * 1.66
@@ -385,6 +386,23 @@ struct VioletTarotCard: View {
                 Circle().fill(RadialGradient(colors: [Color.white, rose], center: .center, startRadius: 0, endRadius: width * 0.1))
                     .frame(width: width * 0.16, height: width * 0.16)
                     .shadow(color: rose, radius: 6)
+            }
+        case .star:
+            ZStack {
+                Circle().fill(RadialGradient(colors: [gold.opacity(0.45), .clear], center: .center, startRadius: 0, endRadius: width * 0.4))
+                    .frame(width: width * 0.85, height: width * 0.85)
+                Image(systemName: "sparkle")
+                    .font(.system(size: width * 0.28, weight: .light))
+                    .foregroundStyle(LinearGradient(colors: [Color.white, gold], startPoint: .top, endPoint: .bottom))
+                    .shadow(color: gold.opacity(0.9), radius: 8)
+                Image(systemName: "sparkle")
+                    .font(.system(size: width * 0.09))
+                    .foregroundStyle(foil.opacity(0.9))
+                    .offset(x: width * 0.16, y: -width * 0.14)
+                Image(systemName: "sparkle")
+                    .font(.system(size: width * 0.07))
+                    .foregroundStyle(lilac.opacity(0.85))
+                    .offset(x: -width * 0.14, y: width * 0.12)
             }
         }
     }

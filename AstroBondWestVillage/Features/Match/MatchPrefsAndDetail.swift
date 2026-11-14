@@ -194,7 +194,7 @@ struct MatchDetailSheet: View {
     @State private var theirChart: NatalChart?
 
     private let mineTint = Color(hex: "#F0CE7E")
-    private let theirTint = ABColor.lavenderSoft
+    private let theirTint = Color(hex: "#E8B9A0")
 
     private var report: BondStory.Report {
         BondStory.report(
@@ -255,7 +255,7 @@ struct MatchDetailSheet: View {
                 }
             })
         }
-        .background { CosmicBackdrop() }
+        .background { revealBackdrop }
         .contentShape(Rectangle())
         .navigationBarBackButtonHidden(true)
         .toolbar(.hidden, for: .navigationBar)
@@ -275,23 +275,41 @@ struct MatchDetailSheet: View {
         }
     }
 
+    /// Same warm nebula + moons as the match-found (yes/no) screen.
+    private var revealBackdrop: some View {
+        ZStack {
+            Color(hex: "#040308")
+            Image("reveal_bg")
+                .resizable()
+                .scaledToFill()
+            RevealSkyDecor()
+        }
+        .ignoresSafeArea()
+        .allowsHitTesting(false)
+    }
+
     /// Pinned above the home indicator via safeAreaInset; content scrolls above it.
     private func stickyMessageBar(action: @escaping () -> Void) -> some View {
         VStack(spacing: 0) {
             LinearGradient(
-                colors: [ABColor.surface.opacity(0), ABColor.surface.opacity(0.95)],
+                colors: [Color.clear, Color.black.opacity(0.72)],
                 startPoint: .top,
                 endPoint: .bottom
             )
-            .frame(height: 28)
+            .frame(height: 36)
             .allowsHitTesting(false)
 
-            GlowActionButton(title: "Mesaj Gönder", icon: "paperplane.fill", action: action)
-                .padding(.horizontal, 22)
-                // Extra lift so the pill clears the home indicator comfortably.
-                .padding(.bottom, 28)
+            GlowActionButton(
+                title: "Mesaj Gönder",
+                icon: "paperplane.fill",
+                colors: [Color(hex: "#F0CE7E"), ABColor.warm, Color(hex: "#E8B9A0")],
+                action: action
+            )
+            .padding(.horizontal, 22)
+            // Extra lift so the pill clears the home indicator comfortably.
+            .padding(.bottom, 28)
         }
-        .background(ABColor.surface.opacity(0.92).ignoresSafeArea(edges: .bottom))
+        .background(Color.black.opacity(0.55).ignoresSafeArea(edges: .bottom))
     }
 
     // MARK: Top bar + title
@@ -354,7 +372,7 @@ struct MatchDetailSheet: View {
             }
         }
         .padding(16)
-        .crystalPlate(cornerRadius: 24)
+        .revealGlass(cornerRadius: 24)
     }
 
     /// Original Sinastri mapping: one overall score with a small per-bond offset,
@@ -392,11 +410,11 @@ struct MatchDetailSheet: View {
 
             Text("%\(pct)")
                 .font(ABFont.body(15, weight: .bold))
-                .foregroundStyle(ABColor.lavenderSoft)
+                .foregroundStyle(ABColor.warm)
             Text(kind.title)
                 .font(ABFont.body(11, weight: .bold))
                 .tracking(1)
-                .foregroundStyle(ABColor.lavenderSoft.opacity(0.9))
+                .foregroundStyle(ABColor.warm.opacity(0.9))
                 .lineLimit(1)
             Text(kind.note)
                 .font(ABFont.body(10.5))
@@ -438,7 +456,7 @@ struct MatchDetailSheet: View {
         }
         .padding(18)
         .frame(maxWidth: .infinity)
-        .crystalPlate(cornerRadius: 28)
+        .revealGlass(cornerRadius: 28)
     }
 
     private func legendDot(color: Color, label: String) -> some View {
@@ -461,7 +479,7 @@ struct MatchDetailSheet: View {
                 Image(systemName: "sparkle")
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(
-                        LinearGradient(colors: [ABColor.lavenderSoft, ABColor.lavender], startPoint: .top, endPoint: .bottom)
+                        LinearGradient(colors: [Color(hex: "#F0CE7E"), ABColor.warm], startPoint: .top, endPoint: .bottom)
                     )
                 Text("Ruhsal Bağlantı")
                     .font(ABFont.display(19))
@@ -475,7 +493,7 @@ struct MatchDetailSheet: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(18)
-        .crystalPlate(cornerRadius: 24)
+        .revealGlass(cornerRadius: 24)
     }
 
     // MARK: Rare / karmic highlight (only for the top bond ranks)
@@ -516,7 +534,7 @@ struct MatchDetailSheet: View {
             }
             .padding(18)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .crystalPlate(cornerRadius: 26)
+            .revealGlass(cornerRadius: 26)
         }
     }
 
@@ -537,7 +555,7 @@ struct MatchDetailSheet: View {
                 }
             }
             .padding(16)
-            .crystalPlate(cornerRadius: 22)
+            .revealGlass(cornerRadius: 22)
         }
     }
 
@@ -603,7 +621,7 @@ struct MatchDetailSheet: View {
         }
         .padding(15)
         .frame(width: 214, height: 136, alignment: .topLeading)
-        .crystalPlate(cornerRadius: 22)
+        .revealGlass(cornerRadius: 22)
     }
 
     // MARK: Comparison table
@@ -639,7 +657,7 @@ struct MatchDetailSheet: View {
                 }
             }
             .padding(.vertical, 4)
-            .crystalPlate(cornerRadius: 22)
+            .revealGlass(cornerRadius: 22)
         }
     }
 
@@ -686,7 +704,7 @@ struct MatchDetailSheet: View {
             VStack(alignment: .leading, spacing: 8) {
                 ForEach(report.aspects, id: \.self) { line in
                     HStack(alignment: .top, spacing: 8) {
-                        Text("✧").foregroundStyle(ABColor.lavenderSoft)
+                        Text("✧").foregroundStyle(ABColor.warm)
                         Text(line)
                             .font(ABFont.body(13))
                             .foregroundStyle(ABColor.inkMuted)
@@ -697,7 +715,7 @@ struct MatchDetailSheet: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
-        .crystalPlate(cornerRadius: 22)
+        .revealGlass(cornerRadius: 22)
     }
 
     // MARK: Shared bits

@@ -94,9 +94,8 @@ final class MatchService: Sendable {
                 .execute()
         } catch {
             let message = error.localizedDescription
-            if message.contains("limit_reached") {
-                throw MatchServiceError.dailyLimit
-            }
+            // Daily reveal cap removed in the app — ignore server limit so matching can continue.
+            if message.contains("limit_reached") { return }
             throw MatchServiceError.network(message)
         }
     }

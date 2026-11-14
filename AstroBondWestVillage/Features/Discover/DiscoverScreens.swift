@@ -37,7 +37,7 @@ struct TarotFlowView: View {
     let sky: UserSky
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var scheme
-    private var th: Th { Th(light: scheme == .light) }
+    private var th: Th { Th(light: false) }
     private var lav: Color { Color.adaptive(light: "#6C56D6", dark: "#C9B6FF") }
 
     private enum Stage { case pick, opening, result }
@@ -49,8 +49,15 @@ struct TarotFlowView: View {
     @State private var aiState: AIStatusLine.State = .idle
     @State private var showReflect = false
     @State private var hasNote = false
+    /// Slot → content index (0 sun / 1 moon / 2 rising). Shuffled on open.
+    @State private var deck: [Int] = [0, 1, 2]
+    @State private var isShuffling = true
+    @State private var shuffleTask: Task<Void, Never>?
+    /// Content id currently lit during the shuffle flash.
+    @State private var litCard: Int? = nil
+    @State private var sparkTick = 0
 
-    private let emblems: [VioletTarotCard.Emblem] = [.crescent, .sun, .crescent]
+    private let allEmblems: [VioletTarotCard.Emblem] = [.crescent, .sun, .star]
 
     private var storageKey: String {
         let c = Calendar.current
@@ -77,70 +84,164 @@ struct TarotFlowView: View {
         }
         .onAppear {
             hasNote = !(UserDefaults.standard.string(forKey: storageKey + ".note") ?? "").isEmpty
-            if let v = UserDefaults.standard.object(forKey: storageKey) as? Int {
-                picked = v
-                stage = .result
-            }
+            startShuffle()
         }
+        .onDisappear { shuffleTask?.cancel() }
     }
 
-    // 02 — pick
+    // 02 — pick (shuffle, then choose)
     private var pickStage: some View {
         VStack(spacing: 14) {
             topBar(share: nil)
             Spacer().frame(height: 14)
             Text("Günün Mesajı").font(ABFont.display(38, weight: .regular)).foregroundStyle(th.primary)
             Capsule().fill(th.primary.opacity(0.5)).frame(width: 38, height: 1.5)
-            Text("Evren, bugün sana ne söylüyor?\nİçinden geçenle uyumlanan kartı seç.")
+            Text(isShuffling
+                 ? "Kartlar karılıyor...\nHissettiklerin otursun, sonra birini seç."
+                 : "Evren, bugün sana ne söylüyor?\nİçinden geçenle uyumlanan kartı seç.")
                 .font(ABFont.body(14)).multilineTextAlignment(.center).foregroundStyle(th.primary.opacity(0.78)).lineSpacing(3)
                 .padding(.top, 4).fixedSize(horizontal: false, vertical: true)
+                .animation(.easeInOut(duration: 0.25), value: isShuffling)
             Spacer(minLength: 0)
             ZStack {
-                // light halo + orbit rings
                 Circle().fill(RadialGradient(colors: [Color(hex: "#7B5CFF").opacity(0.45), .clear], center: .center, startRadius: 0, endRadius: 190))
                     .frame(width: 380, height: 380)
                 ForEach(0..<3, id: \.self) { i in
                     Circle().strokeBorder(lav.opacity(0.30 - Double(i) * 0.08), lineWidth: 1)
                         .frame(width: 250 + CGFloat(i) * 70, height: 250 + CGFloat(i) * 70)
                 }
-                // vertical beam + sparkle
-                Capsule().fill(LinearGradient(colors: [.clear, lav.opacity(0.7), .clear], startPoint: .top, endPoint: .bottom))
-                    .frame(width: 1.5, height: 330)
-                Image(systemName: "sparkle").font(.system(size: 26, weight: .light)).foregroundStyle(th.primary)
-                    .shadow(color: lav, radius: 8).offset(y: -160)
-                    .scaleEffect(pulse ? 1.15 : 0.9)
-                Image(systemName: "sparkle").font(.system(size: 10)).foregroundStyle(lav).offset(y: 165)
+                Capsule().fill(LinearGradient(colors: [.clear, lav.opacity(0.55), .clear], startPoint: .top, endPoint: .bottom))
+                    .frame(width: 1.5, height: 300)
+                    .offset(y: 10)
 
-                ForEach(0..<3, id: \.self) { i in
-                    Button { choose(i) } label: {
-                        VioletTarotCard(emblem: emblems[i], width: i == 1 ? 118 : 106, glow: i == 1)
-                            .rotationEffect(.degrees(Double(i - 1) * 9), anchor: .bottom)
-                            .offset(x: CGFloat(i - 1) * 112, y: i == 1 ? -6 : 12)
-                            .offset(y: pulse ? -3 : 3)
+                // Each card slides horizontally between slots (real-shuffle feel).
+                ForEach(0..<3, id: \.self) { contentId in
+                    let slot = deck.firstIndex(of: contentId) ?? contentId
+                    let lit = isShuffling && litCard == contentId
+                    Button {
+                        guard !isShuffling else { return }
+                        choose(contentId)
+                    } label: {
+                        VioletTarotCard(
+                            emblem: allEmblems[contentId],
+                            width: slot == 1 ? 118 : 106,
+                            glow: lit || (!isShuffling && slot == 1)
+                        )
+                        .overlay {
+                            if lit {
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .strokeBorder(Color.white.opacity(0.75), lineWidth: 1.4)
+                                    .shadow(color: lav.opacity(0.9), radius: 10)
+                                    .padding(1)
+                            }
+                        }
+                        .brightness(lit ? 0.08 : 0)
+                        .rotationEffect(.degrees(Double(slot - 1) * 9), anchor: .bottom)
+                        .offset(x: CGFloat(slot - 1) * 112, y: slot == 1 ? -6 : 12)
                     }
                     .buttonStyle(.plain)
-                    .zIndex(i == 1 ? 1 : 0)
+                    .disabled(isShuffling)
+                    .zIndex(isShuffling ? Double(3 - abs(slot - 1)) + (lit ? 2 : 0) : (slot == 1 ? 2 : 0))
+                    .animation(.easeInOut(duration: 0.34), value: deck)
+                    .animation(.easeInOut(duration: 0.16), value: litCard)
+                }
+
+                if isShuffling {
+                    shuffleSparks
+                        .allowsHitTesting(false)
                 }
             }
             .frame(height: 360)
-            .onAppear { withAnimation(.easeInOut(duration: 2.4).repeatForever(autoreverses: true)) { pulse = true } }
             Spacer(minLength: 0)
-            Text("Bugün 1 kart hakkın var.")
+            Text(isShuffling ? "Kartlar yerlerini buluyor..." : "Kartların üzerinde gez, hisset\nve seni çağıranı seç.")
                 .font(ABFont.body(13.5, weight: .medium)).foregroundStyle(th.primary)
+                .multilineTextAlignment(.center).lineSpacing(3)
                 .frame(maxWidth: .infinity).padding(.vertical, 13)
-                .background(Capsule().fill((th.light ? Color.white.opacity(0.7) : Color.white.opacity(0.07))))
+                .background(Capsule().fill(Color.white.opacity(0.07)))
                 .overlay(Capsule().strokeBorder(lav.opacity(0.45), lineWidth: 1))
                 .padding(.horizontal, 6)
-            Text("Kartların üzerinde gez, hisset\nve seni çağıranı seç.")
-                .font(ABFont.body(12.5)).foregroundStyle(th.primary.opacity(0.7)).multilineTextAlignment(.center).lineSpacing(3).fixedSize(horizontal: false, vertical: true)
+                .animation(.easeInOut(duration: 0.25), value: isShuffling)
             Spacer().frame(height: 112)
         }
         .padding(.horizontal, 20)
     }
 
-    private func choose(_ i: Int) {
-        picked = i
-        UserDefaults.standard.set(i, forKey: storageKey)
+    /// Tiny sparks that flicker near the moving cards while shuffling.
+    private var shuffleSparks: some View {
+        let seed = sparkTick
+        return ZStack {
+            ForEach(0..<7, id: \.self) { i in
+                let x = CGFloat([-95, -40, 10, 55, 100, -70, 75][(i + seed) % 7])
+                let y = CGFloat([-70, 20, -40, 35, -15, 50, -55][(i * 3 + seed) % 7])
+                Image(systemName: i % 2 == 0 ? "sparkle" : "sparkles")
+                    .font(.system(size: i % 3 == 0 ? 14 : 9, weight: .light))
+                    .foregroundStyle(i % 2 == 0 ? Color.white : lav)
+                    .shadow(color: lav.opacity(0.85), radius: 5)
+                    .opacity(litCard == nil ? 0.15 : 0.85)
+                    .scaleEffect(litCard == nil ? 0.7 : 1.05)
+                    .offset(x: x, y: y)
+            }
+        }
+        .animation(.easeInOut(duration: 0.18), value: sparkTick)
+        .animation(.easeInOut(duration: 0.16), value: litCard)
+    }
+
+    private func startShuffle() {
+        shuffleTask?.cancel()
+        isShuffling = true
+        pulse = false
+        litCard = nil
+        sparkTick = 0
+        deck = [0, 1, 2]
+        shuffleTask = Task {
+            // ~3s of adjacent left/right slides, like dealing through a small hand.
+            let swaps = [
+                (0, 1), (1, 2), (0, 1), (1, 2),
+                (0, 1), (1, 2), (0, 1), (1, 2)
+            ]
+            for (a, b) in swaps {
+                if Task.isCancelled { return }
+                await MainActor.run {
+                    let left = deck[a]
+                    let right = deck[b]
+                    // Flash + sparks on the two cards about to slide past each other.
+                    withAnimation(.easeInOut(duration: 0.12)) {
+                        litCard = left
+                        sparkTick &+= 1
+                    }
+                    withAnimation(.easeInOut(duration: 0.34)) {
+                        deck.swapAt(a, b)
+                    }
+                }
+                try? await Task.sleep(nanoseconds: 140_000_000)
+                if Task.isCancelled { return }
+                await MainActor.run {
+                    withAnimation(.easeInOut(duration: 0.12)) {
+                        litCard = deck[b]
+                        sparkTick &+= 1
+                    }
+                }
+                try? await Task.sleep(nanoseconds: 220_000_000)
+                if Task.isCancelled { return }
+                await MainActor.run {
+                    withAnimation(.easeOut(duration: 0.14)) { litCard = nil }
+                }
+            }
+            if Task.isCancelled { return }
+            await MainActor.run {
+                withAnimation(.spring(response: 0.5, dampingFraction: 0.86)) {
+                    deck = [0, 1, 2].shuffled()
+                    isShuffling = false
+                    litCard = nil
+                }
+            }
+        }
+    }
+
+    private func choose(_ contentIndex: Int) {
+        picked = contentIndex
+        aiResult = nil
+        UserDefaults.standard.set(contentIndex, forKey: storageKey)
         DailyMessageNotifier.scheduleDaily()
         withAnimation(.easeInOut(duration: 0.5)) { stage = .opening }
         withAnimation(.linear(duration: 6).repeatForever(autoreverses: false)) { spin = 360 }
@@ -166,7 +267,7 @@ struct TarotFlowView: View {
                     Image(systemName: "sparkle").font(.system(size: 10)).foregroundStyle(lav)
                         .offset(y: -160).rotationEffect(.degrees(Double(i) * 45 + spin))
                 }
-                VioletTarotCard(emblem: emblems[picked], width: 160, glow: true)
+                VioletTarotCard(emblem: allEmblems[picked], width: 160, glow: true)
                     .rotation3DEffect(.degrees(pulse ? 8 : -8), axis: (x: 0, y: 1, z: 0))
             }
             .frame(height: 420)
@@ -187,7 +288,7 @@ struct TarotFlowView: View {
                 ZStack {
                     Circle().fill(RadialGradient(colors: [Color(hex: "#7B5CFF").opacity(0.5), .clear], center: .center, startRadius: 0, endRadius: 170))
                         .frame(width: 340, height: 340)
-                    VioletTarotCard(emblem: emblems[picked], width: 140, glow: true)
+                    VioletTarotCard(emblem: allEmblems[picked], width: 140, glow: true)
                 }
                 .frame(height: 300)
                 Text(r.title)
@@ -207,15 +308,26 @@ struct TarotFlowView: View {
                                 .foregroundStyle(hasNote ? lav : th.primary.opacity(0.5))
                         }
                         .padding(16)
-                        .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill((th.light ? Color.white.opacity(0.7) : Color.white.opacity(0.07))))
+                        .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(Color.white.opacity(0.07)))
                         .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(lav.opacity(0.4), lineWidth: 1))
                     }
                     .buttonStyle(.plain)
                 }
                 .padding(.top, 6)
                 AIStatusLine(state: aiState, th: th)
-                Text("Günde bir kart çekebilirsin; yarın yeniden gel.")
-                    .font(ABFont.body(11.5)).foregroundStyle(th.primary.opacity(0.5))
+                Button {
+                    withAnimation(.easeInOut(duration: 0.4)) {
+                        stage = .pick
+                        aiResult = nil
+                        startShuffle()
+                    }
+                } label: {
+                    Text("Başka bir kart çek")
+                        .font(ABFont.body(13.5, weight: .semibold))
+                        .foregroundStyle(lav)
+                }
+                .buttonStyle(.plain)
+                .padding(.top, 4)
             }
             .padding(.horizontal, 20).padding(.top, 8).padding(.bottom, 130)
         }
@@ -283,7 +395,7 @@ struct EventDetailView: View {
     let sky: UserSky
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var scheme
-    private var th: Th { Th(light: scheme == .light) }
+    private var th: Th { Th(light: false) }
     @State private var aiNote: DiscoverNote?
     @State private var aiState: AIStatusLine.State = .idle
 
@@ -559,7 +671,7 @@ struct NoteDetailPage: View {
     private var note: DiscoverNote { aiNote ?? baseNote }
 
     var body: some View {
-        let th = Th(light: note.backdrop.isLight || scheme == .light)
+        let th = Th(light: note.backdrop.isLight)
         ZStack {
             ScreenBackdropView(backdrop: note.backdrop)
             ScrollView(showsIndicators: false) {
@@ -611,7 +723,7 @@ struct ReflectionSheet: View {
     @State private var text = ""
     @FocusState private var focused: Bool
     @Environment(\.colorScheme) private var scheme
-    private var th: Th { Th(light: scheme == .light) }
+    private var th: Th { Th(light: false) }
     private var lav: Color { Color.adaptive(light: "#6C56D6", dark: "#C9B6FF") }
 
     var body: some View {
@@ -636,7 +748,7 @@ struct ReflectionSheet: View {
                     .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill((th.light ? Color.white.opacity(0.7) : Color.white.opacity(0.07))))
                     .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(lav.opacity(0.4), lineWidth: 1))
                 Button { save(); dismiss() } label: {
-                    Text("Kaydet").font(ABFont.body(15, weight: .semibold)).foregroundStyle(scheme == .light ? Color.white : Color(hex: "#1A1033"))
+                    Text("Kaydet").font(ABFont.body(15, weight: .semibold)).foregroundStyle(Color(hex: "#1A1033"))
                         .frame(maxWidth: .infinity).padding(.vertical, 14)
                         .background(Capsule().fill(lav))
                 }

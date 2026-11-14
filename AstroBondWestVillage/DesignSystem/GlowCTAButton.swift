@@ -7,8 +7,6 @@ struct GlowCTAButton: View {
     var showsArrow: Bool = true
     var showSparkle: Bool = true
     let action: () -> Void
-    @Environment(\.colorScheme) private var scheme
-
     var body: some View {
         Button(action: action) {
             ZStack {
@@ -28,7 +26,7 @@ struct GlowCTAButton: View {
             }
             .frame(maxWidth: .infinity)
             .frame(height: 54)
-            .background { if scheme == .light { GlowCapsule.lightFill } else { GlowCapsule.fill } }
+            .background { GlowCapsule.fill }
             .overlay(GlowCapsule.border)
             .overlay(alignment: .top) {
                 Capsule(style: .continuous)
@@ -77,11 +75,6 @@ struct GlowCTAButton: View {
 }
 
 enum GlowCapsule {
-    static var lightFill: some View {
-        Capsule(style: .continuous)
-            .fill(LinearGradient(colors: [Color(hex: "#FADACB"), Color(hex: "#EDAE9E")], startPoint: .top, endPoint: .bottom))
-    }
-
     static var fill: some View {
         ZStack {
             Capsule(style: .continuous)
@@ -136,15 +129,8 @@ enum GlowCapsule {
 }
 
 private struct GlowInputSurface: ViewModifier {
-    @Environment(\.colorScheme) private var scheme
     func body(content: Content) -> some View {
-        if scheme == .light {
-            content
-                .background(Capsule(style: .continuous).fill(Color.white.opacity(0.78)))
-                .overlay(Capsule(style: .continuous).strokeBorder(Color(hex: "#E3C3B1"), lineWidth: 1))
-        } else {
-            content.darkGlowInputSurface()
-        }
+        content.darkGlowInputSurface()
     }
 }
 

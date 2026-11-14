@@ -120,15 +120,15 @@ final class DailyRevealQuotaStore {
 
     var remaining: Int { max(0, Self.dailyLimit - 0) } // placeholder; use remaining(for:)
 
-    /// TEST MODE: no client-side daily reveal limit. Set to false before release.
+    /// No client-side daily reveal limit.
     static let isUnlimited = true
 
     func remaining(for userId: String) -> Int {
-        if Self.isUnlimited { return 99 }
-        return max(0, Self.dailyLimit - used(for: userId))
+        99
     }
 
     func recordReveal(for userId: String) {
+        // Kept for compatibility; limit is not enforced.
         let k = key(for: userId)
         defaults.set(used(for: userId) + 1, forKey: k)
     }

@@ -3,6 +3,7 @@ import SwiftUI
 /// "SİNASTRİ" header block: title, the couple with the bond seal, and the bond name
 /// with its tap-to-expand Turkish description. Shared by `MatchDetailSheet` and the
 /// confirmed-match state under the wheel on the Eşleşme tab.
+/// Warm gold accents match the match-found (yes/no) reveal screen.
 struct SynastrySummaryHeader: View {
     let card: MatchCard
     var myName: String = "Sen"
@@ -13,8 +14,9 @@ struct SynastrySummaryHeader: View {
 
     @State private var showBondInfo = false
 
+    private let warm = ABColor.warm
     private let mineTint = Color(hex: "#F0CE7E")
-    private let theirTint = ABColor.lavenderSoft
+    private let theirTint = Color(hex: "#E8B9A0")
 
     var body: some View {
         VStack(spacing: 18) {
@@ -29,10 +31,10 @@ struct SynastrySummaryHeader: View {
             Text("SİNASTRİ")
                 .font(ABFont.body(12, weight: .bold))
                 .tracking(5)
-                .foregroundStyle(ABColor.lavenderSoft.opacity(0.9))
+                .foregroundStyle(warm.opacity(0.95))
             Text("İki ruhun ortak yıldız haritası")
                 .font(ABFont.body(12.5))
-                .foregroundStyle(ABColor.inkMuted)
+                .foregroundStyle(ABColor.ink.opacity(0.55))
         }
         .frame(maxWidth: .infinity)
     }
@@ -63,7 +65,7 @@ struct SynastrySummaryHeader: View {
             if let sign {
                 Text("\(sign.glyph) \(sign.labelTR)")
                     .font(ABFont.body(12, weight: .medium))
-                    .foregroundStyle(tint.opacity(0.9))
+                    .foregroundStyle(tint.opacity(0.95))
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
             }
@@ -74,22 +76,25 @@ struct SynastrySummaryHeader: View {
     private var bondSeal: some View {
         VStack(spacing: 7) {
             ZStack {
-                Circle().stroke(ABColor.veil.opacity(0.12), lineWidth: 6)
+                Circle().stroke(warm.opacity(0.18), lineWidth: 6)
                 Circle()
                     .stroke(
-                        AngularGradient(colors: [ABColor.lavender, mineTint, ABColor.lavenderSoft, ABColor.lavender], center: .center),
+                        AngularGradient(
+                            colors: [warm, mineTint, theirTint, warm],
+                            center: .center
+                        ),
                         style: StrokeStyle(lineWidth: 6, lineCap: .round)
                     )
                 Image(systemName: "sparkles")
                     .font(.system(size: 22, weight: .semibold))
-                    .foregroundStyle(ABColor.lavenderSoft)
-                    .shadow(color: ABColor.lavender.opacity(0.6), radius: 6)
+                    .foregroundStyle(mineTint)
+                    .shadow(color: warm.opacity(0.7), radius: 6)
             }
             .frame(width: 60, height: 60)
-            .shadow(color: ABColor.lavender.opacity(0.4), radius: 14)
+            .shadow(color: warm.opacity(0.35), radius: 14)
             Text(report.bondTier.tierTagline)
                 .font(ABFont.body(10, weight: .semibold))
-                .foregroundStyle(ABColor.lavenderSoft)
+                .foregroundStyle(warm)
                 .lineLimit(2)
                 .minimumScaleFactor(0.7)
                 .multilineTextAlignment(.center)
@@ -108,7 +113,7 @@ struct SynastrySummaryHeader: View {
                     Text(report.bondTier.english)
                         .font(ABFont.display(24))
                         .foregroundStyle(
-                            LinearGradient(colors: [ABColor.ink, ABColor.lavenderSoft], startPoint: .top, endPoint: .bottom)
+                            LinearGradient(colors: [ABColor.ink, warm], startPoint: .top, endPoint: .bottom)
                         )
                         .multilineTextAlignment(.center)
                         .minimumScaleFactor(0.7)
@@ -116,10 +121,10 @@ struct SynastrySummaryHeader: View {
                     HStack(spacing: 6) {
                         Text(showBondInfo ? "Açıklamayı gizle" : "Açıklama için dokun")
                             .font(ABFont.body(12, weight: .semibold))
-                            .foregroundStyle(ABColor.lavenderSoft.opacity(0.9))
+                            .foregroundStyle(warm.opacity(0.9))
                         Image(systemName: "chevron.down")
                             .font(.system(size: 10, weight: .bold))
-                            .foregroundStyle(ABColor.lavenderSoft.opacity(0.9))
+                            .foregroundStyle(warm.opacity(0.9))
                             .rotationEffect(.degrees(showBondInfo ? 180 : 0))
                     }
                 }
@@ -131,7 +136,7 @@ struct SynastrySummaryHeader: View {
                 VStack(alignment: .leading, spacing: 10) {
                     Text(report.bondTier.turkish)
                         .font(ABFont.display(18))
-                        .foregroundStyle(ABColor.lavenderSoft)
+                        .foregroundStyle(warm)
                     Text(report.bondTier.summary)
                         .font(ABFont.body(14))
                         .foregroundStyle(ABColor.ink.opacity(0.85))
@@ -140,7 +145,7 @@ struct SynastrySummaryHeader: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(16)
-                .crystalPlate(cornerRadius: 20)
+                .revealGlass(cornerRadius: 20)
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
@@ -152,17 +157,12 @@ struct GlowActionButton: View {
     var title: String
     var icon: String = "sparkles"
     var isLoading = false
+    /// Default purple; pass warm golds for the match-reveal / sinastri look.
+    var colors: [Color] = [Color(hex: "#B79BFF"), Color(hex: "#8E6CF0"), Color(hex: "#E7A8D9")]
     let action: () -> Void
 
-    @Environment(\.colorScheme) private var scheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var sheen: CGFloat = -1.2
-
-    private var colors: [Color] {
-        scheme == .light
-            ? [Color(hex: "#F5B7A6"), Color(hex: "#D98FB5"), Color(hex: "#9B86E6")]
-            : [Color(hex: "#B79BFF"), Color(hex: "#8E6CF0"), Color(hex: "#E7A8D9")]
-    }
 
     var body: some View {
         Button(action: action) {
@@ -206,7 +206,7 @@ struct GlowActionButton: View {
                         lineWidth: 1.2
                     )
             )
-            .shadow(color: colors[1].opacity(0.55), radius: 18, y: 8)
+            .shadow(color: colors[min(1, colors.count - 1)].opacity(0.55), radius: 18, y: 8)
         }
         .buttonStyle(.plain)
         .disabled(isLoading)

@@ -103,7 +103,6 @@ final class ChatViewModel {
 }
 
 struct ChatView: View {
-    @Environment(\.colorScheme) private var scheme
     @Environment(SessionStore.self) private var session
     @Environment(\.dismiss) private var dismiss
     @Environment(\.hideTabBar) private var hideTabBar
@@ -239,12 +238,10 @@ struct ChatView: View {
         .ignoresSafeArea(.keyboard, edges: .bottom)
         .background {
             ZStack {
-                if scheme == .light { CosmicBackdrop() }
                 Color.clear
                     .overlay { Image("chat_bg").resizable().scaledToFill() }
                     .clipped()
-                    .opacity(scheme == .light ? 0.10 : 1)
-                    .overlay(scheme == .light ? Color.clear : Color.black.opacity(0.22))
+                    .overlay(Color.black.opacity(0.22))
             }
             .ignoresSafeArea(.container)
         }
@@ -307,7 +304,7 @@ struct ChatView: View {
     private static let roseSoft = Color.adaptive(light: "#9C5E50", dark: "#F3D9C8")
     /// Glass fill for chrome over the chat photo.
     private func glass(_ darkOpacity: Double) -> Color {
-        scheme == .light ? Color.white.opacity(0.74) : Color.black.opacity(darkOpacity)
+        Color.black.opacity(darkOpacity)
     }
 
     private var astroScore: Int {
@@ -400,7 +397,7 @@ struct ChatView: View {
         .padding(.top, 2)
         .padding(.bottom, 10)
         .background {
-            LinearGradient(colors: scheme == .light ? [Color.white.opacity(0.85), Color.white.opacity(0.35)] : [Color.black.opacity(0.7), Color.black.opacity(0.35)], startPoint: .top, endPoint: .bottom)
+            LinearGradient(colors: [Color.black.opacity(0.7), Color.black.opacity(0.35)], startPoint: .top, endPoint: .bottom)
                 .ignoresSafeArea(edges: .top)
         }
     }
@@ -424,14 +421,14 @@ struct ChatView: View {
         return VStack(alignment: mine ? .trailing : .leading, spacing: 6) {
             Text(msg.text)
                 .font(ABFont.display(17, weight: .regular))
-                .foregroundStyle(mine ? (scheme == .light ? ink : Color(hex: "#F6E9E1")) : ink)
+                .foregroundStyle(mine ? Color(hex: "#F6E9E1") : ink)
                 .multilineTextAlignment(mine ? .trailing : .leading)
                 .fixedSize(horizontal: false, vertical: true)
 
             HStack(spacing: 5) {
                 Text(timeString(msg.sentAt))
                     .font(ABFont.body(11))
-                    .foregroundStyle(mine ? (scheme == .light ? ink.opacity(0.55) : Self.roseSoft.opacity(0.7)) : ink.opacity(0.5))
+                    .foregroundStyle(mine ? Self.roseSoft.opacity(0.7) : ink.opacity(0.5))
                 if mine {
                     Image(systemName: "checkmark")
                         .font(.system(size: 10, weight: .bold))
@@ -444,13 +441,13 @@ struct ChatView: View {
         .frame(maxWidth: 300, alignment: mine ? .trailing : .leading)
         .background {
             RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .fill(mine ? (scheme == .light ? Color(hex: "#F4C9B8") : Color.black.opacity(0.52)) : (scheme == .light ? Color.white.opacity(0.9) : Color(hex: "#D9C2B8").opacity(0.94)))
+                .fill(mine ? Color.black.opacity(0.52) : Color(hex: "#D9C2B8").opacity(0.94))
         }
         .overlay(
             RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .strokeBorder(mine ? Self.rose.opacity(0.4) : (scheme == .light ? Color(hex: "#E9CBBB") : Color.white).opacity(0.5), lineWidth: 1)
+                .strokeBorder(mine ? Self.rose.opacity(0.4) : Color.white.opacity(0.5), lineWidth: 1)
         )
-        .shadow(color: (scheme == .light ? ABColor.peachGlow : Color.black).opacity(0.25), radius: 8, y: 3)
+        .shadow(color: Color.black.opacity(0.25), radius: 8, y: 3)
     }
 
     private func timeString(_ date: Date) -> String {
@@ -516,7 +513,7 @@ struct ChatView: View {
         .padding(.top, 10)
         .padding(.bottom, 8)
         .background {
-            LinearGradient(colors: [.clear, scheme == .light ? Color(hex: "#FBE9DE").opacity(0.9) : Color.black.opacity(0.55)], startPoint: .top, endPoint: .bottom)
+            LinearGradient(colors: [.clear, Color.black.opacity(0.55)], startPoint: .top, endPoint: .bottom)
                 .ignoresSafeArea(edges: .bottom)
         }
     }

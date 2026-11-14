@@ -21,6 +21,7 @@ struct RootView: View {
             }
         }
         .environment(\.locale, Locale(identifier: "tr_TR"))
+        .preferredColorScheme(.dark)
         .animation(.easeInOut(duration: 0.28), value: session.phase)
         .task {
             AppLanguageStore.shared.language = .tr

@@ -47,11 +47,7 @@ final class MatchViewModel {
     var canMatch: Bool { remainingReveals > 0 }
     var hasUnrevealedCandidates: Bool { !pool.isEmpty }
     var canSpinForNewMatch: Bool { canMatch && hasUnrevealedCandidates }
-    var quotaLabel: String {
-        if DailyRevealQuotaStore.isUnlimited { return "Bugün sınırsız eşleşme" }
-        let used = DailyRevealQuotaStore.dailyLimit - remainingReveals
-        return "Bugün \(used)/\(DailyRevealQuotaStore.dailyLimit) eşleşme"
-    }
+    var quotaLabel: String { "Sınırsız eşleşme" }
     var todaysAccepted: [MatchDecisionsStore.Record] {
         todayDecisions.filter(\.accepted)
     }
@@ -109,10 +105,6 @@ final class MatchViewModel {
 
     func spin() {
         guard phase == .idle else { return }
-        if let uid = myUserId, quota.remaining(for: uid) <= 0 {
-            message = MatchServiceError.dailyLimit.localizedDescription
-            return
-        }
         spinTask?.cancel()
         message = nil
         phase = .spinning
@@ -269,7 +261,6 @@ final class MatchViewModel {
 }
 
 struct MatchHomeView: View {
-    @Environment(\.colorScheme) private var scheme
     @Environment(SessionStore.self) private var session
     @Environment(\.hideTabBar) private var hideTabBar
     @Environment(\.compactTabBar) private var compactTabBar
@@ -297,12 +288,12 @@ struct MatchHomeView: View {
                             .scaledToFill()
                     }
                     .clipped()
-                    .opacity(model.showsResult ? (scheme == .light ? 0.16 : 1) : 0)
+                    .opacity(model.showsResult ? 1 : 0)
                     .animation(.easeInOut(duration: 0.8), value: model.phase)
                     .allowsHitTesting(false)
 
                 RevealSkyDecor()
-                    .opacity(model.showsResult && scheme != .light ? 1 : 0)
+                    .opacity(model.showsResult ? 1 : 0)
                     .animation(.easeInOut(duration: 0.8), value: model.phase)
 
                 // Each match phase is a full-screen page that slides as a whole.
@@ -563,7 +554,11 @@ struct MatchHomeView: View {
                     )
                     .padding(.horizontal, 22)
 
-                    GlowActionButton(title: "Ortak Sinastriyi Gör", icon: "sparkles") {
+                    GlowActionButton(
+                        title: "Ortak Sinastriyi Gör",
+                        icon: "sparkles",
+                        colors: [Color(hex: "#F0CE7E"), ABColor.warm, Color(hex: "#E8B9A0")]
+                    ) {
                         model.detailCard = match
                     }
                     .padding(.horizontal, 28)
@@ -862,10 +857,6 @@ struct MatchHomeView: View {
         guard model.phase == .idle else { return }
         guard !intents.isEmpty, !orientations.isEmpty else {
             presentSelectionNotice()
-            return
-        }
-        guard model.canMatch else {
-            showDailyLimit = true
             return
         }
         guard model.hasUnrevealedCandidates else {

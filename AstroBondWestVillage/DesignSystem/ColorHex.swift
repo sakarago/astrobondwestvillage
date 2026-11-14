@@ -27,34 +27,23 @@ extension Color {
 }
 
 extension Color {
-    /// A color that resolves differently in light / dark appearance.
+    /// Kept for call-site compatibility; always resolves to the dark palette.
     static func adaptive(light: String, dark: String) -> Color {
-        Color(UIColor { trait in
-            trait.userInterfaceStyle == .dark ? UIColor(Color(hex: dark)) : UIColor(Color(hex: light))
-        })
+        Color(hex: dark)
     }
 }
 
 enum ABColor {
     static let lavender = Color(hex: "#8F7FF7")
-    /// Accent / icon tint. Soft lilac on dark, deeper violet on cream.
-    static let lavenderSoft = Color.adaptive(light: "#7A66DB", dark: "#D6CFFF")
-    static let ink = Color.adaptive(light: "#2B2237", dark: "#F4F6FA")
-    static let inkMuted = Color.adaptive(light: "#6E6272", dark: "#A6ACB6")
+    static let lavenderSoft = Color(hex: "#D6CFFF")
+    static let ink = Color(hex: "#F4F6FA")
+    static let inkMuted = Color(hex: "#A6ACB6")
     static let space = Color(hex: "#0A0A0C")
-
-    /// Primary text on a CTA surface.
-    static let ctaText = Color.adaptive(light: "#3A2430", dark: "#FFFFFF")
-    /// Bright rim / bevel line on glass (white on dark, warm sand on cream).
-    static let rim = Color.adaptive(light: "#E2C4B3", dark: "#FFFFFF")
-    /// Neutral glass tint.
-    static let glassTint = Color.adaptive(light: "#FFFFFF", dark: "#FFFFFF")
-    /// Warm accent used for light-mode glows and shadows.
+    static let ctaText = Color(hex: "#FFFFFF")
+    static let rim = Color(hex: "#FFFFFF")
+    static let glassTint = Color(hex: "#FFFFFF")
     static let peachGlow = Color(hex: "#E8A990")
-    /// Faint overlay for strokes / fills (white on dark, plum on cream).
-    static let veil = Color.adaptive(light: "#2B2237", dark: "#FFFFFF")
-    /// Panel scrim (black on dark, white on cream).
-    static let panel = Color.adaptive(light: "#FFFFFF", dark: "#000000")
-    /// Screen-level surface for sheets etc.
-    static let surface = Color.adaptive(light: "#FBF1E8", dark: "#0A0A0C")
+    static let veil = Color(hex: "#FFFFFF")
+    static let panel = Color(hex: "#000000")
+    static let surface = Color(hex: "#0A0A0C")
 }

@@ -755,17 +755,14 @@ private struct AmbientStarField: View {
 /// Drawn zodiac disk so sign names can be Turkish. Aries sits at the top.
 private struct ZodiacWheelDisk: View {
     var size: CGFloat
-    @Environment(\.colorScheme) private var scheme
-    private var fg: Color { scheme == .light ? Color(hex: "#4B3A6E") : .white }
+    private let fg: Color = .white
 
     var body: some View {
         ZStack {
             Circle()
                 .fill(
                     RadialGradient(
-                        colors: scheme == .light
-                            ? [Color.white.opacity(0.35), Color(hex: "#EBCFD6").opacity(0.78)]
-                            : [Color.black.opacity(0.08), Color(hex: "#07060C").opacity(0.62)],
+                        colors: [Color.black.opacity(0.08), Color(hex: "#07060C").opacity(0.62)],
                         center: .center,
                         startRadius: size * 0.06,
                         endRadius: size * 0.50
@@ -774,7 +771,7 @@ private struct ZodiacWheelDisk: View {
                 .frame(width: size, height: size)
 
             Circle()
-                .stroke(fg.opacity(scheme == .light ? 0.12 : 0.22), lineWidth: 8)
+                .stroke(fg.opacity(0.22), lineWidth: 8)
                 .blur(radius: 6)
                 .frame(width: size, height: size)
 
@@ -798,7 +795,7 @@ private struct ZodiacWheelDisk: View {
                 Text(sign.glyph)
                     .font(.system(size: size * 0.082, weight: .semibold))
                     .foregroundStyle(fg)
-                    .shadow(color: (scheme == .light ? Color.white : fg).opacity(0.75), radius: 4)
+                    .shadow(color: fg.opacity(0.75), radius: 4)
                     .shadow(color: Color(hex: "#FFE3B0").opacity(0.5), radius: 8)
                     .offset(
                         x: size * 0.31 * sin(rad),
@@ -809,7 +806,7 @@ private struct ZodiacWheelDisk: View {
                     .font(.system(size: size * 0.033, weight: .semibold, design: .rounded))
                     .tracking(0.6)
                     .foregroundStyle(fg)
-                    .shadow(color: (scheme == .light ? Color.white : fg).opacity(0.4), radius: 2.5)
+                    .shadow(color: fg.opacity(0.4), radius: 2.5)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
                     .rotationEffect(.degrees(angle))
@@ -820,12 +817,12 @@ private struct ZodiacWheelDisk: View {
             }
         }
         .frame(width: size, height: size)
-        .shadow(color: (scheme == .light ? ABColor.peachGlow : Color.white).opacity(scheme == .light ? 0.35 : 0.16), radius: 12)
+        .shadow(color: Color.white.opacity(0.16), radius: 12)
     }
 
     private func ring(diameter: CGFloat, line: CGFloat, opacity: Double) -> some View {
         Circle()
-            .stroke(fg.opacity(scheme == .light ? opacity * 0.8 : opacity), lineWidth: line)
+            .stroke(fg.opacity(opacity), lineWidth: line)
             .frame(width: diameter, height: diameter)
     }
 }
