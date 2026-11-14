@@ -185,14 +185,11 @@ struct MatchDetailSheet: View {
     var myRising: ZodiacSign? = nil
     var seedChart: NatalChart? = nil
     let intent: MatchIntent
-    /// When provided, shows a "Mesaj Gönder" CTA that hands off to the
-    /// caller (accept + open chat) before dismissing this sheet. Left `nil`
-    /// when already inside the conversation (e.g. opened from `ChatView`'s
-    /// "Bağ özeti"), where a CTA to message would be redundant.
+    /// Sticky "Mesaj Gönder" action. When nil, the button still shows and
+    /// simply returns via `onBack` / dismiss (e.g. opened from Messages chat).
     var onMessage: (() -> Void)? = nil
     var onBack: (() -> Void)? = nil
 
-    @State private var showBondInfo = false
     @State private var myChart: NatalChart?
     @State private var theirChart: NatalChart?
 
@@ -230,9 +227,10 @@ struct MatchDetailSheet: View {
 
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 18) {
-                    titleBlock
-                    coupleHeader
-                    bondNameSection
+                    SynastrySummaryHeader(
+                        card: card, myName: myName, myPhotoURL: myPhotoURL,
+                        myCartoonAvatarId: myCartoonAvatarId, mySun: mySun, report: report
+                    )
                     bondProfileSection
                     wheelSection
                     connectionCard
@@ -241,14 +239,6 @@ struct MatchDetailSheet: View {
                     snapshotsSection
                     comparisonSection
                     notesSection
-
-                    if let onMessage {
-                        CrystalCTAButton(title: "Mesaj Gönder") {
-                            onMessage()
-                            dismiss()
-                        }
-                        .padding(.top, 4)
-                    }
                 }
                 .padding(.horizontal, 16)
                 .padding(.bottom, 28)
@@ -256,10 +246,17 @@ struct MatchDetailSheet: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .background {
-            CosmicBackdrop()
-                .allowsHitTesting(false)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            stickyMessageBar(action: {
+                if let onMessage {
+                    onMessage()
+                } else {
+                    goBack()
+                }
+            })
         }
+        .background { CosmicBackdrop() }
+        .contentShape(Rectangle())
         .navigationBarBackButtonHidden(true)
         .toolbar(.hidden, for: .navigationBar)
         .task {
@@ -276,6 +273,25 @@ struct MatchDetailSheet: View {
                 userId: card.id, sun: card.sunSign, moon: card.moonSign, rising: card.risingSign
             )
         }
+    }
+
+    /// Pinned above the home indicator via safeAreaInset; content scrolls above it.
+    private func stickyMessageBar(action: @escaping () -> Void) -> some View {
+        VStack(spacing: 0) {
+            LinearGradient(
+                colors: [ABColor.surface.opacity(0), ABColor.surface.opacity(0.95)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .frame(height: 28)
+            .allowsHitTesting(false)
+
+            GlowActionButton(title: "Mesaj Gönder", icon: "paperplane.fill", action: action)
+                .padding(.horizontal, 22)
+                // Extra lift so the pill clears the home indicator comfortably.
+                .padding(.bottom, 28)
+        }
+        .background(ABColor.surface.opacity(0.92).ignoresSafeArea(edges: .bottom))
     }
 
     // MARK: Top bar + title
@@ -324,132 +340,6 @@ struct MatchDetailSheet: View {
 
     private var shareText: String {
         "\(card.displayName) ile bağımız: \(report.bondTier.english) (\(report.bondTier.turkish)) ✦ AstroBond"
-    }
-
-    private var titleBlock: some View {
-        VStack(spacing: 6) {
-            Text("SİNASTRİ")
-                .font(ABFont.body(12, weight: .bold))
-                .tracking(5)
-                .foregroundStyle(ABColor.lavenderSoft.opacity(0.9))
-            Text("İki ruhun ortak yıldız haritası")
-                .font(ABFont.body(12.5))
-                .foregroundStyle(ABColor.inkMuted)
-        }
-        .frame(maxWidth: .infinity)
-    }
-
-    // MARK: Couple header + bond seal (no bare numbers)
-
-    private var coupleHeader: some View {
-        HStack(alignment: .top, spacing: 4) {
-            personColumn(name: myName, sign: mySun, tint: mineTint) {
-                    PersonAvatar(name: myName, photoURL: myPhotoURL, cartoonAvatarId: myCartoonAvatarId, sunSign: mySun, unlocked: true, size: 52)
-            }
-            bondSeal
-            personColumn(name: card.displayName, sign: card.sunSign, tint: theirTint) {
-                PersonAvatar(name: card.displayName, photoURL: card.photoURL, cartoonAvatarId: card.cartoonAvatarId, sunSign: card.sunSign, unlocked: false, size: 52)
-            }
-        }
-    }
-
-    private func personColumn<Avatar: View>(
-        name: String, sign: ZodiacSign?, tint: Color, @ViewBuilder avatar: () -> Avatar
-    ) -> some View {
-        VStack(spacing: 10) {
-            avatar()
-            Text(name)
-                .font(ABFont.display(15))
-                .foregroundStyle(ABColor.ink)
-                .lineLimit(1)
-                .minimumScaleFactor(0.65)
-                .frame(maxWidth: .infinity)
-            if let sign {
-                Text("\(sign.glyph) \(sign.labelTR)")
-                    .font(ABFont.body(12, weight: .medium))
-                    .foregroundStyle(tint.opacity(0.9))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-            }
-        }
-        .frame(maxWidth: .infinity)
-    }
-
-    private var bondSeal: some View {
-        VStack(spacing: 7) {
-            ZStack {
-                Circle().stroke(ABColor.veil.opacity(0.12), lineWidth: 6)
-                Circle()
-                    .stroke(
-                        AngularGradient(colors: [ABColor.lavender, mineTint, ABColor.lavenderSoft, ABColor.lavender], center: .center),
-                        style: StrokeStyle(lineWidth: 6, lineCap: .round)
-                    )
-                Image(systemName: "sparkles")
-                    .font(.system(size: 22, weight: .semibold))
-                    .foregroundStyle(ABColor.lavenderSoft)
-                    .shadow(color: ABColor.lavender.opacity(0.6), radius: 6)
-            }
-            .frame(width: 60, height: 60)
-            .shadow(color: ABColor.lavender.opacity(0.4), radius: 14)
-            Text(report.bondTier.tierTagline)
-                .font(ABFont.body(10, weight: .semibold))
-                .foregroundStyle(ABColor.lavenderSoft)
-                .lineLimit(2)
-                .minimumScaleFactor(0.7)
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: 88)
-    }
-
-    // MARK: Bond name (tap → Turkish description)
-
-    private var bondNameSection: some View {
-        VStack(spacing: 12) {
-            Button {
-                withAnimation(.spring(response: 0.4, dampingFraction: 0.82)) {
-                    showBondInfo.toggle()
-                }
-            } label: {
-                VStack(spacing: 7) {
-                    Text(report.bondTier.english)
-                        .font(ABFont.display(24))
-                        .foregroundStyle(
-                            LinearGradient(colors: [ABColor.ink, ABColor.lavenderSoft], startPoint: .top, endPoint: .bottom)
-                        )
-                        .multilineTextAlignment(.center)
-                        .minimumScaleFactor(0.7)
-                        .lineLimit(2)
-                    HStack(spacing: 6) {
-                        Text(showBondInfo ? "Açıklamayı gizle" : "Açıklama için dokun")
-                            .font(ABFont.body(12, weight: .semibold))
-                            .foregroundStyle(ABColor.lavenderSoft.opacity(0.9))
-                        Image(systemName: "chevron.down")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundStyle(ABColor.lavenderSoft.opacity(0.9))
-                            .rotationEffect(.degrees(showBondInfo ? 180 : 0))
-                    }
-                }
-                .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.plain)
-
-            if showBondInfo {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text(report.bondTier.turkish)
-                        .font(ABFont.display(18))
-                        .foregroundStyle(ABColor.lavenderSoft)
-                    Text(report.bondTier.summary)
-                        .font(ABFont.body(14))
-                        .foregroundStyle(ABColor.ink.opacity(0.85))
-                        .lineSpacing(4)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(16)
-                .crystalPlate(cornerRadius: 20)
-                .transition(.opacity.combined(with: .move(edge: .top)))
-            }
-        }
     }
 
     // MARK: Astro Bond profile (LOVE / SEX / MIND / TRUST)

@@ -53,8 +53,6 @@ struct CosmicMatchWheel: View {
             searchPlanets
         }
         .frame(width: size + 128, height: size + 128)
-        .contentShape(Circle())
-        .onTapGesture { onTap?() }
         .onAppear {
             if !isSpinning && !isRevealed { restGlow() }
             else { startTwinkle() }
@@ -124,6 +122,9 @@ struct CosmicMatchWheel: View {
                 }
             }
             .buttonStyle(.plain)
+            // Only the center disc is tappable, not the glow rings or the zodiac wheel.
+            .frame(width: centerDiameter, height: centerDiameter)
+            .contentShape(Circle())
             .accessibilityLabel("Çarkı çevirerek eşleş")
         }
     }

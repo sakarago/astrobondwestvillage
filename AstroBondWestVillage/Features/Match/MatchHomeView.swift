@@ -8,6 +8,8 @@ final class MatchViewModel {
         case idle
         case spinning
         case revealed
+        /// Thumbs-up given: full-screen synastry summary with "Ortak Sinastriyi Gör".
+        case matched
     }
 
     var phase: Phase = .idle
@@ -40,6 +42,8 @@ final class MatchViewModel {
     private var spinTask: Task<Void, Never>?
     private var myUserId: String?
 
+    /// Wheel shows the match (revealed or already confirmed).
+    var showsResult: Bool { phase == .revealed || phase == .matched }
     var canMatch: Bool { remainingReveals > 0 }
     var hasUnrevealedCandidates: Bool { !pool.isEmpty }
     var canSpinForNewMatch: Bool { canMatch && hasUnrevealedCandidates }
@@ -169,8 +173,10 @@ final class MatchViewModel {
                 unreadCount: 0
             )
         )
-        dismissReveal()
         refreshLocal(userId: myUserId)
+        withAnimation(.spring(response: 0.5, dampingFraction: 0.85)) {
+            phase = .matched
+        }
         Task { await ConversationsStore.shared.ensureConversation(otherUserId: card.id) }
     }
 
@@ -291,38 +297,72 @@ struct MatchHomeView: View {
                             .scaledToFill()
                     }
                     .clipped()
-                    .opacity(model.phase == .revealed ? (scheme == .light ? 0.16 : 1) : 0)
+                    .opacity(model.showsResult ? (scheme == .light ? 0.16 : 1) : 0)
                     .animation(.easeInOut(duration: 0.8), value: model.phase)
                     .allowsHitTesting(false)
 
                 RevealSkyDecor()
-                    .opacity(model.phase == .revealed && scheme != .light ? 1 : 0)
+                    .opacity(model.showsResult && scheme != .light ? 1 : 0)
                     .animation(.easeInOut(duration: 0.8), value: model.phase)
 
-                // Positions are fractions of the screen height, measured from the design mock.
+                // Each match phase is a full-screen page that slides as a whole.
                 GeometryReader { geo in
                     let w = geo.size.width
                     let h = geo.size.height
-                    let revealed = model.phase == .revealed
-                    let wheelSize = revealed ? min(w * 0.74, h * 0.40) : min(w * 0.80, h * 0.41)
-                    let wheelY = h * 0.174 + wheelSize / 2
+                    let idleWheel = min(w * 0.80, h * 0.41)
+                    let resultWheel = min(w * 0.74, h * 0.40)
 
-                    ZStack(alignment: .top) {
-                        header
-                            .padding(.top, h * 0.044)
-                            .frame(maxWidth: .infinity, alignment: .top)
-                        wheelStack(size: wheelSize)
-                            .position(x: w / 2, y: wheelY)
-                        bottomArea
-                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                            .padding(.horizontal, 22)
-                            .padding(.top, revealed ? wheelY + wheelSize / 2 + 14 : h * 0.633 - 11)
+                    ZStack {
+                        switch model.phase {
+                        case .idle, .spinning:
+                            matchingStagePage(width: w, height: h, wheelSize: idleWheel)
+                                .transition(Self.fullScreenSlide)
+                        case .revealed:
+                            if let match = model.active {
+                                revealedPage(match, width: w, height: h, wheelSize: resultWheel)
+                                    .transition(Self.fullScreenSlide)
+                            }
+                        case .matched:
+                            if let match = model.active {
+                                matchedPage(match, width: w, height: h, wheelSize: resultWheel)
+                                    .transition(Self.fullScreenSlide)
+                            }
+                        }
                     }
-                    .frame(width: w, height: h, alignment: .top)
-                    .animation(.spring(response: 0.6, dampingFraction: 0.85), value: model.phase)
+                    .animation(.spring(response: 0.55, dampingFraction: 0.86), value: model.phase)
                 }
+
             }
             .toolbar(.hidden, for: .navigationBar)
+            // Above the floating tab bar so Mesaj Gönder / back aren't covered or dead.
+            .fullScreenCover(item: $model.detailCard) { card in
+                MatchDetailSheet(
+                    card: card,
+                    mySeed: session.user?.id ?? "self",
+                    myName: model.myName,
+                    myPhotoURL: model.myPhotoURL,
+                    myCartoonAvatarId: model.myCartoonAvatarId,
+                    mySun: model.mySun,
+                    myMoon: model.myMoon,
+                    myRising: model.myRising,
+                    seedChart: model.myChart,
+                    intent: model.prefs.intent,
+                    onMessage: {
+                        model.detailCard = nil
+                        hideTabBar?.wrappedValue = true
+                        if let id = session.user?.id {
+                            Task { await model.message(card: card, myUserId: id) }
+                        }
+                    },
+                    onBack: { model.detailCard = nil }
+                )
+                .onAppear { hideTabBar?.wrappedValue = true }
+                .onDisappear {
+                    if model.openChat == nil {
+                        hideTabBar?.wrappedValue = false
+                    }
+                }
+            }
             .task {
                 if let id = session.user?.id {
                     await model.bootstrap(userId: id)
@@ -356,40 +396,18 @@ struct MatchHomeView: View {
             } message: {
                 Text("Bugün gösterilecek başka profil kalmadı. Aşağıdaki eşleşmelerine dönebilir veya yarın tekrar çevirebilirsin.")
             }
-            .navigationDestination(item: $model.detailCard) { card in
-                MatchDetailSheet(
-                    card: card,
-                    mySeed: session.user?.id ?? "self",
-                    myName: model.myName,
-                    myPhotoURL: model.myPhotoURL,
-                    myCartoonAvatarId: model.myCartoonAvatarId,
-                    mySun: model.mySun,
-                    myMoon: model.myMoon,
-                    myRising: model.myRising,
-                    seedChart: model.myChart,
-                    intent: model.prefs.intent,
-                    onMessage: {
-                        hideTabBar?.wrappedValue = true
-                        model.detailCard = nil
-                        if let id = session.user?.id {
-                            Task { await model.message(card: card, myUserId: id) }
-                        }
-                    },
-                    onBack: { model.detailCard = nil }
-                )
-                .navigationBarBackButtonHidden(true)
-                .toolbar(.hidden, for: .navigationBar)
-                .onAppear { hideTabBar?.wrappedValue = true }
-                .onDisappear {
-                    if model.openChat == nil {
-                        hideTabBar?.wrappedValue = false
-                    }
-                }
-            }
             .navigationDestination(item: $model.openChat) { conv in
                 ChatView(conversation: conv, onBack: { model.openChat = nil })
             }
         }
+    }
+
+    /// Whole-screen vertical slide used between match stages and ortak sinastri.
+    private static var fullScreenSlide: AnyTransition {
+        .asymmetric(
+            insertion: .move(edge: .bottom).combined(with: .opacity),
+            removal: .move(edge: .bottom).combined(with: .opacity)
+        )
     }
 
     private var failureText: String {
@@ -402,7 +420,7 @@ struct MatchHomeView: View {
 
     private var header: some View {
         VStack(spacing: 5) {
-            AstroBondLogoMark(flare: model.phase == .revealed)
+            AstroBondLogoMark(flare: model.showsResult)
             Text("BAĞ GÖRÜNENDEN ÖNCE BAŞLAR")
                 .font(ABFont.body(10, weight: .medium))
                 .tracking(2.2)
@@ -424,7 +442,7 @@ struct MatchHomeView: View {
         CosmicMatchWheel(
             rotation: model.wheelRotation,
             isSpinning: model.phase == .spinning,
-            isRevealed: model.phase == .revealed,
+            isRevealed: model.showsResult,
             size: size,
             revealedGlyph: model.active?.sunSign?.lineGlyph,
             revealedSignIndex: model.active?.sunSign?.index,
@@ -433,68 +451,144 @@ struct MatchHomeView: View {
         )
     }
 
-    @ViewBuilder
-    private var bottomArea: some View {
-        switch model.phase {
-        case .idle:
+    /// Idle / spinning: logo + wheel + prefs (or "searching") scroll together as one page.
+    private func matchingStagePage(width w: CGFloat, height h: CGFloat, wheelSize: CGFloat) -> some View {
+        ScrollView(showsIndicators: false) {
+            VStack(spacing: 14) {
+                header
+                    .padding(.top, h * 0.044)
+                wheelStack(size: wheelSize)
+                    .frame(width: w, height: wheelSize)
+                    .padding(.top, 14)
+                    .padding(.bottom, 8)
+
+                if model.phase == .spinning {
+                    VStack(spacing: 10) {
+                        Text("Eşleşme aranıyor...")
+                            .font(ABFont.display(26, weight: .regular))
+                            .foregroundStyle(ABColor.ink)
+                            .multilineTextAlignment(.center)
+                        Text("Yıldızlar seninle uyumlu ruhları keşfediyor.")
+                            .font(ABFont.body(14))
+                            .foregroundStyle(ABColor.ink.opacity(0.55))
+                            .multilineTextAlignment(.center)
+                    }
+                    .padding(.horizontal, 28)
+                    .padding(.top, 8)
+                } else {
+                    VStack(spacing: 14) {
+                        if showSelectionNotice {
+                            Text("Önce bağ ve eşleşme tercihinden seçim yap, sonra çarkın ortasına bas.")
+                                .font(ABFont.body(12.5, weight: .medium))
+                                .foregroundStyle(ABColor.ink.opacity(0.95))
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 10)
+                                .background(Capsule(style: .continuous).fill(ABColor.lavender.opacity(0.16)))
+                                .overlay(
+                                    Capsule(style: .continuous)
+                                        .stroke(ABColor.lavender.opacity(0.55), lineWidth: 1)
+                                )
+                        }
+
+                        BondSettingsPanel(
+                            intents: $intents,
+                            orientations: $orientations,
+                            homoTypes: $homoTypes,
+                            prefs: $model.prefs
+                        )
+
+                        if !model.todaysAccepted.isEmpty {
+                            todaysMatchesStrip
+                                .padding(.top, 6)
+                        }
+                    }
+                    .padding(.horizontal, 22)
+                }
+            }
+            .padding(.bottom, 130)
+            .frame(width: w)
+        }
+        .frame(width: w, height: h, alignment: .top)
+    }
+
+    /// Pre-confirm reveal: whole page (logo, wheel, card, actions) slides as one unit.
+    private func revealedPage(_ match: MatchCard, width w: CGFloat, height h: CGFloat, wheelSize: CGFloat) -> some View {
+        ScrollView(showsIndicators: false) {
+            VStack(spacing: 14) {
+                header
+                    .padding(.top, h * 0.044)
+                wheelStack(size: wheelSize)
+                    .frame(width: w, height: wheelSize)
+                    .padding(.top, 14)
+                    .padding(.bottom, 6)
+                revealedCard(match)
+                    .padding(.horizontal, 22)
+                revealedActions
+                    .padding(.top, 4)
+            }
+            .padding(.bottom, 130)
+            .frame(width: w)
+        }
+        .frame(width: w, height: h, alignment: .top)
+    }
+
+    /// Confirmed match: the whole screen becomes one scrollable page (logo, wheel, synastry summary,
+    /// "Ortak Sinastriyi Gör"); the back arrow returns to the match selections.
+    private func matchedPage(_ match: MatchCard, width w: CGFloat, height h: CGFloat, wheelSize: CGFloat) -> some View {
+        let report = BondStory.report(
+            mySun: model.mySun,
+            their: match,
+            intent: model.prefs.intent,
+            myChart: model.myChart,
+            theirChart: model.theirChart
+        )
+        return ZStack(alignment: .topLeading) {
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 14) {
-                    if showSelectionNotice {
-                        Text("Önce bağ ve eşleşme tercihinden seçim yap, sonra çarkın ortasına bas.")
-                            .font(ABFont.body(12.5, weight: .medium))
-                            .foregroundStyle(ABColor.ink.opacity(0.95))
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 10)
-                            .background(Capsule(style: .continuous).fill(ABColor.lavender.opacity(0.16)))
-                            .overlay(
-                                Capsule(style: .continuous)
-                                    .stroke(ABColor.lavender.opacity(0.55), lineWidth: 1)
-                            )
-                    }
+                    header
+                        .padding(.top, h * 0.044)
+                    wheelStack(size: wheelSize)
+                        .frame(width: w, height: wheelSize)
+                        .padding(.top, 14)
+                        .padding(.bottom, 10)
 
-                    BondSettingsPanel(
-                        intents: $intents,
-                        orientations: $orientations,
-                        homoTypes: $homoTypes,
-                        prefs: $model.prefs
+                    SynastrySummaryHeader(
+                        card: match,
+                        myName: model.myName,
+                        myPhotoURL: model.myPhotoURL,
+                        myCartoonAvatarId: model.myCartoonAvatarId,
+                        mySun: model.mySun,
+                        report: report
                     )
+                    .padding(.horizontal, 22)
 
-                    if !model.todaysAccepted.isEmpty {
-                        todaysMatchesStrip
-                            .padding(.top, 6)
+                    GlowActionButton(title: "Ortak Sinastriyi Gör", icon: "sparkles") {
+                        model.detailCard = match
                     }
+                    .padding(.horizontal, 28)
+                    .padding(.top, 4)
                 }
-                .padding(.bottom, 120)
+                .padding(.bottom, 130)
+                .frame(width: w)
             }
-            .transition(.opacity)
 
-        case .spinning:
-            VStack(spacing: 10) {
-                Text("Eşleşme aranıyor...")
-                    .font(ABFont.display(26, weight: .regular))
+            Button {
+                withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) { model.dismissReveal() }
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 17, weight: .semibold))
                     .foregroundStyle(ABColor.ink)
-                    .multilineTextAlignment(.center)
-                Text("Yıldızlar seninle uyumlu ruhları keşfediyor.")
-                    .font(ABFont.body(14))
-                    .foregroundStyle(ABColor.ink.opacity(0.55))
-                    .multilineTextAlignment(.center)
+                    .crystalIconBezel(size: 40, cornerRadius: 14)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
             }
-            .padding(.horizontal, 28)
-            .padding(.top, 18)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            .transition(.opacity)
-
-        case .revealed:
-            if let match = model.active {
-                VStack(spacing: 10) {
-                    revealedCard(match)
-                    revealedActions
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                .transition(.move(edge: .bottom).combined(with: .opacity))
-            }
+            .buttonStyle(.plain)
+            .padding(.leading, 14)
+            .padding(.top, h * 0.044 - 2)
+            .accessibilityLabel("Eşleşme seçimlerine dön")
         }
+        .frame(width: w, height: h, alignment: .top)
     }
 
     private var todaysMatchesStrip: some View {

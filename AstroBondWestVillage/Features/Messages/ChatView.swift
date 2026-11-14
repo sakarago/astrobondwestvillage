@@ -135,12 +135,30 @@ struct ChatView: View {
                     myRising: model.myRising,
                     seedChart: model.myChart,
                     intent: MatchPrefsStore.shared.snapshot.intent,
-                    onBack: { showSinastri = false }
+                    onMessage: {
+                        withAnimation(.spring(response: 0.5, dampingFraction: 0.88)) {
+                            showSinastri = false
+                        }
+                    },
+                    onBack: {
+                        withAnimation(.spring(response: 0.5, dampingFraction: 0.88)) {
+                            showSinastri = false
+                        }
+                    }
                 )
+                .transition(.asymmetric(
+                    insertion: .move(edge: .bottom).combined(with: .opacity),
+                    removal: .move(edge: .bottom).combined(with: .opacity)
+                ))
             } else {
                 chatStack
+                    .transition(.asymmetric(
+                        insertion: .move(edge: .top).combined(with: .opacity),
+                        removal: .move(edge: .top).combined(with: .opacity)
+                    ))
             }
         }
+        .animation(.spring(response: 0.55, dampingFraction: 0.86), value: showSinastri)
         .navigationBarBackButtonHidden(true)
         .toolbar(.hidden, for: .navigationBar)
         .toolbar(.hidden, for: .tabBar)
@@ -304,7 +322,9 @@ struct ChatView: View {
 
     private func openSinastri() {
         resignKeyboard()
-        showSinastri = true
+        withAnimation(.spring(response: 0.55, dampingFraction: 0.86)) {
+            showSinastri = true
+        }
     }
 
     private var header: some View {
