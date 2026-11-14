@@ -49,6 +49,44 @@ enum DiscoverAI {
         return (out, true)
     }
 
+    /// Explains one Astro Bond dimension score for a specific match pair.
+    /// Returns (howTheyMatch, whatPercentMeans, usedAI). Falls back to templates when AI is offline.
+    static func bondDimension(
+        kindTitle: String,
+        meaning: String,
+        percent: Int,
+        note: String,
+        myName: String,
+        theirName: String,
+        mySun: String?,
+        theirSun: String?,
+        myMoon: String?,
+        theirMoon: String?,
+        sky: UserSky
+    ) async -> (matchText: String, percentText: String, usedAI: Bool) {
+        let fallbackMatch = "\(myName) ile \(theirName) arasında \(kindTitle.lowercased()) yaklaşık %\(percent). \(note)"
+        let fallbackPercent = meaning
+        let facts = """
+        Bağ boyutu: \(kindTitle)
+        Yüzde: \(percent)
+        Kısa not: \(note)
+        Anlam taslağı: \(meaning)
+        Sen: \(myName)\(mySun.map { ", Güneş \($0)" } ?? "")\(myMoon.map { ", Ay \($0)" } ?? "")
+        Diğer kişi: \(theirName)\(theirSun.map { ", Güneş \($0)" } ?? "")\(theirMoon.map { ", Ay \($0)" } ?? "")
+        """
+        let task = """
+        Bu iki kişi için \(kindTitle) skorunu açıkla. Tam olarak 2 paragraf yaz: \
+        1) Bu eşleşmede bu bağın nasıl göründüğü (somut, sıcak, 3-4 cümle; yüzdeyi ve burçları kullan), \
+        2) Bu yüzdenin ne anlama geldiği (ölçülen şey + yüksek/orta/düşük okuma, 2-3 cümle). \
+        Kesin kehanet yazma; eğlenceli içgörü sun.
+        """
+        let key = "bond.\(stable("\(kindTitle)|\(theirName)|\(percent)"))"
+        guard let p = await parts(key: key, sky: sky, facts: facts, task: task, count: 2, wordsEach: 90) else {
+            return (fallbackMatch, fallbackPercent, false)
+        }
+        return (p[0], p[1], true)
+    }
+
     /// Rich version of the daily card result: title, message body and a reflective question.
     static func cardResult(_ base: DiscoverContent.CardResult, card: Int, sky: UserSky) async -> (result: DiscoverContent.CardResult, usedAI: Bool) {
         let which = ["Güneş", "Ay", "Yükselen"][min(max(card, 0), 2)]

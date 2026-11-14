@@ -192,9 +192,10 @@ struct MatchDetailSheet: View {
 
     @State private var myChart: NatalChart?
     @State private var theirChart: NatalChart?
+    @State private var selectedBond: BondIconKind?
 
     private let mineTint = Color(hex: "#F0CE7E")
-    private let theirTint = Color(hex: "#E8B9A0")
+    private let theirTint = ABColor.lavenderSoft
 
     private var report: BondStory.Report {
         BondStory.report(
@@ -259,6 +260,19 @@ struct MatchDetailSheet: View {
         .contentShape(Rectangle())
         .navigationBarBackButtonHidden(true)
         .toolbar(.hidden, for: .navigationBar)
+        .fullScreenCover(item: $selectedBond) { kind in
+            BondDimensionExplainView(
+                kind: kind,
+                percent: bondPercent(kind),
+                myName: myName,
+                theirName: card.displayName,
+                mySun: mySun,
+                theirSun: card.sunSign,
+                myMoon: myMoon,
+                theirMoon: card.moonSign,
+                myUserId: mySeed
+            )
+        }
         .task {
             if myChart == nil {
                 if let seedChart {
@@ -392,80 +406,94 @@ struct MatchDetailSheet: View {
     private func dimensionCard(_ kind: BondIconKind) -> some View {
         let pct = bondPercent(kind)
         let fraction = CGFloat(pct) / 100
-        return VStack(spacing: 7) {
-            ZStack {
-                Circle().stroke(ABColor.veil.opacity(0.10), lineWidth: 3)
-                Circle()
-                    .trim(from: 0, to: fraction)
-                    .stroke(
-                        AngularGradient(colors: kind.gradient, center: .center, startAngle: .degrees(0), endAngle: .degrees(360)),
-                        style: StrokeStyle(lineWidth: 3, lineCap: .round)
-                    )
-                    .rotationEffect(.degrees(-90))
-                    .shadow(color: kind.tint.opacity(0.5), radius: 5)
-                BondDimensionIcon(kind: kind, size: 22)
-            }
-            .frame(width: 62, height: 62)
-            .padding(.top, 2)
+        return Button {
+            selectedBond = kind
+        } label: {
+            VStack(spacing: 7) {
+                ZStack {
+                    Circle().stroke(ABColor.veil.opacity(0.10), lineWidth: 3)
+                    Circle()
+                        .trim(from: 0, to: fraction)
+                        .stroke(
+                            AngularGradient(colors: kind.gradient, center: .center, startAngle: .degrees(0), endAngle: .degrees(360)),
+                            style: StrokeStyle(lineWidth: 3, lineCap: .round)
+                        )
+                        .rotationEffect(.degrees(-90))
+                        .shadow(color: kind.tint.opacity(0.5), radius: 5)
+                    BondDimensionIcon(kind: kind, size: 22)
+                }
+                .frame(width: 62, height: 62)
+                .padding(.top, 2)
 
-            Text("%\(pct)")
-                .font(ABFont.body(15, weight: .bold))
-                .foregroundStyle(ABColor.warm)
-            Text(kind.title)
-                .font(ABFont.body(11, weight: .bold))
-                .tracking(1)
-                .foregroundStyle(ABColor.warm.opacity(0.9))
-                .lineLimit(1)
-            Text(kind.note)
-                .font(ABFont.body(10.5))
-                .foregroundStyle(ABColor.ink.opacity(0.55))
-                .multilineTextAlignment(.center)
-                .lineLimit(2)
-                .minimumScaleFactor(0.8)
+                Text("%\(pct)")
+                    .font(ABFont.body(15, weight: .bold))
+                    .foregroundStyle(ABColor.warm)
+                Text(kind.title)
+                    .font(ABFont.body(11, weight: .bold))
+                    .tracking(1)
+                    .foregroundStyle(ABColor.warm.opacity(0.9))
+                    .lineLimit(1)
+                Text(kind.note)
+                    .font(ABFont.body(10.5))
+                    .foregroundStyle(ABColor.ink.opacity(0.55))
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.8)
+                Text("Detay →")
+                    .font(ABFont.body(10, weight: .semibold))
+                    .foregroundStyle(ABColor.warm.opacity(0.7))
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .padding(.horizontal, 5)
+            .contentShape(Rectangle())
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 12)
-        .padding(.horizontal, 5)
+        .buttonStyle(.plain)
+        .accessibilityHint("Bu bağ yüzdesinin açıklamasını açar")
     }
 
     // MARK: Synastry wheel (professional bi-wheel) + Turkish key
 
     private var wheelSection: some View {
         VStack(spacing: 12) {
-            sectionHeader(title: "Sinastri Haritası", subtitle: "İki doğum haritasının birleşik sinastri çarkı")
-                .padding(.horizontal, 12)
+            VStack(spacing: 4) {
+                Text("Sinastri Haritası")
+                    .font(ABFont.display(19))
+                    .foregroundStyle(ABColor.ink)
+                Text("İki doğum haritasının birleşik sinastri çarkı")
+                    .font(ABFont.body(12))
+                    .foregroundStyle(ABColor.inkMuted)
+            }
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: .infinity)
+
+            // Width comes from the card, so the disk cannot run off the phone edges.
             GeometryReader { geo in
-                // Bleed nearly to phone edges so glyphs/degrees stay readable.
-                // Cap leaves a small margin so the circle never clips off-screen.
-                let side = min(geo.size.width, UIScreen.main.bounds.width - 16)
+                let side = geo.size.width
                 Group {
                     if let mine = myChart ?? seedChart, let theirChart {
-                        ChartWheelView(chart: mine, overlay: theirChart, compactLabels: true)
+                        ChartWheelView(chart: mine, overlay: theirChart, paper: true)
                     } else {
-                        SynastryWheelCanvas(points: points, mineColor: mineTint, theirColor: theirTint)
+                        SynastryWheelCanvas(points: points, mineColor: Color(hex: "#F0CE7E"), theirColor: Color(hex: "#E8B9A0"))
                     }
                 }
                 .frame(width: side, height: side)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             .aspectRatio(1, contentMode: .fit)
-            .frame(maxWidth: .infinity)
-            // Cancel scroll (16) + glass padding so the wheel uses almost full width.
-            .padding(.horizontal, -16)
 
             HStack(spacing: 8) {
-                legendDot(color: mineTint, label: "Sen · iç")
-                legendDot(color: theirTint, label: "\(card.displayName) · dış")
+                legendDot(color: Color(hex: "#F0CE7E"), label: "Sen · iç")
+                legendDot(color: Color(hex: "#E8B9A0"), label: "\(card.displayName) · dış")
             }
-            .padding(.horizontal, 12)
+            .frame(maxWidth: .infinity)
             .lineLimit(1)
             .minimumScaleFactor(0.75)
             SynastryKeyView()
-                .padding(.horizontal, 12)
         }
-        .padding(.vertical, 16)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 14)
         .frame(maxWidth: .infinity)
-        .revealGlass(cornerRadius: 28)
+        .revealGlass(cornerRadius: 28, warmWash: true)
     }
 
     private func legendDot(color: Color, label: String) -> some View {
@@ -745,5 +773,231 @@ struct MatchDetailSheet: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+// MARK: - Bond dimension explain (AI-enriched when available)
+
+/// Full-screen read for one Astro Bond percentage — how this pair matches, and what the % means.
+private struct BondDimensionExplainView: View {
+    @Environment(\.dismiss) private var dismiss
+    let kind: BondIconKind
+    let percent: Int
+    let myName: String
+    let theirName: String
+    let mySun: ZodiacSign?
+    let theirSun: ZodiacSign?
+    let myMoon: ZodiacSign?
+    let theirMoon: ZodiacSign?
+    let myUserId: String
+
+    @State private var matchText: String = ""
+    @State private var percentText: String = ""
+    @State private var usedAI = false
+    @State private var loading = true
+
+    private var vibe: String {
+        switch percent {
+        case 88...: return "Nadir bir kıvılcım"
+        case 75..<88: return "Sıcak ve akıcı"
+        case 60..<75: return "Merak uyandıran"
+        default: return "Yavaş açılan bir bağ"
+        }
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Button { dismiss() } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(ABColor.ink)
+                        .crystalIconBezel(size: 40, cornerRadius: 14)
+                        .frame(width: 44, height: 44)
+                }
+                .buttonStyle(.plain)
+                Spacer()
+                if usedAI {
+                    Label("sana özel", systemImage: "sparkle")
+                        .font(ABFont.body(12, weight: .semibold))
+                        .foregroundStyle(kind.tint)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 7)
+                        .background(Capsule().fill(kind.tint.opacity(0.16)))
+                        .overlay(Capsule().strokeBorder(kind.tint.opacity(0.45), lineWidth: 1))
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 6)
+
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 18) {
+                    hero
+                    explainBlock(
+                        icon: "heart.text.square.fill",
+                        eyebrow: "BU İKİLİDE",
+                        title: "Nasıl hissedilir?",
+                        body: matchText
+                    )
+                    explainBlock(
+                        icon: "moon.stars.fill",
+                        eyebrow: "YÜZDE",
+                        title: "Ne anlatıyor?",
+                        body: percentText
+                    )
+                    if loading {
+                        HStack(spacing: 8) {
+                            ProgressView().tint(kind.tint)
+                            Text("Gökyüzü senin için yazıyor…")
+                                .font(ABFont.body(13, weight: .medium))
+                                .foregroundStyle(ABColor.ink.opacity(0.7))
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, 4)
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 6)
+                .padding(.bottom, 48)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background {
+            ZStack {
+                Image("reveal_bg").resizable().scaledToFill().ignoresSafeArea()
+                Color.black.opacity(0.28).ignoresSafeArea()
+                RadialGradient(
+                    colors: [kind.tint.opacity(0.28), .clear],
+                    center: .top,
+                    startRadius: 10,
+                    endRadius: 340
+                )
+                .ignoresSafeArea()
+            }
+        }
+        .task { await loadCopy() }
+    }
+
+    private var hero: some View {
+        VStack(spacing: 14) {
+            ZStack {
+                Circle()
+                    .fill(kind.tint.opacity(0.16))
+                    .frame(width: 148, height: 148)
+                    .blur(radius: 8)
+                Circle().stroke(kind.tint.opacity(0.18), lineWidth: 10)
+                Circle()
+                    .trim(from: 0, to: CGFloat(percent) / 100)
+                    .stroke(
+                        AngularGradient(colors: kind.gradient + [kind.gradient[0]], center: .center),
+                        style: StrokeStyle(lineWidth: 8, lineCap: .round)
+                    )
+                    .rotationEffect(.degrees(-90))
+                    .shadow(color: kind.tint.opacity(0.7), radius: 8)
+                VStack(spacing: 2) {
+                    BondDimensionIcon(kind: kind, size: 26)
+                    Text("\(percent)")
+                        .font(ABFont.display(52, weight: .regular))
+                        .foregroundStyle(
+                            LinearGradient(colors: [.white, kind.gradient[0]], startPoint: .top, endPoint: .bottom)
+                        )
+                    Text("%")
+                        .font(ABFont.body(13, weight: .bold))
+                        .foregroundStyle(kind.tint)
+                        .offset(y: -6)
+                }
+            }
+            .frame(width: 156, height: 156)
+
+            Text(kind.title)
+                .font(ABFont.display(28))
+                .foregroundStyle(ABColor.ink)
+                .multilineTextAlignment(.center)
+            Text(vibe)
+                .font(ABFont.body(14, weight: .semibold))
+                .foregroundStyle(kind.tint)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 6)
+                .background(Capsule().fill(kind.tint.opacity(0.14)))
+            Text("\(myName)  ×  \(theirName)")
+                .font(ABFont.body(13, weight: .medium))
+                .foregroundStyle(ABColor.ink.opacity(0.7))
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 8)
+    }
+
+    private func explainBlock(icon: String, eyebrow: String, title: String, body: String) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 10) {
+                Image(systemName: icon)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(kind.tint)
+                    .frame(width: 34, height: 34)
+                    .background(Circle().fill(kind.tint.opacity(0.16)))
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(eyebrow)
+                        .font(ABFont.body(10, weight: .bold))
+                        .tracking(1.4)
+                        .foregroundStyle(kind.tint.opacity(0.9))
+                    Text(title)
+                        .font(ABFont.display(20))
+                        .foregroundStyle(ABColor.ink)
+                }
+            }
+            Text(body.isEmpty ? "…" : body)
+                .font(ABFont.body(16))
+                .foregroundStyle(ABColor.ink.opacity(0.9))
+                .lineSpacing(6)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(18)
+        .background {
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [kind.tint.opacity(0.16), Color(hex: "#F3E0B8").opacity(0.10)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+        }
+        .overlay(
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .strokeBorder(kind.tint.opacity(0.35), lineWidth: 1)
+        )
+    }
+
+    private func loadCopy() async {
+        matchText = "\(myName) ile \(theirName) arasında \(kind.title.lowercased()) yaklaşık %\(percent). \(kind.note)"
+        percentText = kind.meaning
+        loading = DiscoverAI.isAvailable
+        var sky = UserSky()
+        sky.userId = myUserId
+        sky.name = myName
+        sky.sun = mySun
+        sky.moon = myMoon
+        sky.rising = nil
+        let out = await DiscoverAI.bondDimension(
+            kindTitle: kind.title,
+            meaning: kind.meaning,
+            percent: percent,
+            note: kind.note,
+            myName: myName,
+            theirName: theirName,
+            mySun: mySun?.labelTR,
+            theirSun: theirSun?.labelTR,
+            myMoon: myMoon?.labelTR,
+            theirMoon: theirMoon?.labelTR,
+            sky: sky
+        )
+        withAnimation(.easeInOut(duration: 0.25)) {
+            matchText = out.matchText
+            percentText = out.percentText
+            usedAI = out.usedAI
+            loading = false
+        }
     }
 }

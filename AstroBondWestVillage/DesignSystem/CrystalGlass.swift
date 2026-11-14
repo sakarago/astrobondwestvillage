@@ -39,77 +39,83 @@ extension View {
     }
 
     /// More transparent, warm-rimmed glass for ortak sinastri panels over reveal_bg.
-    func revealGlass(cornerRadius: CGFloat = 22) -> some View {
-        modifier(RevealGlassModifier(cornerRadius: cornerRadius))
+    /// `warmWash` drops the frosted white haze for a light brown-gold fill.
+    func revealGlass(cornerRadius: CGFloat = 22, warmWash: Bool = false) -> some View {
+        modifier(RevealGlassModifier(cornerRadius: cornerRadius, warmWash: warmWash))
     }
 }
 
 /// Frosted, see-through plate with a warm bevel — reads a bit 3D over the match-reveal sky.
 private struct RevealGlassModifier: ViewModifier {
     var cornerRadius: CGFloat = 22
+    var warmWash: Bool = false
 
     func body(content: Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
         content
             .background {
-                ZStack {
-                    shape.fill(.ultraThinMaterial)
-                        .environment(\.colorScheme, .dark)
-                        .opacity(0.42)
-                    shape.fill(Color.white.opacity(0.035))
+                if warmWash {
                     shape.fill(
                         LinearGradient(
                             colors: [
-                                Color.white.opacity(0.28),
-                                Color.white.opacity(0.04),
-                                Color.black.opacity(0.18)
+                                Color(hex: "#F3E0B8").opacity(0.34),
+                                Color(hex: "#E2C48A").opacity(0.28),
+                                Color(hex: "#C9A56A").opacity(0.22)
                             ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
+                            startPoint: .top,
+                            endPoint: .bottom
                         )
                     )
-                    shape.fill(
-                        LinearGradient(
-                            colors: [ABColor.warm.opacity(0.14), .clear],
-                            startPoint: .topLeading,
-                            endPoint: .center
+                } else {
+                    ZStack {
+                        shape.fill(.ultraThinMaterial)
+                            .environment(\.colorScheme, .dark)
+                            .opacity(0.42)
+                        shape.fill(Color.white.opacity(0.035))
+                        shape.fill(
+                            LinearGradient(
+                                colors: [
+                                    Color.white.opacity(0.28),
+                                    Color.white.opacity(0.04),
+                                    Color.black.opacity(0.18)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
                         )
-                    )
+                        shape.fill(
+                            LinearGradient(
+                                colors: [ABColor.warm.opacity(0.14), .clear],
+                                startPoint: .topLeading,
+                                endPoint: .center
+                            )
+                        )
+                    }
                 }
             }
             .clipShape(shape)
             .overlay(
                 shape.strokeBorder(
                     LinearGradient(
-                        colors: [
-                            Color.white.opacity(0.72),
-                            ABColor.warm.opacity(0.55),
-                            Color.white.opacity(0.08)
-                        ],
+                        colors: warmWash
+                            ? [
+                                Color(hex: "#F6E7CF").opacity(0.55),
+                                Color(hex: "#E8C39A").opacity(0.40),
+                                Color(hex: "#C9A56A").opacity(0.28)
+                            ]
+                            : [
+                                Color.white.opacity(0.40),
+                                ABColor.warm.opacity(0.38),
+                                Color.white.opacity(0.10)
+                            ],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     ),
-                    lineWidth: 1.15
+                    lineWidth: 1
                 )
             )
-            .overlay(alignment: .top) {
-                // Specular ridge — cheap 3D bevel along the top edge.
-                Capsule()
-                    .fill(
-                        LinearGradient(
-                            colors: [Color.white.opacity(0.55), Color.white.opacity(0.05)],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .frame(height: 1.4)
-                    .padding(.horizontal, cornerRadius * 0.9)
-                    .padding(.top, 9)
-                    .blur(radius: 0.2)
-                    .allowsHitTesting(false)
-            }
-            .shadow(color: Color.black.opacity(0.45), radius: 22, y: 14)
-            .shadow(color: ABColor.warm.opacity(0.22), radius: 18, y: 6)
+            .shadow(color: Color.black.opacity(warmWash ? 0.28 : 0.40), radius: 18, y: 12)
+            .shadow(color: ABColor.warm.opacity(warmWash ? 0.22 : 0.16), radius: 14, y: 5)
     }
 }
 

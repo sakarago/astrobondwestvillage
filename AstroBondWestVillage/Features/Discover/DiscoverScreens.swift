@@ -108,22 +108,30 @@ struct TarotFlowView: View {
             ZStack {
                 Circle().fill(RadialGradient(colors: [Color(hex: "#7B5CFF").opacity(0.45), .clear], center: .center, startRadius: 0, endRadius: 190))
                     .frame(width: 380, height: 380)
-                ForEach(0..<3, id: \.self) { i in
-                    Circle().strokeBorder(lav.opacity(isShuffling ? 0.22 - Double(i) * 0.05 : 0.30 - Double(i) * 0.08), lineWidth: 1)
-                        .frame(width: isShuffling ? (220 + CGFloat(i) * 40) : (250 + CGFloat(i) * 70),
-                               height: isShuffling ? (220 + CGFloat(i) * 40) : (250 + CGFloat(i) * 70))
-                }
 
-                // Center star — cards orbit around this like planets.
                 if isShuffling {
+                    // Foreshortened ring = circle lying in a plane orthogonal to the screen.
+                    Ellipse()
+                        .strokeBorder(lav.opacity(0.35), lineWidth: 1.2)
+                        .frame(width: carouselRadius * 2, height: carouselRadius * 2 * carouselTilt)
+                        .offset(y: 18)
+                    Ellipse()
+                        .strokeBorder(lav.opacity(0.14), lineWidth: 1)
+                        .frame(width: carouselRadius * 2 * 0.72, height: carouselRadius * 2 * 0.72 * carouselTilt)
+                        .offset(y: 18)
                     orbitCenterStar
+                        .offset(y: 18)
                 } else {
+                    ForEach(0..<3, id: \.self) { i in
+                        Circle().strokeBorder(lav.opacity(0.30 - Double(i) * 0.08), lineWidth: 1)
+                            .frame(width: 250 + CGFloat(i) * 70, height: 250 + CGFloat(i) * 70)
+                    }
                     Capsule().fill(LinearGradient(colors: [.clear, lav.opacity(0.55), .clear], startPoint: .top, endPoint: .bottom))
                         .frame(width: 1.5, height: 300)
                         .offset(y: 10)
                 }
 
-                // Cards orbit upright around the star, then settle into a fan.
+                // Cards fixed on the ring; the ring spins. Then settle into a fan.
                 ForEach(0..<3, id: \.self) { contentId in
                     let slot = deck.firstIndex(of: contentId) ?? contentId
                     let lit = isShuffling && litCard == contentId
@@ -134,7 +142,7 @@ struct TarotFlowView: View {
                     } label: {
                         VioletTarotCard(
                             emblem: allEmblems[contentId],
-                            width: isShuffling ? 92 : (slot == 1 ? 118 : 106),
+                            width: isShuffling ? 100 : (slot == 1 ? 118 : 106),
                             glow: lit || (!isShuffling && slot == 1)
                         )
                         .overlay {
@@ -146,12 +154,14 @@ struct TarotFlowView: View {
                             }
                         }
                         .brightness(lit ? 0.08 : 0)
+                        .scaleEffect(pose.scale)
+                        .opacity(pose.opacity)
                         .rotationEffect(.degrees(pose.tilt), anchor: .bottom)
                         .offset(x: pose.x, y: pose.y)
                     }
                     .buttonStyle(.plain)
                     .disabled(isShuffling)
-                    .zIndex(isShuffling ? Double(pose.y) + (lit ? 40 : 0) : (slot == 1 ? 2 : 0))
+                    .zIndex(isShuffling ? pose.depth * 100 + (lit ? 40 : 0) : (slot == 1 ? 2 : 0))
                     .animation(.easeInOut(duration: 0.16), value: litCard)
                 }
 
@@ -175,7 +185,11 @@ struct TarotFlowView: View {
         .padding(.horizontal, 20)
     }
 
-    /// Glowing star at the orbital center.
+    /// Horizontal-ring radius (screen X) and foreshortening (how flat the ring looks).
+    private let carouselRadius: CGFloat = 118
+    private let carouselTilt: CGFloat = 0.28
+
+    /// Hub star at the center of the rotating ring.
     private var orbitCenterStar: some View {
         ZStack {
             Circle()
@@ -192,45 +206,65 @@ struct TarotFlowView: View {
         .onAppear { pulse = true }
     }
 
-    /// Tiny sparks along the orbit path while shuffling.
+    /// Sparks riding the same foreshortened ring.
     private var shuffleSparks: some View {
         let seed = sparkTick
-        let radius: Double = 118
         return ZStack {
             ForEach(0..<7, id: \.self) { i in
-                let deg = Double((i * 51 + seed * 17) % 360)
+                let deg = orbitAngle + Double((i * 51 + seed * 17) % 360)
                 let rad = deg * .pi / 180
+                let depth = cos(rad) // +1 front, −1 back
+                let t = (depth + 1) / 2
                 Image(systemName: i % 2 == 0 ? "sparkle" : "sparkles")
                     .font(.system(size: i % 3 == 0 ? 12 : 8, weight: .light))
                     .foregroundStyle(i % 2 == 0 ? Color.white : lav)
                     .shadow(color: lav.opacity(0.85), radius: 5)
-                    .opacity(litCard == nil ? 0.2 : 0.9)
-                    .scaleEffect(litCard == nil ? 0.7 : 1.05)
-                    .offset(x: CGFloat(cos(rad) * radius), y: CGFloat(sin(rad) * radius))
+                    .opacity((litCard == nil ? 0.25 : 0.9) * (0.45 + 0.55 * t))
+                    .scaleEffect((litCard == nil ? 0.7 : 1.05) * (0.75 + 0.35 * t))
+                    .offset(
+                        x: CGFloat(sin(rad)) * carouselRadius,
+                        y: 18 + CGFloat(depth) * carouselRadius * carouselTilt
+                    )
+                    .zIndex(depth * 50)
             }
         }
         .animation(.easeInOut(duration: 0.18), value: sparkTick)
         .animation(.easeInOut(duration: 0.16), value: litCard)
     }
 
-    private struct CardPose { var x: CGFloat; var y: CGFloat; var tilt: Double }
+    private struct CardPose {
+        var x: CGFloat
+        var y: CGFloat
+        var tilt: Double
+        var scale: CGFloat
+        var opacity: Double
+        var depth: Double
+    }
 
-    /// Circular planet orbit while shuffling (cards stay upright); fan after settle.
+    /// Cards bolted to a ring orthogonal to the screen; ring spins. Fan after settle.
     private func cardPose(contentId: Int, slot: Int) -> CardPose {
         if isShuffling {
+            // Horizontal circle (XZ), viewed from the front → ellipse on screen.
             let deg = orbitAngle + Double(contentId) * 120
             let rad = deg * .pi / 180
-            let r: Double = 118
+            let depth = cos(rad) // +1 nearest, −1 farthest
+            let t = (depth + 1) / 2
             return CardPose(
-                x: CGFloat(cos(rad) * r),
-                y: CGFloat(sin(rad) * r),
-                tilt: 0
+                x: CGFloat(sin(rad)) * carouselRadius,
+                y: 18 + CGFloat(depth) * carouselRadius * carouselTilt,
+                tilt: 0,
+                scale: 0.72 + 0.36 * t,
+                opacity: 0.55 + 0.45 * t,
+                depth: depth
             )
         }
         return CardPose(
             x: CGFloat(slot - 1) * 112,
             y: slot == 1 ? -6 : 12,
-            tilt: Double(slot - 1) * 9
+            tilt: Double(slot - 1) * 9,
+            scale: 1,
+            opacity: 1,
+            depth: slot == 1 ? 1 : 0
         )
     }
 
@@ -242,6 +276,7 @@ struct TarotFlowView: View {
         sparkTick = 0
         orbitAngle = 0
         deck = [0, 1, 2]
+        // ~2.5 turns of the ring over 3 seconds.
         withAnimation(.linear(duration: 3.0)) {
             orbitAngle = 360 * 2.5
         }

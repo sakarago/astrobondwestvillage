@@ -35,8 +35,10 @@ struct SynastrySummaryHeader: View {
             Text("İki ruhun ortak yıldız haritası")
                 .font(ABFont.body(12.5))
                 .foregroundStyle(ABColor.ink.opacity(0.55))
+                .multilineTextAlignment(.center)
         }
-        .frame(maxWidth: .infinity)
+        .multilineTextAlignment(.center)
+        .frame(maxWidth: .infinity, alignment: .center)
     }
 
     private var coupleHeader: some View {

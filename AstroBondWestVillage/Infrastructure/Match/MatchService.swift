@@ -87,15 +87,25 @@ final class MatchService: Sendable {
         }
     }
 
+    /// Records a reveal in `daily_reveals` (required before messaging).
+    /// Idempotent: already-revealed pairs are a server no-op.
+    /// When the app is in unlimited mode, ask the server for a high daily cap
+    /// so we never show a match that can't later open a chat.
     func reveal(userId: String) async throws {
+        struct Params: Encodable {
+            let p_target_user_id: String
+            let p_daily_limit: Int
+        }
+        let limit = DailyRevealQuotaStore.isUnlimited ? 999 : DailyRevealQuotaStore.dailyLimit
         do {
             try await client
-                .rpc("reveal_match", params: ["p_target_user_id": userId])
+                .rpc("reveal_match", params: Params(p_target_user_id: userId, p_daily_limit: limit))
                 .execute()
         } catch {
             let message = error.localizedDescription
-            // Daily reveal cap removed in the app — ignore server limit so matching can continue.
-            if message.contains("limit_reached") { return }
+            if message.contains("limit_reached") {
+                throw MatchServiceError.dailyLimit
+            }
             throw MatchServiceError.network(message)
         }
     }

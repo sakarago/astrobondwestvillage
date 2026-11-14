@@ -5,9 +5,9 @@ import SwiftUI
 // purple), TRUST (lotus · blue). Each icon carries a fixed outer glow — no
 // blinking, no animation — ported from the original AstroBond app's design.
 
-enum BondIconKind: CaseIterable, Identifiable {
+enum BondIconKind: String, CaseIterable, Identifiable, Hashable {
     case love, sex, mind, trust
-    var id: String { title }
+    var id: String { rawValue }
 
     var title: String {
         switch self {
@@ -26,6 +26,20 @@ enum BondIconKind: CaseIterable, Identifiable {
         case .sex: return "Yüksek çekim, güçlü kıvılcım."
         case .mind: return "Fikirleriniz birbirini besliyor."
         case .trust: return "Sarsılmaz güven, sağlam zemin."
+        }
+    }
+
+    /// What this percentage measures, shown on the explain page.
+    var meaning: String {
+        switch self {
+        case .love:
+            return "Aşk bağı yüzdesi; iki haritada duygusal yakınlık, sevgi dili ve kalp düzeyinde uyumu özetler. Yüksek skor, birbirinizi doğal hissettiren bir sıcaklık vaat eder."
+        case .sex:
+            return "Tutku bağı yüzdesi; Venüs-Mars dinamiği ve fiziksel/çekim kıvılcımını ölçer. Yüksek skor, manyetik bir çekim ve canlı bir beden diline işaret eder."
+        case .mind:
+            return "Zihin bağı yüzdesi; fikir alışverişi, mizah ve zihinsel ritim uyumunu yansıtır. Yüksek skor, konuşmaların kolay aktığını ve merakın paylaşıldığını gösterir."
+        case .trust:
+            return "Güven bağı yüzdesi; istikrar, sadakat hissi ve uzun vadede dayanıklılığı özetler. Yüksek skor, güvenli bir zemin ve birlikte büyüme potansiyeli demektir."
         }
     }
 

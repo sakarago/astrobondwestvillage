@@ -54,6 +54,8 @@ final class ConversationsStore {
         let id = otherUserId.lowercased()
         if conversations.contains(where: { $0.otherUserId.lowercased() == id }) { return }
         do {
+            // Messaging requires a daily_reveals row; heal if accept raced ahead of reveal.
+            try await MatchService().reveal(userId: id)
             let conversation = try await messaging.getOrCreateConversation(otherUserId: id)
             upsert(conversation)
         } catch {

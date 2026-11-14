@@ -190,6 +190,8 @@ final class MatchViewModel {
         decisions.accept(myUserId: myUserId, card: active)
         refreshLocal(userId: myUserId)
         do {
+            // Server gate for chat is daily_reveals — ensure it exists (idempotent).
+            try await matches.reveal(userId: active.id)
             let conversation = try await messaging.getOrCreateConversation(otherUserId: active.id)
             self.active = nil
             theirChart = nil
@@ -212,6 +214,9 @@ final class MatchViewModel {
         message = nil
         defer { isOpeningChat = false }
         do {
+            // Heals older "accepted" strip rows that never got a server reveal
+            // (e.g. when limit_reached was previously swallowed).
+            try await matches.reveal(userId: card.id)
             let conversation = try await messaging.getOrCreateConversation(otherUserId: card.id)
             openChat = conversation
             ConversationsStore.shared.upsert(conversation)
@@ -374,7 +379,7 @@ struct MatchHomeView: View {
             } message: {
                 Text("Yeni eşleşmeler için yarın tekrar dene. Bugünkü eşleşmelerine aşağıdan dönebilirsin.")
             }
-            .alert("Eşleşme bulunamadı", isPresented: Binding(
+            .alert(failureTitle, isPresented: Binding(
                 get: { model.message != nil && model.phase == .idle },
                 set: { if !$0 { model.message = nil } }
             )) {
@@ -399,6 +404,14 @@ struct MatchHomeView: View {
             insertion: .move(edge: .bottom).combined(with: .opacity),
             removal: .move(edge: .bottom).combined(with: .opacity)
         )
+    }
+
+    private var failureTitle: String {
+        let m = model.message ?? ""
+        if m.contains("mesajlaşamazsın") { return "Sohbet açılamadı" }
+        if m.contains("hakkın doldu") { return "Günlük eşleşme hakkın doldu" }
+        if m.contains("aday yok") || m.contains("bulunamadı") { return "Eşleşme bulunamadı" }
+        return "Bir şeyler ters gitti"
     }
 
     private var failureText: String {
@@ -779,17 +792,18 @@ struct MatchHomeView: View {
     private var revealedActions: some View {
         HStack(spacing: 0) {
             Spacer()
-            revealButton(icon: "heart.fill", label: "İlgimi çekti") {
-                if let id = session.user?.id { model.acceptReveal(myUserId: id) }
-            }
-            Spacer()
+            // Pass / new match on the left — returns to prefs; user must re-select + tap center.
             revealButton(icon: "sparkle", label: "Yeni bir eşleşme") {
                 guard let id = session.user?.id else { return }
                 model.reject(myUserId: id)
-                Task {
-                    try? await Task.sleep(nanoseconds: 450_000_000)
-                    startSpin()
-                }
+                intents.removeAll()
+                orientations.removeAll()
+                homoTypes.removeAll()
+            }
+            Spacer()
+            // Yes on the right.
+            revealButton(icon: "heart.fill", label: "İlgimi çekti") {
+                if let id = session.user?.id { model.acceptReveal(myUserId: id) }
             }
             Spacer()
         }
