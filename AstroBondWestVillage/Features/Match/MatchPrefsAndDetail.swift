@@ -193,6 +193,7 @@ struct MatchDetailSheet: View {
     @State private var myChart: NatalChart?
     @State private var theirChart: NatalChart?
     @State private var selectedBond: BondIconKind?
+    @State private var selectedPlacement: PlacementRead?
 
     private let mineTint = Color(hex: "#F0CE7E")
     private let theirTint = ABColor.lavenderSoft
@@ -234,11 +235,11 @@ struct MatchDetailSheet: View {
                     )
                     bondProfileSection
                     wheelSection
+                    comparisonSection
                     connectionCard
                     rareMatchCard
                     strengthsChallengesSection
                     snapshotsSection
-                    comparisonSection
                     notesSection
                 }
                 .padding(.horizontal, 16)
@@ -270,6 +271,14 @@ struct MatchDetailSheet: View {
                 theirSun: card.sunSign,
                 myMoon: myMoon,
                 theirMoon: card.moonSign,
+                myUserId: mySeed
+            )
+        }
+        .fullScreenCover(item: $selectedPlacement) { row in
+            PlacementExplainView(
+                row: row,
+                myName: myName,
+                theirName: card.displayName,
                 myUserId: mySeed
             )
         }
@@ -488,7 +497,6 @@ struct MatchDetailSheet: View {
             .frame(maxWidth: .infinity)
             .lineLimit(1)
             .minimumScaleFactor(0.75)
-            SynastryKeyView()
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 14)
@@ -663,74 +671,105 @@ struct MatchDetailSheet: View {
 
     // MARK: Comparison table
 
+    /// Image-style pairs: planet band, then you | them. Angles include the opposite houses.
+    private var comparisonRows: [PlacementRead] {
+        func point(_ id: String) -> SynastryPoint? { points.first { $0.id == id } }
+        func opposite(_ sign: ZodiacSign) -> ZodiacSign {
+            ZodiacSign.allCases[(sign.index + 6) % 12]
+        }
+        var rows: [PlacementRead] = []
+        if let p = point("moon") { rows.append(.init(glyph: p.glyph, label: "Ay", mine: p.mine, theirs: p.theirs)) }
+        if let p = point("venus") { rows.append(.init(glyph: p.glyph, label: "Venüs", mine: p.mine, theirs: p.theirs)) }
+        if let p = point("mars") { rows.append(.init(glyph: p.glyph, label: "Mars", mine: p.mine, theirs: p.theirs)) }
+        if let p = point("rising") {
+            rows.append(.init(glyph: "As", label: "Yükselen", mine: p.mine, theirs: p.theirs))
+            rows.append(.init(glyph: "Ds", label: "Alçalan", mine: opposite(p.mine), theirs: opposite(p.theirs)))
+        }
+        if let p = point("mc") {
+            rows.append(.init(glyph: "MC", label: "Tepe", mine: p.mine, theirs: p.theirs))
+            rows.append(.init(glyph: "IC", label: "Dip", mine: opposite(p.mine), theirs: opposite(p.theirs)))
+        }
+        return rows
+    }
+
     private var comparisonSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            sectionHeader(title: "Burç Karşılaştırması", subtitle: "İki haritanın nokta nokta görünümü")
+            sectionHeader(title: "Burç Karşılaştırması", subtitle: "Bir satıra dokun — ikinize ayrı etkisini gör")
             VStack(spacing: 0) {
                 HStack(spacing: 0) {
-                    Text("NOKTA")
-                        .font(ABFont.body(10, weight: .bold)).tracking(1)
-                        .foregroundStyle(ABColor.inkMuted)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    Text(myName.uppercased())
-                        .font(ABFont.body(10, weight: .bold))
-                        .foregroundStyle(mineTint)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.6)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    Text(card.displayName.uppercased())
-                        .font(ABFont.body(10, weight: .bold))
-                        .foregroundStyle(theirTint)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.6)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                    comparisonName(myName, mark: "☉", tint: Color(hex: "#F0CE7E"))
+                    Rectangle().fill(ABColor.warm.opacity(0.22)).frame(width: 1)
+                    comparisonName(card.displayName, mark: "☾", tint: Color(hex: "#E8B9A0"))
                 }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 12)
+                .padding(.vertical, 14)
 
-                ForEach(points) { row in
-                    hairline
-                    comparisonRow(row)
+                ForEach(comparisonRows) { row in
+                    Button {
+                        selectedPlacement = row
+                    } label: {
+                        VStack(spacing: 0) {
+                            HStack(spacing: 6) {
+                                Text("\(row.glyph)  \(row.label)")
+                                    .font(ABFont.body(14, weight: .semibold))
+                                    .foregroundStyle(ABColor.ink)
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 10, weight: .bold))
+                                    .foregroundStyle(ABColor.warm.opacity(0.8))
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                            .background(ABColor.warm.opacity(0.14))
+
+                            HStack(spacing: 0) {
+                                comparisonSign(row.mine)
+                                Rectangle().fill(ABColor.warm.opacity(0.18)).frame(width: 1)
+                                comparisonSign(row.theirs)
+                            }
+                            .padding(.vertical, 14)
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
                 }
             }
-            .padding(.vertical, 4)
+            .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .strokeBorder(ABColor.warm.opacity(0.28), lineWidth: 1)
+            )
             .revealGlass(cornerRadius: 22)
         }
     }
 
-    private func comparisonRow(_ row: SynastryPoint) -> some View {
-        HStack(spacing: 0) {
-            HStack(spacing: 8) {
-                Text(row.glyph)
-                    .font(.system(size: 13))
-                    .foregroundStyle(ABColor.ink.opacity(0.85))
-                    .frame(width: 24, alignment: .leading)
-                Text(row.label)
-                    .font(ABFont.body(12.5, weight: .semibold))
-                    .foregroundStyle(ABColor.ink.opacity(0.85))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-            signCell(row.mine, tint: mineTint).frame(maxWidth: .infinity, alignment: .leading)
-            signCell(row.theirs, tint: theirTint).frame(maxWidth: .infinity, alignment: .leading)
+    private func comparisonName(_ name: String, mark: String, tint: Color) -> some View {
+        HStack(spacing: 8) {
+            Text(mark)
+                .font(.system(size: 16))
+                .foregroundStyle(tint)
+            Text(name)
+                .font(ABFont.body(16, weight: .semibold))
+                .foregroundStyle(ABColor.ink)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 11)
+        .frame(maxWidth: .infinity)
     }
 
-    private func signCell(_ sign: ZodiacSign, tint: Color) -> some View {
-        HStack(spacing: 6) {
+    private func comparisonSign(_ sign: ZodiacSign) -> some View {
+        HStack(spacing: 8) {
             Text(sign.glyph)
-                .font(.system(size: 13))
-                .foregroundStyle(tint)
+                .font(.system(size: 16))
+                .foregroundStyle(Color(hex: "#F6E7CF"))
             Text(sign.labelTR)
-                .font(ABFont.body(12.5, weight: .medium))
-                .foregroundStyle(ABColor.ink.opacity(0.88))
+                .font(ABFont.body(15, weight: .medium))
+                .foregroundStyle(ABColor.ink)
                 .lineLimit(1)
-                .minimumScaleFactor(0.8)
+                .minimumScaleFactor(0.75)
+            Image(systemName: "arrow.right")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(ABColor.warm.opacity(0.7))
         }
+        .frame(maxWidth: .infinity)
     }
 
     // MARK: Leftover astrological notes (element/modality/aspect one-liners)
@@ -773,6 +812,193 @@ struct MatchDetailSheet: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+/// One tappable row of the burç comparison table.
+private struct PlacementRead: Identifiable, Hashable {
+    var id: String { "\(label)|\(mine.rawValue)|\(theirs.rawValue)" }
+    let glyph: String
+    let label: String
+    let mine: ZodiacSign
+    let theirs: ZodiacSign
+}
+
+/// Explains one placement twice: how it lands on you, and how it lands on them.
+private struct PlacementExplainView: View {
+    @Environment(\.dismiss) private var dismiss
+    let row: PlacementRead
+    let myName: String
+    let theirName: String
+    let myUserId: String
+
+    @State private var mineText = ""
+    @State private var theirText = ""
+    @State private var togetherText = ""
+    @State private var usedAI = false
+    @State private var loading = true
+
+    private let mineTint = Color(hex: "#F0CE7E")
+    private let theirTint = Color(hex: "#E8B9A0")
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Button { dismiss() } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(ABColor.ink)
+                        .crystalIconBezel(size: 40, cornerRadius: 14)
+                        .frame(width: 44, height: 44)
+                }
+                .buttonStyle(.plain)
+                Spacer()
+                if usedAI {
+                    Label("sana özel", systemImage: "sparkle")
+                        .font(ABFont.body(12, weight: .semibold))
+                        .foregroundStyle(ABColor.warm)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 7)
+                        .background(Capsule().fill(ABColor.warm.opacity(0.16)))
+                        .overlay(Capsule().strokeBorder(ABColor.warm.opacity(0.45), lineWidth: 1))
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 6)
+
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 16) {
+                    VStack(spacing: 8) {
+                        Text("\(row.glyph)  \(row.label)")
+                            .font(ABFont.display(32))
+                            .foregroundStyle(ABColor.ink)
+                        Text("\(row.mine.glyph) \(row.mine.labelTR)   →   \(row.theirs.glyph) \(row.theirs.labelTR)")
+                            .font(ABFont.body(15, weight: .medium))
+                            .foregroundStyle(ABColor.warm)
+                            .multilineTextAlignment(.center)
+                        Text("Aynı nokta, iki farklı etki")
+                            .font(ABFont.body(13, weight: .semibold))
+                            .foregroundStyle(ABColor.ink.opacity(0.65))
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+
+                    personCard(
+                        name: myName,
+                        sign: row.mine,
+                        eyebrow: "SENDE",
+                        tint: mineTint,
+                        body: mineText
+                    )
+                    personCard(
+                        name: theirName,
+                        sign: row.theirs,
+                        eyebrow: "ONDA",
+                        tint: theirTint,
+                        body: theirText
+                    )
+                    personCard(
+                        name: "İkiniz",
+                        sign: nil,
+                        eyebrow: "ARANIZDA",
+                        tint: ABColor.warm,
+                        body: togetherText
+                    )
+
+                    if loading {
+                        HStack(spacing: 8) {
+                            ProgressView().tint(ABColor.warm)
+                            Text("Gökyüzü ikiniz için ayrı ayrı yazıyor…")
+                                .font(ABFont.body(13, weight: .medium))
+                                .foregroundStyle(ABColor.ink.opacity(0.7))
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 48)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background {
+            ZStack {
+                Image("reveal_bg").resizable().scaledToFill().ignoresSafeArea()
+                Color.black.opacity(0.28).ignoresSafeArea()
+            }
+        }
+        .task { await loadCopy() }
+    }
+
+    private func personCard(name: String, sign: ZodiacSign?, eyebrow: String, tint: Color, body: String) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                Text(sign?.glyph ?? "✦")
+                    .font(.system(size: 18))
+                    .foregroundStyle(tint)
+                    .frame(width: 36, height: 36)
+                    .background(Circle().fill(tint.opacity(0.16)))
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(eyebrow)
+                        .font(ABFont.body(10, weight: .bold))
+                        .tracking(1.4)
+                        .foregroundStyle(tint)
+                    Text(sign.map { "\(name) · \($0.labelTR)" } ?? name)
+                        .font(ABFont.display(20))
+                        .foregroundStyle(ABColor.ink)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                }
+            }
+            Text(body.isEmpty ? "…" : body)
+                .font(ABFont.body(16))
+                .foregroundStyle(ABColor.ink.opacity(0.9))
+                .lineSpacing(6)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(18)
+        .background {
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(tint.opacity(0.12))
+        }
+        .overlay(
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .strokeBorder(tint.opacity(0.35), lineWidth: 1)
+        )
+    }
+
+    private func loadCopy() async {
+        mineText = localLine(name: myName, sign: row.mine, forSelf: true)
+        theirText = localLine(name: theirName, sign: row.theirs, forSelf: false)
+        togetherText = "\(row.mine.labelTR) ve \(row.theirs.labelTR), \(row.label.lowercased()) hattında aynı şeyi istemez. Biri yaklaşırken diğeri kendi temposunu korur."
+        loading = DiscoverAI.isAvailable
+        var sky = UserSky()
+        sky.userId = myUserId
+        sky.name = myName
+        let out = await DiscoverAI.placement(
+            label: row.label,
+            myName: myName,
+            theirName: theirName,
+            mySign: row.mine.labelTR,
+            theirSign: row.theirs.labelTR,
+            sky: sky
+        )
+        withAnimation(.easeInOut(duration: 0.25)) {
+            mineText = out.mine
+            theirText = out.theirs
+            togetherText = out.together
+            usedAI = out.usedAI
+            loading = false
+        }
+    }
+
+    /// Offline copy that is not the same sentence for both people.
+    private func localLine(name: String, sign: ZodiacSign, forSelf: Bool) -> String {
+        let element = sign.element.labelTR
+        if forSelf {
+            return "\(name), \(row.label) burcun \(sign.labelTR) (\(element)). Bu noktada sen ilişkiyi içeriden kurarsın: önce kendi ihtiyacını duyarsın, sonra karşına açılırsın. \(theirName) bunu senin temposu olarak yaşar."
+        }
+        return "\(name) için aynı \(row.label) noktası \(sign.labelTR) (\(element)) üzerinden işler. O, senin yaptığın gibi içeri kapanmaz; tepkisini dışarı ve ilişkiye doğru verir. Bu yüzden aynı satır ikinizde iki ayrı alışkanlık üretir."
     }
 }
 

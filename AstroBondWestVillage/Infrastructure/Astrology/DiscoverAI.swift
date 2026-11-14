@@ -87,6 +87,37 @@ enum DiscoverAI {
         return (p[0], p[1], true)
     }
 
+    /// One synastry placement, written as two different effects — yours and theirs — plus how they meet.
+    static func placement(
+        label: String,
+        myName: String,
+        theirName: String,
+        mySign: String,
+        theirSign: String,
+        sky: UserSky
+    ) async -> (mine: String, theirs: String, together: String, usedAI: Bool) {
+        let fallbackMine = "\(myName), \(label) burcun \(mySign). Bu noktada sen ilişkiyi kendi ritminle taşırsın; \(theirName) bunu sende hisseder."
+        let fallbackTheirs = "\(theirName) ise \(label) olarak \(theirSign). Aynı nokta onda başka bir ihtiyaç doğurur; senin \(mySign) halinle örtüşmesi kolay değildir, o yüzden ikinizin tepkisi aynı olmaz."
+        let fallbackTogether = "\(mySign) ve \(theirSign) bu \(label.lowercased()) hattında birbirini tamamlamaktan çok birbirine ayna tutar."
+        let facts = """
+        Nokta: \(label)
+        \(myName): \(mySign)
+        \(theirName): \(theirSign)
+        """
+        let task = """
+        Bu eşleşmede yalnızca \(label) noktasını açıkla. Tam olarak 3 paragraf yaz ve ikisi birbirinin kopyası olmasın: \
+        1) Bunun \(myName) üzerinde etkisi — \(mySign) burcuyla, bu kişinin ilişkide ne istediği ve nasıl davrandığı, 3 cümle. \
+        2) Bunun \(theirName) üzerinde etkisi — \(theirSign) burcuyla, aynı noktada onun ihtiyacı ve tepkisi, \(myName)'den açıkça farklı, 3 cümle. \
+        3) İki burcun bu noktada birbirine ne yaptığı, 2 cümle. \
+        İsimleri ve burç adlarını kullan. Kesin kehanet yazma.
+        """
+        let key = "place.\(stable("\(label)|\(myName)|\(theirName)|\(mySign)|\(theirSign)"))"
+        guard let p = await parts(key: key, sky: sky, facts: facts, task: task, count: 3, wordsEach: 80) else {
+            return (fallbackMine, fallbackTheirs, fallbackTogether, false)
+        }
+        return (p[0], p[1], p[2], true)
+    }
+
     /// Rich version of the daily card result: title, message body and a reflective question.
     static func cardResult(_ base: DiscoverContent.CardResult, card: Int, sky: UserSky) async -> (result: DiscoverContent.CardResult, usedAI: Bool) {
         let which = ["Güneş", "Ay", "Yükselen"][min(max(card, 0), 2)]

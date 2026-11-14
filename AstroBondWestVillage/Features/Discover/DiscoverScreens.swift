@@ -49,15 +49,6 @@ struct TarotFlowView: View {
     @State private var aiState: AIStatusLine.State = .idle
     @State private var showReflect = false
     @State private var hasNote = false
-    /// Slot → content index (0 sun / 1 moon / 2 rising). Shuffled on open.
-    @State private var deck: [Int] = [0, 1, 2]
-    @State private var isShuffling = true
-    @State private var shuffleTask: Task<Void, Never>?
-    /// Content id currently lit during the shuffle flash.
-    @State private var litCard: Int? = nil
-    @State private var sparkTick = 0
-    /// Orbital angle (degrees) while cards circle like planets.
-    @State private var orbitAngle: Double = 0
 
     private let allEmblems: [VioletTarotCard.Emblem] = [.crescent, .sun, .star]
 
@@ -86,9 +77,7 @@ struct TarotFlowView: View {
         }
         .onAppear {
             hasNote = !(UserDefaults.standard.string(forKey: storageKey + ".note") ?? "").isEmpty
-            startShuffle()
         }
-        .onDisappear { shuffleTask?.cancel() }
     }
 
     // 02 — pick (shuffle, then choose)
@@ -98,210 +87,63 @@ struct TarotFlowView: View {
             Spacer().frame(height: 14)
             Text("Günün Mesajı").font(ABFont.display(38, weight: .regular)).foregroundStyle(th.primary)
             Capsule().fill(th.primary.opacity(0.5)).frame(width: 38, height: 1.5)
-            Text(isShuffling
-                 ? "Kartlar karılıyor...\nHissettiklerin otursun, sonra birini seç."
-                 : "Evren, bugün sana ne söylüyor?\nİçinden geçenle uyumlanan kartı seç.")
+            Text("Evren, bugün sana ne söylüyor?\nİçinden geçenle uyumlanan kartı seç.")
                 .font(ABFont.body(14)).multilineTextAlignment(.center).foregroundStyle(th.primary.opacity(0.78)).lineSpacing(3)
                 .padding(.top, 4).fixedSize(horizontal: false, vertical: true)
-                .animation(.easeInOut(duration: 0.25), value: isShuffling)
             Spacer(minLength: 0)
-            ZStack {
-                Circle().fill(RadialGradient(colors: [Color(hex: "#7B5CFF").opacity(0.45), .clear], center: .center, startRadius: 0, endRadius: 190))
-                    .frame(width: 380, height: 380)
-
-                if isShuffling {
-                    // Foreshortened ring = circle lying in a plane orthogonal to the screen.
-                    Ellipse()
-                        .strokeBorder(lav.opacity(0.35), lineWidth: 1.2)
-                        .frame(width: carouselRadius * 2, height: carouselRadius * 2 * carouselTilt)
-                        .offset(y: 18)
-                    Ellipse()
-                        .strokeBorder(lav.opacity(0.14), lineWidth: 1)
-                        .frame(width: carouselRadius * 2 * 0.72, height: carouselRadius * 2 * 0.72 * carouselTilt)
-                        .offset(y: 18)
-                    orbitCenterStar
-                        .offset(y: 18)
-                } else {
-                    ForEach(0..<3, id: \.self) { i in
-                        Circle().strokeBorder(lav.opacity(0.30 - Double(i) * 0.08), lineWidth: 1)
-                            .frame(width: 250 + CGFloat(i) * 70, height: 250 + CGFloat(i) * 70)
-                    }
-                    Capsule().fill(LinearGradient(colors: [.clear, lav.opacity(0.55), .clear], startPoint: .top, endPoint: .bottom))
-                        .frame(width: 1.5, height: 300)
-                        .offset(y: 10)
-                }
-
-                // Cards fixed on the ring; the ring spins. Then settle into a fan.
-                ForEach(0..<3, id: \.self) { contentId in
-                    let slot = deck.firstIndex(of: contentId) ?? contentId
-                    let lit = isShuffling && litCard == contentId
-                    let pose = cardPose(contentId: contentId, slot: slot)
-                    Button {
-                        guard !isShuffling else { return }
-                        choose(contentId)
-                    } label: {
-                        VioletTarotCard(
-                            emblem: allEmblems[contentId],
-                            width: isShuffling ? 100 : (slot == 1 ? 118 : 106),
-                            glow: lit || (!isShuffling && slot == 1)
-                        )
-                        .overlay {
-                            if lit {
-                                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .strokeBorder(Color.white.opacity(0.75), lineWidth: 1.4)
-                                    .shadow(color: lav.opacity(0.9), radius: 10)
-                                    .padding(1)
+            // Disk tipped 90°: surface faces up. Cards stay face-on and swell as they come forward.
+            GeometryReader { geo in
+                let cardW: CGFloat = 112
+                let orbitW: CGFloat = 92
+                let orbitH = orbitW * 1.66
+                let tilt: CGFloat = 0.46
+                let radiusX = max(
+                    86,
+                    min(
+                        (geo.size.width - orbitW * 1.16) / 2,
+                        (geo.size.height - orbitH * 0.9) / (2 * tilt)
+                    )
+                )
+                let radiusZ = radiusX * tilt
+                TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { timeline in
+                    let turns = timeline.date.timeIntervalSinceReferenceDate / 4.5
+                    let angle = turns.truncatingRemainder(dividingBy: 1) * 360
+                    ZStack {
+                        ForEach(0..<3, id: \.self) { contentId in
+                            let rad = (angle + Double(contentId) * 120) * .pi / 180
+                            let depth = cos(rad)
+                            let near = (depth + 1) / 2
+                            Button {
+                                choose(contentId)
+                            } label: {
+                                VioletTarotCard(
+                                    emblem: allEmblems[contentId],
+                                    width: cardW,
+                                    glow: near > 0.72
+                                )
                             }
+                            .buttonStyle(.plain)
+                            .scaleEffect(CGFloat(0.66 + 0.52 * near))
+                            .opacity(0.55 + 0.45 * near)
+                            .offset(x: CGFloat(sin(rad)) * radiusX, y: CGFloat(depth) * radiusZ)
+                            .zIndex(10 + depth)
                         }
-                        .brightness(lit ? 0.08 : 0)
-                        .scaleEffect(pose.scale)
-                        .opacity(pose.opacity)
-                        .rotationEffect(.degrees(pose.tilt), anchor: .bottom)
-                        .offset(x: pose.x, y: pose.y)
                     }
-                    .buttonStyle(.plain)
-                    .disabled(isShuffling)
-                    .zIndex(isShuffling ? pose.depth * 100 + (lit ? 40 : 0) : (slot == 1 ? 2 : 0))
-                    .animation(.easeInOut(duration: 0.16), value: litCard)
-                }
-
-                if isShuffling {
-                    shuffleSparks
-                        .allowsHitTesting(false)
+                    .frame(width: geo.size.width, height: geo.size.height)
                 }
             }
-            .frame(height: 360)
+            .frame(height: 400)
             Spacer(minLength: 0)
-            Text(isShuffling ? "Kartlar yerlerini buluyor..." : "Kartların üzerinde gez, hisset\nve seni çağıranı seç.")
+            Text("Kartlar yaklaşıp uzaklaşır.\nSeni çağırana dokun.")
                 .font(ABFont.body(13.5, weight: .medium)).foregroundStyle(th.primary)
                 .multilineTextAlignment(.center).lineSpacing(3)
                 .frame(maxWidth: .infinity).padding(.vertical, 13)
                 .background(Capsule().fill(Color.white.opacity(0.07)))
                 .overlay(Capsule().strokeBorder(lav.opacity(0.45), lineWidth: 1))
                 .padding(.horizontal, 6)
-                .animation(.easeInOut(duration: 0.25), value: isShuffling)
             Spacer().frame(height: 112)
         }
         .padding(.horizontal, 20)
-    }
-
-    /// Horizontal-ring radius (screen X) and foreshortening (how flat the ring looks).
-    private let carouselRadius: CGFloat = 118
-    private let carouselTilt: CGFloat = 0.28
-
-    /// Hub star at the center of the rotating ring.
-    private var orbitCenterStar: some View {
-        ZStack {
-            Circle()
-                .fill(RadialGradient(colors: [lav.opacity(0.55), .clear], center: .center, startRadius: 2, endRadius: 36))
-                .frame(width: 72, height: 72)
-            Image(systemName: "sparkle")
-                .font(.system(size: 28, weight: .light))
-                .foregroundStyle(LinearGradient(colors: [.white, lav], startPoint: .top, endPoint: .bottom))
-                .shadow(color: lav.opacity(0.95), radius: 10)
-                .scaleEffect(pulse ? 1.12 : 0.92)
-                .animation(.easeInOut(duration: 0.7).repeatForever(autoreverses: true), value: pulse)
-        }
-        .allowsHitTesting(false)
-        .onAppear { pulse = true }
-    }
-
-    /// Sparks riding the same foreshortened ring.
-    private var shuffleSparks: some View {
-        let seed = sparkTick
-        return ZStack {
-            ForEach(0..<7, id: \.self) { i in
-                let deg = orbitAngle + Double((i * 51 + seed * 17) % 360)
-                let rad = deg * .pi / 180
-                let depth = cos(rad) // +1 front, −1 back
-                let t = (depth + 1) / 2
-                Image(systemName: i % 2 == 0 ? "sparkle" : "sparkles")
-                    .font(.system(size: i % 3 == 0 ? 12 : 8, weight: .light))
-                    .foregroundStyle(i % 2 == 0 ? Color.white : lav)
-                    .shadow(color: lav.opacity(0.85), radius: 5)
-                    .opacity((litCard == nil ? 0.25 : 0.9) * (0.45 + 0.55 * t))
-                    .scaleEffect((litCard == nil ? 0.7 : 1.05) * (0.75 + 0.35 * t))
-                    .offset(
-                        x: CGFloat(sin(rad)) * carouselRadius,
-                        y: 18 + CGFloat(depth) * carouselRadius * carouselTilt
-                    )
-                    .zIndex(depth * 50)
-            }
-        }
-        .animation(.easeInOut(duration: 0.18), value: sparkTick)
-        .animation(.easeInOut(duration: 0.16), value: litCard)
-    }
-
-    private struct CardPose {
-        var x: CGFloat
-        var y: CGFloat
-        var tilt: Double
-        var scale: CGFloat
-        var opacity: Double
-        var depth: Double
-    }
-
-    /// Cards bolted to a ring orthogonal to the screen; ring spins. Fan after settle.
-    private func cardPose(contentId: Int, slot: Int) -> CardPose {
-        if isShuffling {
-            // Horizontal circle (XZ), viewed from the front → ellipse on screen.
-            let deg = orbitAngle + Double(contentId) * 120
-            let rad = deg * .pi / 180
-            let depth = cos(rad) // +1 nearest, −1 farthest
-            let t = (depth + 1) / 2
-            return CardPose(
-                x: CGFloat(sin(rad)) * carouselRadius,
-                y: 18 + CGFloat(depth) * carouselRadius * carouselTilt,
-                tilt: 0,
-                scale: 0.72 + 0.36 * t,
-                opacity: 0.55 + 0.45 * t,
-                depth: depth
-            )
-        }
-        return CardPose(
-            x: CGFloat(slot - 1) * 112,
-            y: slot == 1 ? -6 : 12,
-            tilt: Double(slot - 1) * 9,
-            scale: 1,
-            opacity: 1,
-            depth: slot == 1 ? 1 : 0
-        )
-    }
-
-    private func startShuffle() {
-        shuffleTask?.cancel()
-        isShuffling = true
-        pulse = true
-        litCard = nil
-        sparkTick = 0
-        orbitAngle = 0
-        deck = [0, 1, 2]
-        // ~2.5 turns of the ring over 3 seconds.
-        withAnimation(.linear(duration: 3.0)) {
-            orbitAngle = 360 * 2.5
-        }
-        shuffleTask = Task {
-            for step in 0..<12 {
-                if Task.isCancelled { return }
-                await MainActor.run {
-                    withAnimation(.easeInOut(duration: 0.14)) {
-                        litCard = step % 3
-                        sparkTick &+= 1
-                    }
-                }
-                try? await Task.sleep(nanoseconds: 250_000_000)
-            }
-            if Task.isCancelled { return }
-            await MainActor.run {
-                withAnimation(.spring(response: 0.55, dampingFraction: 0.86)) {
-                    deck = [0, 1, 2].shuffled()
-                    isShuffling = false
-                    litCard = nil
-                    orbitAngle = 0
-                    pulse = false
-                }
-            }
-        }
     }
 
     private func choose(_ contentIndex: Int) {
@@ -385,7 +227,6 @@ struct TarotFlowView: View {
                     withAnimation(.easeInOut(duration: 0.4)) {
                         stage = .pick
                         aiResult = nil
-                        startShuffle()
                     }
                 } label: {
                     Text("Başka bir kart çek")
