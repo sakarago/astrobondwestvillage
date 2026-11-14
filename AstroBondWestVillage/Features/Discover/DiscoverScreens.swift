@@ -109,6 +109,8 @@ struct TarotFlowView: View {
                     let turns = timeline.date.timeIntervalSinceReferenceDate / 4.5
                     let angle = turns.truncatingRemainder(dividingBy: 1) * 360
                     ZStack {
+                        orbitSky(time: timeline.date.timeIntervalSinceReferenceDate, size: geo.size)
+
                         ForEach(0..<3, id: \.self) { contentId in
                             let rad = (angle + Double(contentId) * 120) * .pi / 180
                             let depth = cos(rad)
@@ -144,6 +146,105 @@ struct TarotFlowView: View {
             Spacer().frame(height: 112)
         }
         .padding(.horizontal, 20)
+    }
+
+    /// Fixed scatter so the night sky doesn't jump between frames. Fractions of the orbit frame.
+    private static let skyStars: [(x: CGFloat, y: CGFloat, phase: Double)] = [
+        (0.06, 0.10, 0.2), (0.16, 0.22, 1.7), (0.28, 0.08, 2.4), (0.41, 0.16, 0.6),
+        (0.57, 0.07, 3.1), (0.72, 0.14, 1.1), (0.86, 0.09, 2.2), (0.94, 0.24, 0.4),
+        (0.08, 0.40, 2.8), (0.93, 0.46, 1.5), (0.04, 0.62, 0.9), (0.18, 0.78, 3.4),
+        (0.33, 0.90, 1.9), (0.52, 0.86, 0.3), (0.68, 0.92, 2.6), (0.84, 0.74, 1.3),
+        (0.95, 0.66, 3.6), (0.12, 0.54, 2.0), (0.78, 0.34, 0.8), (0.62, 0.28, 3.8),
+        (0.48, 0.38, 1.6), (0.36, 0.58, 2.9)
+    ]
+
+    private static let skyFlashes: [(x: CGFloat, y: CGFloat, phase: Double)] = [
+        (0.22, 0.18, 0.4), (0.74, 0.22, 1.8), (0.14, 0.72, 2.7),
+        (0.84, 0.68, 0.9), (0.50, 0.12, 3.3)
+    ]
+
+    /// Distant stars, brief flares, and a few far planets. Drawn behind the cards.
+    private func orbitSky(time: TimeInterval, size: CGSize) -> some View {
+        ZStack {
+            ForEach(Array(Self.skyStars.enumerated()), id: \.offset) { index, star in
+                let twinkle = 0.5 + 0.5 * sin(time * (index % 3 == 0 ? 2.8 : 1.3) + star.phase)
+                let bright = index % 5 == 0
+                Group {
+                    if index % 4 == 0 {
+                        Image(systemName: "sparkle")
+                            .font(.system(size: bright ? 11 : 7, weight: .light))
+                            .foregroundStyle(bright ? Color.white : lav)
+                    } else {
+                        Circle()
+                            .fill(index % 3 == 0 ? Color.white : lav.opacity(0.9))
+                            .frame(width: bright ? 3.2 : 1.8, height: bright ? 3.2 : 1.8)
+                    }
+                }
+                .shadow(color: (bright ? Color.white : lav).opacity(0.8), radius: bright ? 4 : 1)
+                .opacity(0.2 + 0.8 * twinkle)
+                .scaleEffect(bright ? 0.85 + twinkle * 0.45 : 1.0)
+                .position(x: star.x * size.width, y: star.y * size.height)
+            }
+
+            ForEach(Array(Self.skyFlashes.enumerated()), id: \.offset) { _, flash in
+                let burst = pow(max(0, sin(time * 1.6 + flash.phase)), 14)
+                Image(systemName: "sparkles")
+                    .font(.system(size: 8 + burst * 16, weight: .light))
+                    .foregroundStyle(Color.white)
+                    .shadow(color: lav.opacity(0.95), radius: 8)
+                    .opacity(0.05 + burst)
+                    .position(x: flash.x * size.width, y: flash.y * size.height)
+            }
+
+            distantPlanet(
+                color: Color(hex: "#F0CE7E"),
+                diameter: 16,
+                ring: true,
+                x: 0.10 * size.width + CGFloat(sin(time * 0.18)) * 7,
+                y: 0.30 * size.height + CGFloat(cos(time * 0.15)) * 5
+            )
+            distantPlanet(
+                color: Color(hex: "#E8B9A0"),
+                diameter: 11,
+                ring: false,
+                x: 0.88 * size.width + CGFloat(cos(time * 0.14)) * 6,
+                y: 0.20 * size.height + CGFloat(sin(time * 0.12)) * 5
+            )
+            distantPlanet(
+                color: Color(hex: "#9BB7FF"),
+                diameter: 8,
+                ring: false,
+                x: 0.82 * size.width + CGFloat(sin(time * 0.11 + 1)) * 8,
+                y: 0.82 * size.height + CGFloat(cos(time * 0.1)) * 4
+            )
+            distantPlanet(
+                color: Color(hex: "#C9B6FF"),
+                diameter: 13,
+                ring: true,
+                x: 0.16 * size.width + CGFloat(cos(time * 0.09)) * 5,
+                y: 0.86 * size.height + CGFloat(sin(time * 0.13)) * 4
+            )
+        }
+        .allowsHitTesting(false)
+    }
+
+    private func distantPlanet(color: Color, diameter: CGFloat, ring: Bool, x: CGFloat, y: CGFloat) -> some View {
+        ZStack {
+            Circle()
+                .fill(RadialGradient(colors: [color.opacity(0.55), .clear], center: .center, startRadius: 0, endRadius: diameter))
+                .frame(width: diameter * 2.4, height: diameter * 2.4)
+            if ring {
+                Ellipse()
+                    .strokeBorder(color.opacity(0.75), lineWidth: 1)
+                    .frame(width: diameter * 1.9, height: diameter * 0.55)
+                    .rotationEffect(.degrees(-18))
+            }
+            Circle()
+                .fill(RadialGradient(colors: [color.opacity(0.95), color.opacity(0.45)], center: .init(x: 0.35, y: 0.35), startRadius: 0, endRadius: diameter * 0.7))
+                .frame(width: diameter, height: diameter)
+                .shadow(color: color.opacity(0.7), radius: 4)
+        }
+        .position(x: x, y: y)
     }
 
     private func choose(_ contentIndex: Int) {
