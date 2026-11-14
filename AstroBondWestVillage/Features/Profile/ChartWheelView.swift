@@ -1,6 +1,7 @@
 import SwiftUI
 
-private let chartInk = Color.adaptive(light: "#4B3A6E", dark: "#FFFFFF")
+/// Warm gold ink — matches the match-found birthmap palette.
+private let chartInk = Color(hex: "#F0CE7E")
 
 /// Time Nomad–style natal wheel:
 /// outer zodiac band (not a pie from the center), house cusps + degree labels,
@@ -9,6 +10,8 @@ private let chartInk = Color.adaptive(light: "#4B3A6E", dark: "#FFFFFF")
 struct ChartWheelView: View {
     let chart: NatalChart
     var overlay: NatalChart? = nil
+    /// Synastri mode: drop degree chips / roman clutter so glyphs stay readable at a larger size.
+    var compactLabels: Bool = false
     var onPlanetTap: ((PlanetPosition) -> Void)? = nil
 
     @State private var animationProgress: Double = 0
@@ -29,7 +32,7 @@ struct ChartWheelView: View {
         GeometryReader { geo in
             let size = min(geo.size.width, geo.size.height)
             let c = CGPoint(x: size / 2, y: size / 2)
-            let rimInset = max(18.0, size * 0.055)
+            let rimInset = max(compactLabels ? 14.0 : 18.0, size * (compactLabels ? 0.04 : 0.055))
             let R = size / 2 - rimInset
             let asc = chart.ascendant.longitude
 
@@ -46,13 +49,14 @@ struct ChartWheelView: View {
             let axisLabelR = c3 * 0.90
             let aspectR = c4 * 0.90
 
-            let signFont = size * 0.046
+            let signFont = size * (compactLabels ? 0.042 : 0.046)
             let degFont = size * 0.024
-            let planetFont = size * 0.050
+            let planetFont = size * (compactLabels ? 0.048 : 0.050)
             let planetDegFont = size * 0.022
             let romanFont = size * 0.030
             let axisFont = size * 0.026
             let aspectFont = size * 0.016
+            let showExtraLabels = !compactLabels
 
             ZStack {
                 Canvas { ctx, _ in
@@ -75,14 +79,17 @@ struct ChartWheelView: View {
                         .position(x: pos.x, y: pos.y)
                 }
 
-                ForEach(chart.houses, id: \.number) { house in
-                    let pos = pt(house.cuspLongitude, cuspDegR, center: c, asc: asc)
-                    Text(degreeLabel(house.cuspLongitude))
-                        .font(.system(size: degFont, weight: .semibold, design: .rounded))
-                        .foregroundStyle(chartInk.opacity(0.82))
-                        .padding(.horizontal, 2.5)
-                        .background(Capsule().fill(Color(hex: "#0E0F14").opacity(0.82)))
-                        .position(x: pos.x, y: pos.y)
+                // Full detail: cusp degree chips. Compact synastri: skip (they crowd the rim).
+                if showExtraLabels {
+                    ForEach(chart.houses, id: \.number) { house in
+                        let pos = pt(house.cuspLongitude, cuspDegR, center: c, asc: asc)
+                        Text(degreeLabel(house.cuspLongitude))
+                            .font(.system(size: degFont, weight: .semibold, design: .rounded))
+                            .foregroundStyle(chartInk.opacity(0.82))
+                            .padding(.horizontal, 2.5)
+                            .background(Capsule().fill(Color(hex: "#0E0F14").opacity(0.82)))
+                            .position(x: pos.x, y: pos.y)
+                    }
                 }
 
                 ForEach(laidOutPlanets, id: \.planet.planet) { item in
@@ -94,8 +101,10 @@ struct ChartWheelView: View {
                         c: c,
                         asc: asc,
                         planetFont: planetFont,
-                        planetDegFont: planetDegFont,
-                        tint: nil
+                        planetDegFont: planetDegFont * (compactLabels ? 0.95 : 1),
+                        tint: nil,
+                        showDegree: true,
+                        shortDegree: compactLabels
                     )
                 }
 
@@ -108,28 +117,32 @@ struct ChartWheelView: View {
                         c: c,
                         asc: asc,
                         planetFont: planetFont * 0.92,
-                        planetDegFont: planetDegFont,
-                        tint: Color(hex: "#C9B8FF")
+                        planetDegFont: planetDegFont * 0.95,
+                        tint: Color(hex: "#E8B9A0"),
+                        showDegree: true,
+                        shortDegree: true
                     )
                 }
 
+                // House markers: roman in full mode, small arabic in compact.
                 ForEach(Array(chart.houses.enumerated()), id: \.offset) { idx, house in
                     let next = chart.houses[(idx + 1) % max(chart.houses.count, 1)]
                     let span = ((next.cuspLongitude - house.cuspLongitude) + 360)
                         .truncatingRemainder(dividingBy: 360)
                     let midL = house.cuspLongitude + span / 2
                     let pos = pt(midL, romanR, center: c, asc: asc)
-                    Text(house.romanNumeral)
-                        .font(.system(size: romanFont, weight: .semibold, design: .monospaced))
-                        .foregroundStyle(chartInk.opacity(0.48))
+                    Text(compactLabels ? "\(house.number)" : house.romanNumeral)
+                        .font(.system(size: compactLabels ? romanFont * 0.9 : romanFont, weight: .semibold, design: .monospaced))
+                        .foregroundStyle(chartInk.opacity(compactLabels ? 0.40 : 0.48))
                         .position(x: pos.x, y: pos.y)
                 }
 
+                // AC / IC / DC / MC — always shown (real chart angles).
                 ForEach(chart.houses.filter { [1, 4, 7, 10].contains($0.number) }, id: \.number) { house in
                     if let axis = axisLabel(for: house.number) {
                         let pos = pt(house.cuspLongitude, axisLabelR, center: c, asc: asc)
                         Text(axis)
-                            .font(.system(size: axisFont, weight: .bold, design: .monospaced))
+                            .font(.system(size: axisFont * (compactLabels ? 0.95 : 1), weight: .bold, design: .monospaced))
                             .foregroundStyle(Color(hex: "#F2F4F8"))
                             .padding(.horizontal, 4)
                             .padding(.vertical, 2)
@@ -139,19 +152,22 @@ struct ChartWheelView: View {
                     }
                 }
 
-                ForEach(Array(webAspects.prefix(8).enumerated()), id: \.offset) { _, aspect in
-                    if let p1 = chart.planet(aspect.planet1),
-                       let p2 = chart.planet(aspect.planet2) {
-                        let a = pt(p1.longitude, aspectR, center: c, asc: asc)
-                        let b = pt(p2.longitude, aspectR, center: c, asc: asc)
-                        let mid = CGPoint(x: (a.x + b.x) / 2, y: (a.y + b.y) / 2)
-                        Text(aspect.type.glyph)
-                            .font(.system(size: aspectFont, weight: .bold))
-                            .foregroundStyle(aspectColor(aspect.type))
-                            .padding(1.5)
-                            .background(Circle().fill(Color(hex: "#12131A").opacity(0.92)))
-                            .position(x: mid.x, y: mid.y)
-                            .opacity(animationProgress)
+                // Aspect glyphs only in full (non-synastri) mode — they crowd the bi-wheel.
+                if showExtraLabels {
+                    ForEach(Array(webAspects.prefix(8).enumerated()), id: \.offset) { _, aspect in
+                        if let p1 = chart.planet(aspect.planet1),
+                           let p2 = chart.planet(aspect.planet2) {
+                            let a = pt(p1.longitude, aspectR, center: c, asc: asc)
+                            let b = pt(p2.longitude, aspectR, center: c, asc: asc)
+                            let mid = CGPoint(x: (a.x + b.x) / 2, y: (a.y + b.y) / 2)
+                            Text(aspect.type.glyph)
+                                .font(.system(size: aspectFont, weight: .bold))
+                                .foregroundStyle(aspectColor(aspect.type))
+                                .padding(1.5)
+                                .background(Circle().fill(Color(hex: "#12131A").opacity(0.92)))
+                                .position(x: mid.x, y: mid.y)
+                                .opacity(animationProgress)
+                        }
                     }
                 }
             }
@@ -174,11 +190,13 @@ struct ChartWheelView: View {
         asc: Double,
         planetFont: CGFloat,
         planetDegFont: CGFloat,
-        tint: Color?
+        tint: Color?,
+        showDegree: Bool = true,
+        shortDegree: Bool = false
     ) -> some View {
         let r = baseR + item.radiusOffset * band * 0.32
         let gp = pt(item.displayLongitude, r, center: c, asc: asc)
-        let dp = pt(item.displayLongitude, r - size * 0.040, center: c, asc: asc)
+        let dp = pt(item.displayLongitude, r - size * (shortDegree ? 0.036 : 0.040), center: c, asc: asc)
         Group {
             if let onPlanetTap {
                 Button { onPlanetTap(item.planet) } label: {
@@ -192,11 +210,13 @@ struct ChartWheelView: View {
         .position(x: gp.x, y: gp.y)
         .scaleEffect(animationProgress)
 
-        Text(degreeLabel(item.planet.longitude))
-            .font(.system(size: planetDegFont, weight: .semibold, design: .rounded))
-            .foregroundStyle((tint ?? .white).opacity(0.72))
-            .position(x: dp.x, y: dp.y)
-            .opacity(animationProgress)
+        if showDegree {
+            Text(shortDegree ? shortDegreeLabel(item.planet.longitude) : degreeLabel(item.planet.longitude))
+                .font(.system(size: planetDegFont, weight: .semibold, design: .rounded))
+                .foregroundStyle((tint ?? chartInk).opacity(0.78))
+                .position(x: dp.x, y: dp.y)
+                .opacity(animationProgress)
+        }
     }
 
     private func drawStructure(
@@ -204,7 +224,7 @@ struct ChartWheelView: View {
         c1: Double, c2: Double, c3: Double, c4: Double,
         aspectR: Double
     ) {
-        ctx.fill(Path(ellipseIn: circleRect(c, c1)), with: .color(Color(hex: "#0C0D12").opacity(0.94)))
+        ctx.fill(Path(ellipseIn: circleRect(c, c1)), with: .color(Color(hex: "#07060C").opacity(0.94)))
 
         for sign in ZodiacSign.allCases {
             let start = sign.startDegree
@@ -353,6 +373,12 @@ struct ChartWheelView: View {
         return String(format: "%d°%02d'", d, m)
     }
 
+    /// Compact synastri readout — degree only, keeps the map readable.
+    private func shortDegreeLabel(_ longitude: Double) -> String {
+        let within = ZodiacSign.degreeWithinSign(longitude: longitude)
+        return "\(Int(within))°"
+    }
+
     private func axisLabel(for house: Int) -> String? {
         switch house {
         case 1: return "AC"
@@ -364,34 +390,35 @@ struct ChartWheelView: View {
     }
 
     private func signColor(_ sign: ZodiacSign) -> Color {
+        // Warm family tints (gold / peach / cream) like the match-found wheel.
         switch sign.element {
-        case .fire: return Color(hex: "#E8736B")
-        case .earth: return Color(hex: "#8FC06A")
-        case .air: return Color(hex: "#5BC6C6")
-        case .water: return Color(hex: "#6BA6E8")
+        case .fire: return Color(hex: "#E8B07A")
+        case .earth: return Color(hex: "#C9B07A")
+        case .air: return Color(hex: "#F0CE7E")
+        case .water: return Color(hex: "#E8B9A0")
         }
     }
 
     private func planetColor(_ planet: Planet) -> Color {
         switch planet {
-        case .sun: return Color(hex: "#E8A24A")
-        case .moon: return Color(hex: "#6BA6E8")
-        case .mercury: return Color(hex: "#86C06A")
-        case .venus: return Color(hex: "#9ACB6E")
-        case .mars: return Color(hex: "#E8736B")
-        case .jupiter: return Color(hex: "#E0944A")
-        case .saturn: return Color(hex: "#C9CFD9")
-        case .uranus: return Color(hex: "#D98CC0")
-        case .neptune: return Color(hex: "#6B8CE8")
-        case .pluto: return Color(hex: "#B07FD0")
+        case .sun: return Color(hex: "#F0CE7E")
+        case .moon: return Color(hex: "#F6E7CF")
+        case .mercury: return Color(hex: "#E8B9A0")
+        case .venus: return Color(hex: "#EBD3B0")
+        case .mars: return Color(hex: "#E8A070")
+        case .jupiter: return Color(hex: "#F0CE7E")
+        case .saturn: return Color(hex: "#D4C4A8")
+        case .uranus: return Color(hex: "#E8B9A0")
+        case .neptune: return Color(hex: "#C9B07A")
+        case .pluto: return Color(hex: "#E8A070")
         }
     }
 
     private func aspectColor(_ type: AspectType) -> Color {
         switch type {
-        case .trine, .sextile: return Color(hex: "#6EA4FF")
-        case .square, .opposition: return Color(hex: "#FF6E66")
-        case .conjunction: return Color(hex: "#D4D8E0")
+        case .trine, .sextile: return Color(hex: "#F0CE7E")
+        case .square, .opposition: return Color(hex: "#E8A070")
+        case .conjunction: return Color(hex: "#F6E7CF")
         }
     }
 

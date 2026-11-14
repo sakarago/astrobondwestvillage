@@ -44,7 +44,7 @@ struct CosmicMatchWheel: View {
                 // Fixed Aries pointer, like the design mock.
                 Image(systemName: "chevron.up")
                     .font(.system(size: size * 0.028, weight: .semibold))
-                    .foregroundStyle(ABColor.lavenderSoft.opacity(0.7))
+                    .foregroundStyle(accentSoft.opacity(0.7))
                     .offset(y: -size * 0.285)
                     .allowsHitTesting(false)
             }
@@ -103,11 +103,11 @@ struct CosmicMatchWheel: View {
                                 .font(ABFont.body(size * 0.038, weight: .bold))
                                 .tracking(2.6)
                                 .foregroundStyle(.white)
-                                .shadow(color: ABColor.lavenderSoft.opacity(0.85), radius: 6)
+                                .shadow(color: accentSoft.opacity(0.85), radius: 6)
                                 .offset(y: size * 0.105)
                             Image(systemName: "chevron.down")
                                 .font(.system(size: size * 0.03, weight: .semibold))
-                                .foregroundStyle(ABColor.lavenderSoft.opacity(0.9))
+                                .foregroundStyle(accentSoft.opacity(0.9))
                                 .offset(y: size * 0.16)
                         }
                     } else {
@@ -131,7 +131,7 @@ struct CosmicMatchWheel: View {
 
     private var centerDiameter: CGFloat { size * 0.45 }
 
-    /// Purple while searching, soft gold on the result screen.
+    /// Purple while searching; soft gold once a match is found (yes/no screen).
     private var accent: Color { isRevealed ? ABColor.warm : ABColor.lavender }
     private var accentSoft: Color { isRevealed ? Color(hex: "#F6E7CF") : ABColor.lavenderSoft }
 
@@ -174,7 +174,7 @@ struct CosmicMatchWheel: View {
                     RadialGradient(
                         colors: [
                             Color.white.opacity(0.18),
-                            ABColor.lavender.opacity(0.42),
+                            accent.opacity(0.42),
                             Color.black.opacity(0.45)
                         ],
                         center: .center,
@@ -185,12 +185,12 @@ struct CosmicMatchWheel: View {
                 .frame(width: d, height: d)
 
             Circle()
-                .stroke(ABColor.lavender.opacity(0.98), lineWidth: 2)
+                .stroke(accent.opacity(0.98), lineWidth: 2)
                 .frame(width: d, height: d)
-                .shadow(color: ABColor.lavender.opacity(isRevealed ? 0.35 : 0.95), radius: isRevealed ? 14 : 22)
+                .shadow(color: accent.opacity(isRevealed ? 0.35 : 0.95), radius: isRevealed ? 14 : 22)
 
             Circle()
-                .stroke(ABColor.lavenderSoft.opacity(0.7), lineWidth: 10)
+                .stroke(accentSoft.opacity(0.7), lineWidth: 10)
                 .blur(radius: 8)
                 .frame(width: d, height: d)
                 .scaleEffect(isRevealed ? 1 : glowPulse)
@@ -208,8 +208,8 @@ struct CosmicMatchWheel: View {
                         LinearGradient(
                             colors: [
                                 Color.white.opacity(0.95),
-                                ABColor.lavenderSoft.opacity(0.6),
-                                ABColor.lavender.opacity(0.35),
+                                accentSoft.opacity(0.6),
+                                accent.opacity(0.35),
                                 Color.black.opacity(0.55)
                             ],
                             startPoint: .top, endPoint: .bottom
@@ -240,14 +240,14 @@ struct CosmicMatchWheel: View {
 
                 // Rim flashes in sync with the star.
                 Circle()
-                    .stroke(ABColor.lavenderSoft, lineWidth: 5)
+                    .stroke(accentSoft, lineWidth: 5)
                     .frame(width: d, height: d)
                     .blur(radius: 5)
                     .opacity(0.15 + 0.85 * starFlash)
 
                 // "Click me" ripple radiating outward.
                 Circle()
-                    .stroke(ABColor.lavenderSoft.opacity(0.8), lineWidth: 2)
+                    .stroke(accentSoft.opacity(0.8), lineWidth: 2)
                     .frame(width: d, height: d)
                     .scaleEffect(1 + 0.45 * ripple)
                     .opacity((1 - ripple) * 0.75)
@@ -258,7 +258,7 @@ struct CosmicMatchWheel: View {
                     .trim(from: 0, to: 0.22)
                     .stroke(
                         LinearGradient(
-                            colors: [Color.white, ABColor.lavenderSoft.opacity(0.1)],
+                            colors: [Color.white, accentSoft.opacity(0.1)],
                             startPoint: .leading,
                             endPoint: .trailing
                         ),
@@ -584,7 +584,7 @@ struct CosmicMatchWheel: View {
 
 private struct SearchPlanet: View {
     var diameter: CGFloat
-    var tint: Color = ABColor.lavender
+    var tint: Color = ABColor.warm
 
     var body: some View {
         ZStack {
@@ -614,10 +614,11 @@ private struct SearchPlanet: View {
     }
 }
 
-/// Four-pointed compass star with a white core, lens flare, and purple bloom.
+/// Four-pointed compass star with a white core, lens flare, and warm gold bloom.
 struct CosmicSparkStar: View {
     var size: CGFloat
     var pulse: CGFloat = 1
+    private let soft = Color(hex: "#F6E7CF")
 
     var body: some View {
         ZStack {
@@ -626,8 +627,8 @@ struct CosmicSparkStar: View {
                     RadialGradient(
                         colors: [
                             Color.white.opacity(0.95),
-                            ABColor.lavenderSoft.opacity(0.7),
-                            ABColor.lavender.opacity(0.25),
+                            soft.opacity(0.7),
+                            ABColor.warm.opacity(0.25),
                             Color.clear
                         ],
                         center: .center,
@@ -651,14 +652,14 @@ struct CosmicSparkStar: View {
             FourPointStar()
                 .fill(
                     LinearGradient(
-                        colors: [Color.white, ABColor.lavenderSoft],
+                        colors: [Color.white, soft],
                         startPoint: .top,
                         endPoint: .bottom
                     )
                 )
                 .frame(width: size, height: size)
                 .shadow(color: Color.white.opacity(0.95), radius: 8)
-                .shadow(color: ABColor.lavender.opacity(0.9), radius: 14)
+                .shadow(color: ABColor.warm.opacity(0.9), radius: 14)
 
             FourPointStar()
                 .fill(Color.white.opacity(0.9))

@@ -431,30 +431,39 @@ struct MatchDetailSheet: View {
     // MARK: Synastry wheel (professional bi-wheel) + Turkish key
 
     private var wheelSection: some View {
-        VStack(spacing: 14) {
+        VStack(spacing: 12) {
             sectionHeader(title: "Sinastri Haritası", subtitle: "İki doğum haritasının birleşik sinastri çarkı")
-            if let mine = myChart ?? seedChart, let theirChart {
-                ChartWheelView(chart: mine, overlay: theirChart)
-                    .frame(maxWidth: .infinity)
-                    .aspectRatio(1, contentMode: .fit)
-                    .padding(8)
-                    .background(ABColor.panel.opacity(0.28))
-                    .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-            } else {
-                SynastryWheelCanvas(points: points, mineColor: mineTint, theirColor: theirTint)
-                    .frame(maxWidth: .infinity)
-                    .aspectRatio(1, contentMode: .fit)
-                    .clipped()
+                .padding(.horizontal, 12)
+            GeometryReader { geo in
+                // Bleed nearly to phone edges so glyphs/degrees stay readable.
+                // Cap leaves a small margin so the circle never clips off-screen.
+                let side = min(geo.size.width, UIScreen.main.bounds.width - 16)
+                Group {
+                    if let mine = myChart ?? seedChart, let theirChart {
+                        ChartWheelView(chart: mine, overlay: theirChart, compactLabels: true)
+                    } else {
+                        SynastryWheelCanvas(points: points, mineColor: mineTint, theirColor: theirTint)
+                    }
+                }
+                .frame(width: side, height: side)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
+            .aspectRatio(1, contentMode: .fit)
+            .frame(maxWidth: .infinity)
+            // Cancel scroll (16) + glass padding so the wheel uses almost full width.
+            .padding(.horizontal, -16)
+
             HStack(spacing: 8) {
                 legendDot(color: mineTint, label: "Sen · iç")
                 legendDot(color: theirTint, label: "\(card.displayName) · dış")
             }
+            .padding(.horizontal, 12)
             .lineLimit(1)
             .minimumScaleFactor(0.75)
             SynastryKeyView()
+                .padding(.horizontal, 12)
         }
-        .padding(18)
+        .padding(.vertical, 16)
         .frame(maxWidth: .infinity)
         .revealGlass(cornerRadius: 28)
     }

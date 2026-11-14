@@ -505,21 +505,38 @@ struct MatchHomeView: View {
 
     /// Pre-confirm reveal: whole page (logo, wheel, card, actions) slides as one unit.
     private func revealedPage(_ match: MatchCard, width w: CGFloat, height h: CGFloat, wheelSize: CGFloat) -> some View {
-        ScrollView(showsIndicators: false) {
-            VStack(spacing: 14) {
-                header
-                    .padding(.top, h * 0.044)
-                wheelStack(size: wheelSize)
-                    .frame(width: w, height: wheelSize)
-                    .padding(.top, 14)
-                    .padding(.bottom, 6)
-                revealedCard(match)
-                    .padding(.horizontal, 22)
-                revealedActions
-                    .padding(.top, 4)
+        ZStack(alignment: .topLeading) {
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 14) {
+                    header
+                        .padding(.top, h * 0.044)
+                    wheelStack(size: wheelSize)
+                        .frame(width: w, height: wheelSize)
+                        .padding(.top, 14)
+                        .padding(.bottom, 6)
+                    revealedCard(match)
+                        .padding(.horizontal, 22)
+                    revealedActions
+                        .padding(.top, 4)
+                }
+                .padding(.bottom, 130)
+                .frame(width: w)
             }
-            .padding(.bottom, 130)
-            .frame(width: w)
+
+            Button {
+                withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) { model.dismissReveal() }
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(ABColor.ink)
+                    .crystalIconBezel(size: 40, cornerRadius: 14)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .padding(.leading, 14)
+            .padding(.top, h * 0.044 - 2)
+            .accessibilityLabel("Eşleşme seçimlerine dön")
         }
         .frame(width: w, height: h, alignment: .top)
     }

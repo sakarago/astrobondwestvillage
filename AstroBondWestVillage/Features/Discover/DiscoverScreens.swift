@@ -56,6 +56,8 @@ struct TarotFlowView: View {
     /// Content id currently lit during the shuffle flash.
     @State private var litCard: Int? = nil
     @State private var sparkTick = 0
+    /// Orbital angle (degrees) while cards circle like planets.
+    @State private var orbitAngle: Double = 0
 
     private let allEmblems: [VioletTarotCard.Emblem] = [.crescent, .sun, .star]
 
@@ -107,24 +109,32 @@ struct TarotFlowView: View {
                 Circle().fill(RadialGradient(colors: [Color(hex: "#7B5CFF").opacity(0.45), .clear], center: .center, startRadius: 0, endRadius: 190))
                     .frame(width: 380, height: 380)
                 ForEach(0..<3, id: \.self) { i in
-                    Circle().strokeBorder(lav.opacity(0.30 - Double(i) * 0.08), lineWidth: 1)
-                        .frame(width: 250 + CGFloat(i) * 70, height: 250 + CGFloat(i) * 70)
+                    Circle().strokeBorder(lav.opacity(isShuffling ? 0.22 - Double(i) * 0.05 : 0.30 - Double(i) * 0.08), lineWidth: 1)
+                        .frame(width: isShuffling ? (220 + CGFloat(i) * 40) : (250 + CGFloat(i) * 70),
+                               height: isShuffling ? (220 + CGFloat(i) * 40) : (250 + CGFloat(i) * 70))
                 }
-                Capsule().fill(LinearGradient(colors: [.clear, lav.opacity(0.55), .clear], startPoint: .top, endPoint: .bottom))
-                    .frame(width: 1.5, height: 300)
-                    .offset(y: 10)
 
-                // Each card slides horizontally between slots (real-shuffle feel).
+                // Center star — cards orbit around this like planets.
+                if isShuffling {
+                    orbitCenterStar
+                } else {
+                    Capsule().fill(LinearGradient(colors: [.clear, lav.opacity(0.55), .clear], startPoint: .top, endPoint: .bottom))
+                        .frame(width: 1.5, height: 300)
+                        .offset(y: 10)
+                }
+
+                // Cards orbit upright around the star, then settle into a fan.
                 ForEach(0..<3, id: \.self) { contentId in
                     let slot = deck.firstIndex(of: contentId) ?? contentId
                     let lit = isShuffling && litCard == contentId
+                    let pose = cardPose(contentId: contentId, slot: slot)
                     Button {
                         guard !isShuffling else { return }
                         choose(contentId)
                     } label: {
                         VioletTarotCard(
                             emblem: allEmblems[contentId],
-                            width: slot == 1 ? 118 : 106,
+                            width: isShuffling ? 92 : (slot == 1 ? 118 : 106),
                             glow: lit || (!isShuffling && slot == 1)
                         )
                         .overlay {
@@ -136,13 +146,12 @@ struct TarotFlowView: View {
                             }
                         }
                         .brightness(lit ? 0.08 : 0)
-                        .rotationEffect(.degrees(Double(slot - 1) * 9), anchor: .bottom)
-                        .offset(x: CGFloat(slot - 1) * 112, y: slot == 1 ? -6 : 12)
+                        .rotationEffect(.degrees(pose.tilt), anchor: .bottom)
+                        .offset(x: pose.x, y: pose.y)
                     }
                     .buttonStyle(.plain)
                     .disabled(isShuffling)
-                    .zIndex(isShuffling ? Double(3 - abs(slot - 1)) + (lit ? 2 : 0) : (slot == 1 ? 2 : 0))
-                    .animation(.easeInOut(duration: 0.34), value: deck)
+                    .zIndex(isShuffling ? Double(pose.y) + (lit ? 40 : 0) : (slot == 1 ? 2 : 0))
                     .animation(.easeInOut(duration: 0.16), value: litCard)
                 }
 
@@ -166,73 +175,95 @@ struct TarotFlowView: View {
         .padding(.horizontal, 20)
     }
 
-    /// Tiny sparks that flicker near the moving cards while shuffling.
+    /// Glowing star at the orbital center.
+    private var orbitCenterStar: some View {
+        ZStack {
+            Circle()
+                .fill(RadialGradient(colors: [lav.opacity(0.55), .clear], center: .center, startRadius: 2, endRadius: 36))
+                .frame(width: 72, height: 72)
+            Image(systemName: "sparkle")
+                .font(.system(size: 28, weight: .light))
+                .foregroundStyle(LinearGradient(colors: [.white, lav], startPoint: .top, endPoint: .bottom))
+                .shadow(color: lav.opacity(0.95), radius: 10)
+                .scaleEffect(pulse ? 1.12 : 0.92)
+                .animation(.easeInOut(duration: 0.7).repeatForever(autoreverses: true), value: pulse)
+        }
+        .allowsHitTesting(false)
+        .onAppear { pulse = true }
+    }
+
+    /// Tiny sparks along the orbit path while shuffling.
     private var shuffleSparks: some View {
         let seed = sparkTick
+        let radius: Double = 118
         return ZStack {
             ForEach(0..<7, id: \.self) { i in
-                let x = CGFloat([-95, -40, 10, 55, 100, -70, 75][(i + seed) % 7])
-                let y = CGFloat([-70, 20, -40, 35, -15, 50, -55][(i * 3 + seed) % 7])
+                let deg = Double((i * 51 + seed * 17) % 360)
+                let rad = deg * .pi / 180
                 Image(systemName: i % 2 == 0 ? "sparkle" : "sparkles")
-                    .font(.system(size: i % 3 == 0 ? 14 : 9, weight: .light))
+                    .font(.system(size: i % 3 == 0 ? 12 : 8, weight: .light))
                     .foregroundStyle(i % 2 == 0 ? Color.white : lav)
                     .shadow(color: lav.opacity(0.85), radius: 5)
-                    .opacity(litCard == nil ? 0.15 : 0.85)
+                    .opacity(litCard == nil ? 0.2 : 0.9)
                     .scaleEffect(litCard == nil ? 0.7 : 1.05)
-                    .offset(x: x, y: y)
+                    .offset(x: CGFloat(cos(rad) * radius), y: CGFloat(sin(rad) * radius))
             }
         }
         .animation(.easeInOut(duration: 0.18), value: sparkTick)
         .animation(.easeInOut(duration: 0.16), value: litCard)
     }
 
+    private struct CardPose { var x: CGFloat; var y: CGFloat; var tilt: Double }
+
+    /// Circular planet orbit while shuffling (cards stay upright); fan after settle.
+    private func cardPose(contentId: Int, slot: Int) -> CardPose {
+        if isShuffling {
+            let deg = orbitAngle + Double(contentId) * 120
+            let rad = deg * .pi / 180
+            let r: Double = 118
+            return CardPose(
+                x: CGFloat(cos(rad) * r),
+                y: CGFloat(sin(rad) * r),
+                tilt: 0
+            )
+        }
+        return CardPose(
+            x: CGFloat(slot - 1) * 112,
+            y: slot == 1 ? -6 : 12,
+            tilt: Double(slot - 1) * 9
+        )
+    }
+
     private func startShuffle() {
         shuffleTask?.cancel()
         isShuffling = true
-        pulse = false
+        pulse = true
         litCard = nil
         sparkTick = 0
+        orbitAngle = 0
         deck = [0, 1, 2]
+        withAnimation(.linear(duration: 3.0)) {
+            orbitAngle = 360 * 2.5
+        }
         shuffleTask = Task {
-            // ~3s of adjacent left/right slides, like dealing through a small hand.
-            let swaps = [
-                (0, 1), (1, 2), (0, 1), (1, 2),
-                (0, 1), (1, 2), (0, 1), (1, 2)
-            ]
-            for (a, b) in swaps {
+            for step in 0..<12 {
                 if Task.isCancelled { return }
                 await MainActor.run {
-                    let left = deck[a]
-                    let right = deck[b]
-                    // Flash + sparks on the two cards about to slide past each other.
-                    withAnimation(.easeInOut(duration: 0.12)) {
-                        litCard = left
-                        sparkTick &+= 1
-                    }
-                    withAnimation(.easeInOut(duration: 0.34)) {
-                        deck.swapAt(a, b)
-                    }
-                }
-                try? await Task.sleep(nanoseconds: 140_000_000)
-                if Task.isCancelled { return }
-                await MainActor.run {
-                    withAnimation(.easeInOut(duration: 0.12)) {
-                        litCard = deck[b]
+                    withAnimation(.easeInOut(duration: 0.14)) {
+                        litCard = step % 3
                         sparkTick &+= 1
                     }
                 }
-                try? await Task.sleep(nanoseconds: 220_000_000)
-                if Task.isCancelled { return }
-                await MainActor.run {
-                    withAnimation(.easeOut(duration: 0.14)) { litCard = nil }
-                }
+                try? await Task.sleep(nanoseconds: 250_000_000)
             }
             if Task.isCancelled { return }
             await MainActor.run {
-                withAnimation(.spring(response: 0.5, dampingFraction: 0.86)) {
+                withAnimation(.spring(response: 0.55, dampingFraction: 0.86)) {
                     deck = [0, 1, 2].shuffled()
                     isShuffling = false
                     litCard = nil
+                    orbitAngle = 0
+                    pulse = false
                 }
             }
         }
