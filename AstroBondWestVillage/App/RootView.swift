@@ -27,6 +27,22 @@ struct RootView: View {
             AppLanguageStore.shared.language = .tr
             await session.bootstrap()
         }
+        .onOpenURL { url in
+            Task { await session.handleAuthURL(url) }
+        }
+        .sheet(isPresented: Binding(
+            get: { session.showResetSheet },
+            set: { presented in
+                if !presented {
+                    Task { await session.cancelPasswordReset() }
+                }
+            }
+        )) {
+            ResetPasswordSheet()
+                .onOpenURL { url in
+                    Task { await session.handleAuthURL(url) }
+                }
+        }
     }
 }
 

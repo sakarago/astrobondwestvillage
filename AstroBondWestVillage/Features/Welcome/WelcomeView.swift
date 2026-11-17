@@ -80,7 +80,15 @@ struct WelcomeView: View {
             }
         }
         .animation(.easeInOut(duration: 0.45), value: screen)
-        .sheet(isPresented: $showLogin) {
+        .onChange(of: showLogin) { _, shown in
+            if shown { session.isLoginSheetPresented = true }
+        }
+        .sheet(isPresented: $showLogin, onDismiss: {
+            session.isLoginSheetPresented = false
+            if session.isChoosingNewPassword, session.phase == .welcome {
+                Task { await session.cancelPasswordReset() }
+            }
+        }) {
             AuthSheetView()
                 .environment(session)
         }

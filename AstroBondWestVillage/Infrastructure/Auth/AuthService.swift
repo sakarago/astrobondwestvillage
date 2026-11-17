@@ -24,6 +24,9 @@ protocol AuthServing: Sendable {
     func currentUser() async -> AppUser?
     func signIn(email: String, password: String) async throws -> AppUser
     func signUp(email: String, password: String) async throws -> AppUser
+    func sendPasswordReset(email: String) async throws
+    func establishSession(from url: URL) async throws -> AppUser
+    func updatePassword(_ password: String) async throws
     func signOut() async throws
     func deleteAccount() async throws
 }
@@ -65,6 +68,32 @@ final class SupabaseAuthService: AuthServing, @unchecked Sendable {
         }
     }
 
+    /// Asks Supabase to mail a real recovery link to this address.
+    func sendPasswordReset(email: String) async throws {
+        do {
+            try await client.auth.resetPasswordForEmail(email, redirectTo: AuthRedirect.reset)
+        } catch {
+            throw AuthServiceError.network(Self.resetMessage(for: error))
+        }
+    }
+
+    func establishSession(from url: URL) async throws -> AppUser {
+        do {
+            let session = try await client.auth.session(from: url)
+            return map(session.user)
+        } catch {
+            throw AuthServiceError.network("Sıfırlama bağlantısı geçersiz veya süresi dolmuş.")
+        }
+    }
+
+    func updatePassword(_ password: String) async throws {
+        do {
+            _ = try await client.auth.update(user: UserAttributes(password: password))
+        } catch {
+            throw AuthServiceError.network(Self.resetMessage(for: error))
+        }
+    }
+
     func signOut() async throws {
         do {
             try await client.auth.signOut()
@@ -83,6 +112,22 @@ final class SupabaseAuthService: AuthServing, @unchecked Sendable {
 
     private func map(_ user: User) -> AppUser {
         AppUser(id: user.id.uuidString.lowercased(), email: user.email)
+    }
+
+    private static func describe(_ error: Error) -> String {
+        if let auth = error as? AuthError { return auth.message }
+        return (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+    }
+
+    private static func resetMessage(for error: Error) -> String {
+        let raw = describe(error).lowercased()
+        if raw.contains("rate") || raw.contains("too many") || raw.contains("429") {
+            return "Çok sık denendi. Birkaç dakika sonra tekrar dene."
+        }
+        if raw.contains("weak") || raw.contains("password") {
+            return "Daha güçlü bir şifre seç."
+        }
+        return "İşlem tamamlanamadı. Bağlantını kontrol edip tekrar dene."
     }
 }
 

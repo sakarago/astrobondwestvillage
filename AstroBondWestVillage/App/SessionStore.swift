@@ -14,6 +14,15 @@ final class SessionStore {
     private(set) var phase: Phase = .loading
     private(set) var user: AppUser?
     var lastError: String?
+    /// Recovery link opened the app; the person still has to choose a new password.
+    var isChoosingNewPassword = false
+    /// Login sheet is up, so the new-password form replaces that sheet instead of stacking another one.
+    var isLoginSheetPresented = false
+    /// Presented from the root only when the login sheet is not already covering the screen.
+    var showResetSheet = false
+    private var didFinishPasswordReset = false
+    private var handledAuthURL: String?
+    private var isOpeningResetLink = false
 
     private let auth: AuthServing
     private let profiles = ProfileService()
@@ -26,7 +35,11 @@ final class SessionStore {
         phase = .loading
         if let user = await auth.currentUser() {
             self.user = user
-            await routeAuthenticated(userId: user.id)
+            if isChoosingNewPassword || isOpeningResetLink {
+                phase = .welcome
+            } else {
+                await routeAuthenticated(userId: user.id)
+            }
         } else {
             self.user = nil
             phase = .welcome
@@ -61,6 +74,65 @@ final class SessionStore {
 
     func markOnboardingComplete() async {
         phase = .main
+    }
+
+    func requestPasswordReset(email: String) async -> Bool {
+        lastError = nil
+        do {
+            try await auth.sendPasswordReset(email: email)
+            return true
+        } catch {
+            lastError = error.localizedDescription
+            return false
+        }
+    }
+
+    func handleAuthURL(_ url: URL) async {
+        guard url.scheme?.lowercased() == AuthRedirect.appCallback.scheme?.lowercased() else { return }
+        let key = url.absoluteString
+        guard handledAuthURL != key else { return }
+        handledAuthURL = key
+        isOpeningResetLink = true
+        defer { isOpeningResetLink = false }
+        lastError = nil
+        do {
+            let user = try await auth.establishSession(from: url)
+            self.user = user
+            didFinishPasswordReset = false
+            isChoosingNewPassword = true
+            showResetSheet = !isLoginSheetPresented
+        } catch {
+            handledAuthURL = nil
+            lastError = error.localizedDescription
+        }
+    }
+
+    func setNewPassword(_ password: String) async -> Bool {
+        lastError = nil
+        do {
+            try await auth.updatePassword(password)
+            didFinishPasswordReset = true
+            isChoosingNewPassword = false
+            showResetSheet = false
+            if let user {
+                await routeAuthenticated(userId: user.id)
+            }
+            return true
+        } catch {
+            lastError = error.localizedDescription
+            return false
+        }
+    }
+
+    func cancelPasswordReset() async {
+        guard !didFinishPasswordReset else {
+            didFinishPasswordReset = false
+            return
+        }
+        guard isChoosingNewPassword || showResetSheet else { return }
+        isChoosingNewPassword = false
+        showResetSheet = false
+        await signOut()
     }
 
     func signOut() async {
@@ -100,6 +172,10 @@ final class SessionStore {
     }
 
     private func routeAuthenticated(userId: String) async {
+        if isChoosingNewPassword || isOpeningResetLink {
+            phase = .welcome
+            return
+        }
         // Unfreeze if they return after freezing.
         try? await profiles.setFrozen(userId: userId, frozen: false)
         do {

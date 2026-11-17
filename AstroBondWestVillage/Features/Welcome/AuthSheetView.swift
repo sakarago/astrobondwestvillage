@@ -7,12 +7,38 @@ struct AuthSheetView: View {
     @State private var email = ""
     @State private var password = ""
     @State private var isWorking = false
+    @State private var resetNotice: String?
+    @State private var showingNewPassword = false
     @FocusState private var isEmailFocused: Bool
     @FocusState private var isPasswordFocused: Bool
 
     private let gold = Color(hex: "#C8A56E")
 
     var body: some View {
+        Group {
+            if showingNewPassword {
+                ResetPasswordSheet()
+            } else {
+                loginForm
+            }
+        }
+        .onOpenURL { url in
+            Task { await session.handleAuthURL(url) }
+        }
+        .onChange(of: session.isChoosingNewPassword) { _, choosing in
+            if choosing {
+                resetNotice = nil
+                showingNewPassword = true
+            }
+        }
+        .onChange(of: session.lastError) { _, error in
+            if error != nil { resetNotice = nil }
+        }
+        .presentationDetents([.large])
+        .presentationDragIndicator(.visible)
+    }
+
+    private var loginForm: some View {
         NavigationStack {
             ZStack {
                 CosmicBackdrop()
@@ -143,6 +169,25 @@ struct AuthSheetView: View {
                                 .onTapGesture { isPasswordFocused = true }
                                 .id("loginPassword")
 
+                                Button {
+                                    Task { await sendReset() }
+                                } label: {
+                                    Text("Şifremi unuttum")
+                                        .font(ABFont.body(13, weight: .semibold))
+                                        .foregroundStyle(gold)
+                                        .frame(maxWidth: .infinity, alignment: .trailing)
+                                }
+                                .buttonStyle(.plain)
+                                .disabled(isWorking)
+
+                                if let resetNotice {
+                                    Text(resetNotice)
+                                        .font(ABFont.body(13))
+                                        .foregroundStyle(gold.opacity(0.9))
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                }
+
                                 if let error = session.lastError, !error.isEmpty {
                                     Text(error)
                                         .font(ABFont.body(13))
@@ -196,7 +241,6 @@ struct AuthSheetView: View {
                 }
             }
         }
-        .presentationDragIndicator(.visible)
         .onAppear {
             session.lastError = nil
             isEmailFocused = true
@@ -230,5 +274,139 @@ struct AuthSheetView: View {
         if await session.signIn(email: trimmed, password: password) {
             dismiss()
         }
+    }
+
+    @MainActor
+    private func sendReset() async {
+        let trimmed = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard trimmed.contains("@"), trimmed.contains(".") else {
+            resetNotice = nil
+            session.lastError = "Şifre sıfırlamak için e-posta adresini yaz."
+            return
+        }
+        isWorking = true
+        defer { isWorking = false }
+        resetNotice = nil
+        if await session.requestPasswordReset(email: trimmed) {
+            session.lastError = nil
+            resetNotice = "Bu adres kayıtlıysa sıfırlama bağlantısı \(trimmed) adresine gelir. Bu telefondaki bağlantıya dokun."
+        }
+    }
+}
+
+/// Shown after the recovery email opens the app. Sets a new password on that account.
+struct ResetPasswordSheet: View {
+    @Environment(SessionStore.self) private var session
+    @State private var password = ""
+    @State private var confirm = ""
+    @State private var isWorking = false
+    @FocusState private var focusedField: Field?
+
+    private enum Field { case password, confirm }
+
+    var body: some View {
+        ZStack {
+            CosmicBackdrop()
+            GeometryReader { geo in
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 18) {
+                        Spacer(minLength: 0)
+                        Text("Yeni şifre")
+                            .font(ABFont.display(28))
+                            .foregroundStyle(ABColor.ink)
+                            .frame(maxWidth: .infinity)
+                        Text("E-postadaki bağlantı bu hesabı açtı. Yeni şifreni belirle.")
+                            .font(ABFont.body(14))
+                            .foregroundStyle(ABColor.ink.opacity(0.7))
+                            .multilineTextAlignment(.center)
+                            .fixedSize(horizontal: false, vertical: true)
+
+                        passwordField("Yeni parola", text: $password, field: .password, submit: .next) {
+                            focusedField = .confirm
+                        }
+                        passwordField("Parolayı tekrar yaz", text: $confirm, field: .confirm, submit: .done) {
+                            focusedField = nil
+                            Task { await save() }
+                        }
+
+                        if let error = session.lastError, !error.isEmpty {
+                            Text(error)
+                                .font(ABFont.body(13))
+                                .foregroundStyle(Color(hex: "#9AA0AB"))
+                                .multilineTextAlignment(.center)
+                                .frame(maxWidth: .infinity)
+                        }
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.horizontal, 28)
+                    .padding(.vertical, 12)
+                    .frame(maxWidth: .infinity, minHeight: geo.size.height)
+                }
+                .scrollDismissesKeyboard(.interactively)
+            }
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            GlowCTAButton(
+                title: isWorking ? "Kaydediliyor..." : "Şifreyi kaydet",
+                isEnabled: !isWorking,
+                action: { Task { await save() } }
+            )
+            .padding(.horizontal, 28)
+            .padding(.top, 8)
+            .padding(.bottom, 12)
+            .background(Color.black.opacity(0.25).ignoresSafeArea(edges: .bottom))
+        }
+        .presentationDetents([.large])
+        .presentationDragIndicator(.visible)
+        .interactiveDismissDisabled(isWorking)
+    }
+
+    private func passwordField(
+        _ title: String,
+        text: Binding<String>,
+        field: Field,
+        submit: SubmitLabel,
+        onSubmit: @escaping () -> Void
+    ) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: "lock")
+                .font(.system(size: 15, weight: .light))
+                .foregroundStyle(Color(hex: "#C8A56E").opacity(0.7))
+            ZStack(alignment: .leading) {
+                if text.wrappedValue.isEmpty {
+                    Text(title)
+                        .font(ABFont.body(16.5))
+                        .foregroundStyle(Color(hex: "#9AA0AB").opacity(0.7))
+                        .allowsHitTesting(false)
+                }
+                SecureField("", text: text)
+                    .textContentType(.password)
+                    .font(ABFont.body(16.5))
+                    .foregroundStyle(ABColor.ink)
+                    .tint(Color(hex: "#9AA0AB"))
+                    .focused($focusedField, equals: field)
+                    .submitLabel(submit)
+                    .onSubmit(onSubmit)
+            }
+        }
+        .padding(.vertical, 16)
+        .padding(.horizontal, 22)
+        .glowInputSurface()
+        .contentShape(Capsule())
+        .onTapGesture { focusedField = field }
+        .id(field)
+    }
+
+    @MainActor
+    private func save() async {
+        guard password.count >= 6, password == confirm, !isWorking else {
+            session.lastError = password.count < 6
+                ? "Şifre en az 6 karakter olmalı."
+                : "İki şifre aynı olmalı."
+            return
+        }
+        isWorking = true
+        defer { isWorking = false }
+        _ = await session.setNewPassword(password)
     }
 }

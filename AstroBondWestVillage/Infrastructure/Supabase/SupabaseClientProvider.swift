@@ -12,7 +12,10 @@ final class SupabaseClientProvider: @unchecked Sendable {
         }
         client = SupabaseClient(
             supabaseURL: url,
-            supabaseKey: SupabaseCredentials.anonKey
+            supabaseKey: SupabaseCredentials.anonKey,
+            options: SupabaseClientOptions(
+                auth: .init(redirectToURL: AuthRedirect.reset)
+            )
         )
     }
 }
