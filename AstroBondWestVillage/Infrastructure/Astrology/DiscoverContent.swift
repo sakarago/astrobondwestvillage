@@ -112,6 +112,51 @@ enum DiscoverContent {
         return "\(who)bugün enerjin en çok \(lower(note.focus)) alanında hissedilecek."
     }
 
+    struct SkyMoon: Equatable {
+        let title: String
+        let symbol: String
+        let sentence: String
+    }
+
+    /// Synodic moon phase from the 6 Jan 2000 new moon. Stable for the whole day, no ephemeris call.
+    static func moonDay(_ date: Date = Date()) -> SkyMoon {
+        let synodic = 29.530588853 * 86_400
+        let ref = Date(timeIntervalSince1970: 947_182_440)
+        var age = date.timeIntervalSince(ref).truncatingRemainder(dividingBy: synodic)
+        if age < 0 { age += synodic }
+        let day = age / 86_400
+        switch day {
+        case 0..<1.5:
+            return .init(title: "Yeni ay", symbol: "moonphase.new.moon", sentence: "Ay yeni. Niyetler henüz fısıltı; bugün bir şeyi başlatmak, bitirmekten daha kolay.")
+        case 1.5..<6.5:
+            return .init(title: "Büyüyen hilal", symbol: "moonphase.waxing.crescent", sentence: "Ay büyüyen hilalde. Küçük bir adım görünür olmaya başlıyor; aceleye gerek yok.")
+        case 6.5..<9:
+            return .init(title: "İlk dördün", symbol: "moonphase.first.quarter", sentence: "Ay ilk dördünde. Bir seçim netleşiyor; yarım kalan bir konuyu bugün bir yöne çek.")
+        case 9..<13.5:
+            return .init(title: "Şişkin ay", symbol: "moonphase.waxing.gibbous", sentence: "Ay dolunaya yürüyor. Emeklerin toplanıyor; son rötuş bugün fark edilir.")
+        case 13.5..<16.5:
+            return .init(title: "Dolunay", symbol: "moonphase.full.moon", sentence: "Ay dolu. Duygular ve gerçekler aynı masada; saklanan bir şey görünür olabilir.")
+        case 16.5..<21:
+            return .init(title: "Küçülen ay", symbol: "moonphase.waning.gibbous", sentence: "Ay küçülmeye başladı. Paylaşmak, teşekkür etmek ve fazlalığı bırakmak iyi gelir.")
+        case 21..<24:
+            return .init(title: "Son dördün", symbol: "moonphase.last.quarter", sentence: "Ay son dördünde. Bitirme zamanı; tuttuğun bir yükü bugün indirmek rahatlatır.")
+        default:
+            return .init(title: "İnce hilal", symbol: "moonphase.waning.crescent", sentence: "Ay ince bir hilal. Dinlenmek ve toparlanmak, yeni bir hamleden daha verimli.")
+        }
+    }
+
+    static func hueHex(_ name: String) -> String {
+        switch name {
+        case "Lavanta": return "#C9B6FF"
+        case "Altın": return "#E4B867"
+        case "Deniz mavisi": return "#7EB6D6"
+        case "Gül kurusu": return "#E7A3B0"
+        case "Zümrüt": return "#7DCAA5"
+        case "Gümüş": return "#D5D8E0"
+        default: return "#F0A48A"
+        }
+    }
+
     private static let loveLines: [ZodiacSign.Element: [String]] = [
         .fire: ["Cesur bir adım ya da içten bir mesaj ilgiyi hemen canlandırır.", "Heyecanını saklama; sıcaklığın bugün çekici geliyor."],
         .earth: ["Küçük, somut bir ilgi göstergesi bugün bin söze bedel.", "Acele etme; güven yavaş ama sağlam kurulur."],
@@ -130,22 +175,149 @@ enum DiscoverContent {
         .air: ["Zihnin hızlı; ekranlardan kısa bir mola ver.", "Düşüncelerini yazmak zihnini rahatlatır."],
         .water: ["Suyla temas (duş, banyo) seni yeniler.", "Yalnız kalacağın bir saat ruhuna iyi gelir."]
     ]
+    private static let loveClose: [ZodiacSign.Element: [String]] = [
+        .fire: [
+            "Cesaretin bugün çekici. Kısa ve içten bir cümle, uzun bir plandan daha çok işe yarar.",
+            "Alevin yüksek; tempo kaçırma. Bir davet ya da açık bir ilgi, akşamın rengini değiştirir.",
+            "Sıcaklığını saklama. Söylenmeyen ilgi bugün soğur, söylenen ilgi yaklaştırır."
+        ],
+        .earth: [
+            "Küçük ve somut bir ilgi, büyük bir konuşmadan daha çok güven verir.",
+            "Acele etme. Sözünü tuttuğun bir jest, bugün en romantik cümleden güçlü.",
+            "İstikrarın çekici. Planlı bir buluşma, belirsiz bir işaretten daha iyi gelir."
+        ],
+        .air: [
+            "Bir sohbet, bir espri ya da ortak bir fikir kalpleri yaklaştırır.",
+            "Merakın bugün en iyi flört aracın. Soru sormak, konuşmayı derinleştirir.",
+            "Zihnini paylaş. Ne düşündüğünü söylemek, karşı tarafın sana yaklaşmasını kolaylaştırır."
+        ],
+        .water: [
+            "Sezgin karşındakinin ruh halini okuyor. Yumuşak bir cümle, sert bir tespitten iyi gelir.",
+            "Duygunu adlandırmak seni rahatlatır ve karşı tarafı da yumuşatır.",
+            "Yakınlık bugün hızdan değil, dürüst bir his paylaşımından doğar."
+        ]
+    ]
+    private static let workClose: [ZodiacSign.Element: [String]] = [
+        .fire: [
+            "Bekleyen işi başlat. Mükemmel planı beklemek bugün enerjini yer.",
+            "Öne çıkman gereken bir an olabilir. Kısa ve net bir teklif yeter.",
+            "Hızın avantaj. Tek bir işi bitirip kutlamak, üç işi aynı anda açmaktan iyi."
+        ],
+        .earth: [
+            "Planlı ilerlemek bugün somut sonuç getirir. Listeyi kısalt, bir maddeyi kapat.",
+            "Detaya verdiğin emek fark edilir. Gösterişli bir hamle arama.",
+            "Para ve söz konusuysa yazıya dök. Ağızdan çıkan, kâğıtta durunca netleşir."
+        ],
+        .air: [
+            "Görüşme, yazışma ve yeni bir bağlantı bugün kapı açabilir.",
+            "Fikrini erken paylaş. Bekletilen bir cümle, fırsatı da bekletir.",
+            "Dağılmadan tek bir konuya yaz. Kısa bir not, uzun bir toplantıdan verimli olabilir."
+        ],
+        .water: [
+            "İlk hissin isabetli. Yine de kararı bir saate yay, sonra yaz.",
+            "Ekipte dinlemek sana avantaj sağlar. Her şeyi hemen çözmek zorunda değilsin.",
+            "Sezgin bir işi işaret ediyorsa ona küçük bir zaman ayır. Zorlama bir plan bugün tutmaz."
+        ]
+    ]
+    private static let bodyClose: [ZodiacSign.Element: [String]] = [
+        .fire: [
+            "Enerjin yürüyüşe, spora ya da tek bir hedefe gidince durulur. İçeride tutmak seni sabırsız yapar.",
+            "Sabırsızlığı bir işe çevir. Hareketsiz kalmak bugün zihni ısıtır."
+        ],
+        .earth: [
+            "Kısa bir dışarı çıkış ya da düzenli bir akşam rutini seni topraklar.",
+            "Bedenin yavaşlamak istiyor. Öğünü, uykuyu ve masanı sadeleştirmek iyi gelir."
+        ],
+        .air: [
+            "Zihin hızlı. Ekrandan on dakika kopup düşünceyi kâğıda dökmek rahatlatır.",
+            "Aynı fikri döndürüp duruyorsan birine anlat. Söylenince dağılır."
+        ],
+        .water: [
+            "Suyla temas, bir duş ya da yalnız bir saat ruhunu toplar.",
+            "Duygu yükselirse adını koy. Adı konan his, taşınması daha kolay bir hale gelir."
+        ]
+    ]
+    private static let trySkip: [ZodiacSign.Element: [String]] = [
+        .fire: [
+            "Dene: tek bir işi bitir, sonra dur. Bırak: aynı anda üç kapı açmayı.",
+            "Dene: içinden geleni kısa söyle. Bırak: haklı çıkmak için konuşmayı uzatmayı."
+        ],
+        .earth: [
+            "Dene: bir sözü bugün tut. Bırak: her ayrıntıyı kontrol etme ihtiyacını.",
+            "Dene: masanı ve listenin yarısını sadeleştir. Bırak: ertelediğin küçük işi yarına atmayı."
+        ],
+        .air: [
+            "Dene: bir mesajı net ve kısa yaz. Bırak: aynı konuyu beş kişiye anlatmayı.",
+            "Dene: bir fikri bitir. Bırak: yeni bir fikir için bunu yarıda kesmeyi."
+        ],
+        .water: [
+            "Dene: hissettiğini bir cümleyle söyle. Bırak: karşındakinin aklını okumaya çalışmayı.",
+            "Dene: akşam bir saat yalnız kal. Bırak: herkese iyi görünmek için kendini esnetmeyi."
+        ]
+    ]
+    private static let questions: [String: [String]] = [
+        "Aşk": ["Bugün kime bir adım daha yaklaşmak istiyorsun?", "Sakladığın bir ilgiyi söylesen ne değişir?"],
+        "Sosyal Çevre": ["Hangi sohbet seni bugün besler, hangisi yorar?", "Kimin yanında daha çok kendin oluyorsun?"],
+        "Kariyer": ["Bitirirsen rahatlayacağın tek iş hangisi?", "Görünmek istediğin yer ile durduğun yer aynı mı?"],
+        "İçe Dönüş": ["Bugün kendine ayırabileceğin en küçük sessizlik ne?", "Taşıdığın hangi duygu artık adını istiyor?"],
+        "Yaratıcılık": ["Ertelediğin küçük yaratım bugün on dakika alsa ne olur?", "Hangi fikir seni hâlâ heyecanlandırıyor?"],
+        "Denge": ["Bugün azaltırsan güçleneceğin şey ne?", "Nereye evet deyip nereye hayır demen gerekiyor?"],
+        "İletişim": ["Net söylersen hafifleyecek cümle hangisi?", "Yanlış anlaşıldığın konu aslında ne?"]
+    ]
 
     static func dailyReading(_ sky: UserSky, date: Date = Date()) -> DiscoverNote {
         let note = DailyNoteEngine.note(for: date, userId: sky.userId, sun: sky.sun, moon: sky.moon, rising: sky.rising)
         var r = rng(sky, date, "daily")
-        let sunEl = (sky.sun ?? .aries).element
         let moonEl = (sky.moon ?? sky.sun ?? .aries).element
+        let sunEl = (sky.sun ?? .aries).element
+        let day = Calendar.current.ordinality(of: .day, in: .year, for: date) ?? 1
+        let house = ((day + sky.anchor.index) % 12) + 1
+        let moon = moonDay(date)
+
+        var skyLine = "\(moon.sentence) Bu ışık senin \(house). evine düşüyor: \(houseTheme(house))."
+        if let rising = sky.rising {
+            skyLine += " \(rising.glyph) \(rising.labelTR) yükselenin bu alanı bugün dışarıya taşıyor."
+        }
+
+        var love = ""
+        if let m = sky.moon {
+            love += "\(m.glyph) \(m.labelTR) ayın ilişkide \(m.element.blurbTR) bir ihtiyaç taşıyor. "
+        }
+        if let v = sky.venus {
+            love += "Venüsün \(v.labelTR); ilgiyi \(v.modality.blurbTR) bir dille gösterirsin. "
+        }
+        love += r.pick(loveClose[moonEl] ?? [])
+
+        var work = ""
+        if let s = sky.sun {
+            work += "\(s.glyph) \(s.labelTR) güneşin işte \(s.element.blurbTR) bir tempo kuruyor. "
+        }
+        if let me = sky.mercury {
+            work += "Merkür \(me.labelTR): mesajlar, kararlar ve para konuşmaları bu tondan geçiyor. "
+        }
+        work += r.pick(workClose[sunEl] ?? [])
+
+        var body = ""
+        if let m = sky.moon {
+            body += "İç dünya \(m.labelTR) ayından geçiyor, yani \(m.element.blurbTR) bir ritimdesin. "
+        }
+        body += r.pick(bodyClose[moonEl] ?? [])
+
+        let who = sky.firstName.isEmpty ? "Bugün" : "\(sky.firstName), bugün"
+        let intro = "\(who) gökyüzü \(lower(note.focus)) üzerinden konuşuyor. \(note.body)"
+
         return DiscoverNote(
             icon: "sun.max",
             eyebrow: "GÜNÜN YORUMU · \(note.dateLabel.uppercased(with: Locale(identifier: "tr_TR")))",
             title: note.headline,
-            intro: note.body,
+            intro: intro,
             sections: [
-                .init(heading: "Aşk & İlişkiler", text: r.pick(loveLines[moonEl] ?? [])),
-                .init(heading: "İş & Para", text: r.pick(workLines[sunEl] ?? [])),
-                .init(heading: "Ruh Hali", text: r.pick(mindLines[moonEl] ?? [])),
-                .init(heading: "Enerji & Şans", text: "Bugünkü enerji seviyen yaklaşık %\(note.energyScore). Şanslı rengin: \(lower(note.luckyHue))."),
+                .init(heading: "Gökyüzü", text: skyLine),
+                .init(heading: "Aşk ve yakınlık", text: love),
+                .init(heading: "İş, söz ve para", text: work),
+                .init(heading: "Beden ve ruh", text: body),
+                .init(heading: "Bugün dene", text: r.pick(trySkip[sunEl] ?? [])),
+                .init(heading: "Kendine sor", text: r.pick(questions[note.focus] ?? ["Bugün kendine ne iyi gelir?"]))
             ]
         )
     }

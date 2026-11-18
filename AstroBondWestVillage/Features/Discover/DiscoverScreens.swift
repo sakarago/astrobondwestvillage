@@ -664,6 +664,163 @@ struct MoreView: View {
     }
 }
 
+// MARK: - Daily reading
+
+struct DailyReadingPage: View {
+    let sky: UserSky
+    @Environment(\.dismiss) private var dismiss
+    @State private var aiNote: DiscoverNote?
+    @State private var aiState: AIStatusLine.State = .idle
+
+    private var base: DiscoverNote { DiscoverContent.dailyReading(sky).backed(.image("discover_hero")) }
+    private var note: DiscoverNote { aiNote ?? base }
+    private var day: DailyNote {
+        DailyNoteEngine.note(for: Date(), userId: sky.userId, sun: sky.sun, moon: sky.moon, rising: sky.rising)
+    }
+    private var th: Th { Th(light: false) }
+
+    var body: some View {
+        let moon = DiscoverContent.moonDay()
+        ZStack {
+            ScreenBackdropView(backdrop: .image("discover_hero"))
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 16) {
+                    HStack {
+                        Button { dismiss() } label: { CircleIconButtonStyle.label("chevron.left", th) }
+                        Spacer()
+                        ShareLink(item: shareText) { CircleIconButtonStyle.label("square.and.arrow.up", th) }
+                    }
+                    Text(note.eyebrow)
+                        .font(ABFont.body(11, weight: .semibold)).tracking(2).foregroundStyle(Color(hex: "#FFD9A0"))
+                    AIStatusLine(state: aiState, th: th)
+                    Text(note.title)
+                        .font(ABFont.display(34, weight: .regular)).foregroundStyle(.white)
+                        .fixedSize(horizontal: false, vertical: true)
+                    placementRow
+                    HStack(spacing: 8) {
+                        statTile(icon: moon.symbol, label: "AY", value: moon.title)
+                        energyTile
+                        colorTile
+                    }
+                    Text(note.intro)
+                        .font(ABFont.body(15.5)).foregroundStyle(.white.opacity(0.9)).lineSpacing(4)
+                        .fixedSize(horizontal: false, vertical: true)
+                    ForEach(note.sections) { section in
+                        sectionCard(section)
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 8)
+                .padding(.bottom, 130)
+            }
+        }
+        .navigationBarBackButtonHidden(true)
+        .toolbar(.hidden, for: .navigationBar)
+        .task {
+            aiState = DiscoverAI.isAvailable ? .loading : .idle
+            let out = await DiscoverAI.enrich(base, sky: sky)
+            if out.usedAI { withAnimation { aiNote = out.note } }
+            aiState = out.usedAI ? .done : .idle
+        }
+    }
+
+    private var shareText: String {
+        ([note.title, note.intro] + note.sections.map { "\($0.heading): \($0.text)" }).joined(separator: "\n\n")
+    }
+
+    private var placementRow: some View {
+        HStack(spacing: 8) {
+            if let sun = sky.sun { placeChip("\(sun.glyph) \(sun.labelTR)") }
+            if let moon = sky.moon { placeChip("\(moon.glyph) \(moon.labelTR)") }
+            if let rising = sky.rising { placeChip("↑ \(rising.labelTR)") }
+        }
+    }
+
+    private func placeChip(_ title: String) -> some View {
+        Text(title)
+            .font(ABFont.body(12, weight: .semibold))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(Capsule().fill(Color.white.opacity(0.12)))
+            .overlay(Capsule().strokeBorder(Color.white.opacity(0.22), lineWidth: 0.8))
+    }
+
+    private var energyTile: some View {
+        VStack(spacing: 6) {
+            ZStack {
+                Circle().stroke(Color.white.opacity(0.16), lineWidth: 3.5)
+                Circle()
+                    .trim(from: 0, to: CGFloat(day.energyScore) / 100)
+                    .stroke(Color(hex: "#E4B867"), style: StrokeStyle(lineWidth: 3.5, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+                Text("\(day.energyScore)").font(ABFont.display(15, weight: .medium)).foregroundStyle(.white)
+            }
+            .frame(width: 46, height: 46)
+            Text("ENERJİ").font(ABFont.body(9, weight: .semibold)).tracking(1.2).foregroundStyle(.white.opacity(0.7))
+            Text(day.focus).font(ABFont.body(12.5, weight: .semibold)).foregroundStyle(.white).lineLimit(1).minimumScaleFactor(0.7)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
+        .readingGlass()
+    }
+
+    private var colorTile: some View {
+        statTile(icon: "circle.fill", label: "RENK", value: day.luckyHue, tint: Color(hex: DiscoverContent.hueHex(day.luckyHue)))
+    }
+
+    private func statTile(icon: String, label: String, value: String, tint: Color = Color(hex: "#FFD9A0")) -> some View {
+        VStack(spacing: 6) {
+            Image(systemName: icon).font(.system(size: 22, weight: .light)).foregroundStyle(tint).frame(height: 46)
+            Text(label).font(ABFont.body(9, weight: .semibold)).tracking(1.2).foregroundStyle(.white.opacity(0.7))
+            Text(value).font(ABFont.body(12.5, weight: .semibold)).foregroundStyle(.white).lineLimit(1).minimumScaleFactor(0.7)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
+        .readingGlass()
+    }
+
+    private func sectionCard(_ section: NoteSection) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Image(systemName: icon(for: section.heading))
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Color(hex: "#E4B867"))
+                Text(section.heading.uppercased(with: Locale(identifier: "tr_TR")))
+                    .font(ABFont.body(12, weight: .bold))
+                    .tracking(1.1)
+                    .foregroundStyle(Color(hex: "#FFD9A0"))
+            }
+            Text(section.text)
+                .font(ABFont.body(15))
+                .foregroundStyle(.white.opacity(0.92))
+                .lineSpacing(4)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .readingGlass()
+    }
+
+    private func icon(for heading: String) -> String {
+        let h = heading.lowercased(with: Locale(identifier: "tr_TR"))
+        if h.contains("gökyüzü") { return "moon.stars" }
+        if h.contains("aşk") { return "heart" }
+        if h.contains("iş") { return "briefcase" }
+        if h.contains("beden") || h.contains("ruh") { return "leaf" }
+        if h.contains("dene") { return "checkmark.circle" }
+        return "questionmark.circle"
+    }
+}
+
+private extension View {
+    func readingGlass() -> some View {
+        self
+            .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(Color.black.opacity(0.38)))
+            .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(Color.white.opacity(0.16), lineWidth: 1))
+    }
+}
+
 // MARK: - Generic note page
 
 struct NoteDetailPage: View {

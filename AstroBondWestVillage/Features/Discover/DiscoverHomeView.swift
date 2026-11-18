@@ -55,7 +55,7 @@ struct DiscoverHomeView: View {
     private func destination(_ route: DiscoverRoute) -> some View {
         switch route {
         case .tarot: TarotFlowView(sky: sky)
-        case .daily: NoteDetailPage(note: DiscoverContent.dailyReading(sky).backed(.image("discover_hero")), sky: sky)
+        case .daily: DailyReadingPage(sky: sky)
         case .events: EventsListView(sky: sky)
         case .event(let id):
             if let e = DiscoverContent.upcomingEvents(limit: 30).first(where: { $0.id == id }) {
@@ -124,6 +124,7 @@ struct DiscoverHomeView: View {
                     Text("Bugünün enerjisi\nsana ne söylüyor?").font(ABFont.display(26, weight: .regular)).foregroundStyle(.white).lineSpacing(2)
                     Text(DiscoverContent.heroSubtitle(sky)).font(ABFont.body(13.5)).foregroundStyle(.white.opacity(0.88)).lineSpacing(3)
                         .fixedSize(horizontal: false, vertical: true)
+                    dailyChips
                     Button { path.append(.daily) } label: {
                         HStack(spacing: 8) { Text("Günün yorumunu oku"); Image(systemName: "arrow.right") }
                             .font(ABFont.body(14, weight: .semibold)).foregroundStyle(.white)
@@ -142,6 +143,28 @@ struct DiscoverHomeView: View {
             }
             .padding(.horizontal, 16)
         }
+    }
+
+    private var dailyChips: some View {
+        let note = DailyNoteEngine.note(for: Date(), userId: sky.userId, sun: sky.sun, moon: sky.moon, rising: sky.rising)
+        let moon = DiscoverContent.moonDay()
+        return HStack(spacing: 8) {
+            dailyChip(moon.symbol, moon.title)
+            dailyChip("bolt.fill", "%\(note.energyScore)")
+            dailyChip("circle.fill", note.luckyHue, tint: Color(hex: DiscoverContent.hueHex(note.luckyHue)))
+        }
+        .padding(.top, 2)
+    }
+
+    private func dailyChip(_ icon: String, _ title: String, tint: Color = .white) -> some View {
+        HStack(spacing: 5) {
+            Image(systemName: icon).font(.system(size: 10, weight: .semibold)).foregroundStyle(tint)
+            Text(title).font(ABFont.body(11.5, weight: .semibold)).lineLimit(1).foregroundStyle(.white)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(Capsule().fill(Color.white.opacity(0.16)))
+        .overlay(Capsule().strokeBorder(Color.white.opacity(0.28), lineWidth: 0.8))
     }
 
     private var messageCard: some View {

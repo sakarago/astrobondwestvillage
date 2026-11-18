@@ -20,6 +20,15 @@ enum DailyNoteEngine {
     private static let focuses = [
         "Aşk", "Sosyal Çevre", "Kariyer", "İçe Dönüş", "Yaratıcılık", "Denge", "İletişim"
     ]
+    private static let headlines: [String: [String]] = [
+        "Aşk": ["Kalbin bugün önde", "Yakınlık kolaylaşıyor", "Bir söz yerini bulur"],
+        "Sosyal Çevre": ["Çevren sana ayna tutuyor", "Bir sohbet kapı açıyor", "İnsanlar bugün yakın"],
+        "Kariyer": ["Emeğin görünür oluyor", "Bir iş bugün ilerler", "Yönün netleşiyor"],
+        "İçe Dönüş": ["Sessizlik de bir cevap", "İçe dönmek iyi gelir", "Kendinle bir randevu"],
+        "Yaratıcılık": ["Bir kıvılcım bekliyor", "Yaratmak bugün kolay", "Elini boş bırakma"],
+        "Denge": ["Tempo düşürmek güçtür", "Orta yol bugün açık", "Azı karar, çoğu zarar"],
+        "İletişim": ["Sözün bugün ağır", "Bir mesaj yerini bulur", "Net konuşmak rahatlatır"]
+    ]
     private static let luckyHues = [
         "Lavanta", "Altın", "Deniz mavisi", "Gül kurusu", "Zümrüt", "Gümüş", "Mercan"
     ]
@@ -41,6 +50,8 @@ enum DailyNoteEngine {
         let focus = focuses[Int(rng.next() * Double(focuses.count)) % focuses.count]
         let hue = luckyHues[Int(rng.next() * Double(luckyHues.count)) % luckyHues.count]
         let energy = 54 + Int(rng.next() * 44) // 54...97
+        let headlines = Self.headlines[focus] ?? ["Bugün gökyüzü seninle"]
+        let headline = headlines[Int(rng.next() * Double(headlines.count)) % headlines.count]
 
         var parts: [String] = []
         if let sun {
@@ -61,7 +72,7 @@ enum DailyNoteEngine {
 
         return DailyNote(
             dateLabel: df.string(from: date),
-            headline: "Bugün odak: \(focus)",
+            headline: headline,
             body: parts.joined(separator: " "),
             focus: focus,
             energyScore: energy,
