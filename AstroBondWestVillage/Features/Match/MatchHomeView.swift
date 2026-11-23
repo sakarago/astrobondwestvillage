@@ -75,6 +75,15 @@ final class MatchViewModel {
         await load()
     }
 
+    func refreshOwnChart(userId: String) async {
+        myChart = try? await ChartService.shared.ensureOwnChart(userId: userId)
+        if let chart = myChart {
+            mySun = chart.sunSign
+            myMoon = chart.moonSign
+            myRising = chart.risingSign
+        }
+    }
+
     func refreshLocal(userId: String) {
         remainingReveals = quota.remaining(for: userId)
         todayDecisions = decisions.todayHistory(for: userId)
@@ -362,6 +371,11 @@ struct MatchHomeView: View {
             .task {
                 if let id = session.user?.id {
                     await model.bootstrap(userId: id)
+                }
+            }
+            .onChange(of: session.chartRevision) { _, _ in
+                if let id = session.user?.id {
+                    Task { await model.refreshOwnChart(userId: id) }
                 }
             }
             .onChange(of: activeTab?.wrappedValue) { _, tab in

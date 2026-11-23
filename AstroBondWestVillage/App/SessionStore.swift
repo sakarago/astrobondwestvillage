@@ -13,6 +13,8 @@ final class SessionStore {
 
     private(set) var phase: Phase = .loading
     private(set) var user: AppUser?
+    /// Bumps after a saved birth edit so open screens reload the new chart.
+    private(set) var chartRevision = 0
     var lastError: String?
     /// Recovery link opened the app; the person still has to choose a new password.
     var isChoosingNewPassword = false
@@ -74,6 +76,10 @@ final class SessionStore {
 
     func markOnboardingComplete() async {
         phase = .main
+    }
+
+    func noteChartRegenerated() {
+        chartRevision += 1
     }
 
     func requestPasswordReset(email: String) async -> Bool {

@@ -156,6 +156,9 @@ final class ProfileService: Sendable {
         city: CityOption,
         district: District,
         birthDate: Date?,
+        timeKnown: Bool,
+        hour: Int,
+        minute: Int,
         cartoonAvatarId: String? = nil
     ) async throws {
         let cal = Calendar.current
@@ -199,12 +202,17 @@ final class ProfileService: Sendable {
                 let longitude: Double
                 let utc_offset: Double
                 let date_of_birth: String?
+                let time_hour: Int
+                let time_minute: Int
+                let time_known: Bool
             }
             let df = DateFormatter()
             df.calendar = Calendar(identifier: .gregorian)
             df.locale = Locale(identifier: "en_US_POSIX")
             df.timeZone = TimeZone(secondsFromGMT: 0)
             df.dateFormat = "yyyy-MM-dd"
+            let savedHour = timeKnown ? hour : 12
+            let savedMinute = timeKnown ? minute : 0
             try await client.from("birth_data")
                 .update(BirthPatch(
                     city: district.name,
@@ -212,17 +220,18 @@ final class ProfileService: Sendable {
                     latitude: district.latitude,
                     longitude: district.longitude,
                     utc_offset: city.utcOffset,
-                    date_of_birth: birthDate.map { df.string(from: $0) }
+                    date_of_birth: birthDate.map { df.string(from: $0) },
+                    time_hour: savedHour,
+                    time_minute: savedMinute,
+                    time_known: timeKnown
                 ))
                 .eq("user_id", value: userId)
                 .execute()
 
             if let birthDate {
-                let existing = try? await ChartService.shared.fetchBirthData(userId: userId)
-                let time = existing?.timeOfBirth ?? .unknown
                 let birth = BirthData(
                     dateOfBirth: birthDate,
-                    timeOfBirth: time,
+                    timeOfBirth: timeKnown ? .known(hour: savedHour, minute: savedMinute) : .unknown,
                     location: BirthLocation(
                         city: district.name,
                         country: city.country,

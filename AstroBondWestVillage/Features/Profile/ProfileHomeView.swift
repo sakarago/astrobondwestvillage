@@ -72,6 +72,9 @@ struct ProfileHomeView: View {
             .toolbar(.hidden, for: .navigationBar)
         }
         .task { await load() }
+        .onChange(of: session.chartRevision) { _, _ in
+            Task { await load() }
+        }
         .sheet(isPresented: $showPlanetDetail) {
             if let planet = selectedPlanet {
                 ProfilePlanetDetailSheet(planet: planet)

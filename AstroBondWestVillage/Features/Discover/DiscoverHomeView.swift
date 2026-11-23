@@ -44,6 +44,9 @@ struct DiscoverHomeView: View {
         .task {
             await loadSky()
         }
+        .onChange(of: session.chartRevision) { _, _ in
+            Task { await loadSky() }
+        }
         .onChange(of: activeTab?.wrappedValue) { _, tab in
             if tab == 0 { Task { await loadSky() } } else { path = [] }
         }

@@ -138,7 +138,7 @@ struct SettingsView: View {
                     }
                 }
                 .padding(20)
-                .padding(.bottom, 40)
+                .padding(.bottom, 132)
             }
         }
         .toolbar(.hidden, for: .navigationBar)
@@ -209,6 +209,9 @@ private struct EditProfileSettingsView: View {
     @State private var city: CityOption = CityOption.defaultCity
     @State private var district: District = CityOption.defaultCity.districts[0]
     @State private var birthDate = Calendar.current.date(byAdding: .year, value: -25, to: Date()) ?? Date()
+    @State private var timeKnown = false
+    @State private var hour = 12
+    @State private var minute = 0
     @State private var cartoonAvatar: CartoonAvatar?
     @State private var isSaving = false
     @State private var error: String?
@@ -234,15 +237,26 @@ private struct EditProfileSettingsView: View {
                         }
                         .padding(.vertical, 8)
                         Rectangle().fill(ABColor.veil.opacity(0.08)).frame(height: 1)
-                        DatePicker("Doğum tarihi", selection: $birthDate, in: ...eighteenYearsAgo, displayedComponents: .date)
-                            .tint(ABColor.lavender)
-                            
-                            .font(ABFont.body(15))
-                            .foregroundStyle(ABColor.ink)
-                            .padding(.vertical, 8)
-                        Rectangle().fill(ABColor.veil.opacity(0.08)).frame(height: 1)
                         BirthPlacePicker(city: $city, district: $district, compact: true)
                             .padding(.vertical, 8)
+                    }
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("DOĞUM")
+                            .font(ABFont.body(11, weight: .bold))
+                            .tracking(1.3)
+                            .foregroundStyle(ABColor.inkMuted)
+                            .padding(.leading, 4)
+                        Text("Tarih, saat ve yer kaydedilince doğum haritan yeniden çizilir.")
+                            .font(ABFont.body(13))
+                            .foregroundStyle(ABColor.inkMuted)
+                            .padding(.horizontal, 4)
+                        BirthMomentPicker(
+                            birthDate: $birthDate,
+                            timeKnown: $timeKnown,
+                            hour: $hour,
+                            minute: $minute
+                        )
                     }
 
                     settingsInner {
@@ -268,7 +282,7 @@ private struct EditProfileSettingsView: View {
                         Text(error).font(ABFont.body(13)).foregroundStyle(Color(hex: "#C69A9A"))
                     }
 
-                    CrystalCTAButton(title: isSaving ? "Kaydediliyor…" : "Kaydet", isEnabled: !isSaving) {
+                    CrystalCTAButton(title: isSaving ? "Harita yenileniyor…" : "Kaydet", isEnabled: !isSaving) {
                         Task { await save() }
                     }
                 }
@@ -279,10 +293,6 @@ private struct EditProfileSettingsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbarColorScheme(.dark, for: .navigationBar)
         .onAppear { hydrate() }
-    }
-
-    private var eighteenYearsAgo: Date {
-        Calendar.current.date(byAdding: .year, value: -18, to: Date()) ?? Date()
     }
 
     private func hydrate() {
@@ -302,6 +312,9 @@ private struct EditProfileSettingsView: View {
             district = match.districts.first ?? district
         }
         if let d = snapshot.birthDate { birthDate = d }
+        timeKnown = snapshot.timeKnown
+        hour = snapshot.timeHour
+        minute = snapshot.timeMinute
         cartoonAvatar = CartoonAvatar.from(id: snapshot.cartoonAvatarId)
     }
 
@@ -322,8 +335,12 @@ private struct EditProfileSettingsView: View {
                 city: city,
                 district: district,
                 birthDate: birthDate,
+                timeKnown: timeKnown,
+                hour: hour,
+                minute: minute,
                 cartoonAvatarId: cartoonAvatar?.rawValue
             )
+            session.noteChartRegenerated()
             if let snap = try await profiles.fetchSnapshot(userId: id) {
                 onSaved(snap)
             }
