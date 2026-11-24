@@ -274,6 +274,61 @@ final class MatchViewModel {
     }
 }
 
+/// Idle Eşleşme: a finger lifts a few millimeters off the glass, then presses the center.
+private struct MatchSpinCoach: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var pressing = false
+
+    private let amberBright = Color(hex: "#FFD36B")
+
+    var body: some View {
+        let lifted = !pressing
+        ZStack {
+            Ellipse()
+                .fill(Color.black.opacity(pressing ? 0.5 : 0.14))
+                .frame(width: pressing ? 9 : 30, height: pressing ? 3.5 : 14)
+                .blur(radius: pressing ? 0.6 : 8)
+                .offset(x: pressing ? 1 : 16, y: pressing ? 4 : 20)
+
+            Circle()
+                .stroke(amberBright.opacity(pressing ? 0.8 : 0), lineWidth: 1)
+                .frame(width: 12, height: 12)
+                .scaleEffect(pressing ? 1.8 : 0.4)
+                .opacity(pressing ? 0.9 : 0)
+
+            Image(systemName: "hand.point.up.left.fill")
+                .font(.system(size: 22, weight: .regular))
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [Color(hex: "#FFF6D8"), Color(hex: "#F0C36A"), Color(hex: "#C4843A")],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .shadow(color: Color(hex: "#8A5520").opacity(lifted ? 0.35 : 0.9), radius: 0, x: lifted ? 3 : 1, y: lifted ? 4 : 1.5)
+                .scaleEffect(lifted ? 1 : 0.94)
+                .rotation3DEffect(
+                    .degrees(lifted ? 58 : 0),
+                    axis: (x: 0.55, y: -0.45, z: 0),
+                    anchor: UnitPoint(x: 0.22, y: 0.18),
+                    perspective: 0.95
+                )
+                .offset(x: lifted ? 12 : 0, y: lifted ? 10 : 0)
+        }
+        .offset(x: 6, y: 4)
+        .allowsHitTesting(false)
+        .onAppear {
+            guard !reduceMotion else {
+                pressing = true
+                return
+            }
+            withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) {
+                pressing = true
+            }
+        }
+    }
+}
+
 struct MatchHomeView: View {
     @Environment(SessionStore.self) private var session
     @Environment(\.hideTabBar) private var hideTabBar
@@ -467,6 +522,13 @@ struct MatchHomeView: View {
             showsTapPrompt: true,
             onTap: startSpin
         )
+        .overlay {
+            if model.phase == .idle {
+                MatchSpinCoach()
+                    .transition(.opacity)
+                    .allowsHitTesting(false)
+            }
+        }
     }
 
     /// Idle / spinning: logo + wheel + prefs (or "searching") scroll together as one page.
