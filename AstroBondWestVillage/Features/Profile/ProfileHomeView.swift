@@ -423,9 +423,16 @@ struct ProfileHomeView: View {
                     elementPill("Element", chart.dominantElement.labelTR, elementColor(chart.dominantElement))
                     elementPill("Modalite", chart.dominantModality.labelTR, Color(hex: "#C9CFD9"))
                 }
-                ForEach(Array(chart.planets.prefix(7)), id: \.planet) { planet in
-                    planetReadingRow(planet)
+                let planets = Array(chart.planets.prefix(7))
+                VStack(spacing: 0) {
+                    ForEach(Array(planets.enumerated()), id: \.element.planet) { index, planet in
+                        planetReadingRow(planet)
+                        if index < planets.count - 1 {
+                            Rectangle().fill(ABColor.veil.opacity(0.08)).frame(height: 1)
+                        }
+                    }
                 }
+                .profileGlowBubble(cornerRadius: 24, tint: lavender)
             }
             .padding(.horizontal, 28)
         }
@@ -500,7 +507,6 @@ struct ProfileHomeView: View {
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
-        .profileGlowBubble(cornerRadius: 20, tint: tint)
     }
 
     // MARK: Houses
@@ -508,11 +514,15 @@ struct ProfileHomeView: View {
     private func housesSection(chart: NatalChart) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             sectionHeader("YAŞAM ALANLARIN", "Evler", "Bir eve dokun, detaylı yorumu gör")
-            VStack(spacing: 10) {
-                ForEach(chart.houses, id: \.number) { house in
+            VStack(spacing: 0) {
+                ForEach(Array(chart.houses.enumerated()), id: \.element.number) { index, house in
                     houseRow(house)
+                    if index < chart.houses.count - 1 {
+                        Rectangle().fill(ABColor.veil.opacity(0.08)).frame(height: 1)
+                    }
                 }
             }
+            .profileGlowBubble(cornerRadius: 24, tint: lavender)
             .padding(.horizontal, 28)
         }
     }
@@ -590,7 +600,6 @@ struct ProfileHomeView: View {
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
-        .profileGlowBubble(cornerRadius: 20, tint: tint)
     }
 
     // MARK: Aspects

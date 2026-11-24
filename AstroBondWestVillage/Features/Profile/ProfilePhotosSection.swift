@@ -1,9 +1,8 @@
 import SwiftUI
 import PhotosUI
 
-/// "Fotoğraflarım" — up to 6 photos. First one is the main photo (big tile).
-/// Tap a photo to view it full screen, use the ••• menu to make it main or delete it,
-/// tap an empty tile to add (multi-select supported).
+/// "Fotoğraflarım" — up to 6 photos. First one is the main photo.
+/// Empty slots stay hidden: one add box follows the photos you already have.
 struct ProfilePhotosSection: View {
     let userId: String
     @Binding var photos: [ProfilePhoto]
@@ -21,6 +20,12 @@ struct ProfilePhotosSection: View {
     private let gap: CGFloat = 8
     private let hPad: CGFloat = 24
     private var remaining: Int { max(0, ProfilePhotoService.maxPhotos - photos.count - uploading) }
+    /// Filled photos, in-flight uploads, and a single add box when there is room.
+    private var slotCount: Int {
+        let filled = photos.count + uploading
+        if filled >= ProfilePhotoService.maxPhotos { return filled }
+        return filled + 1
+    }
 
     private var rim: Color { Color.adaptive(light: "#E3C3B1", dark: "#FFFFFF").opacity(0.35) }
 
@@ -31,24 +36,15 @@ struct ProfilePhotosSection: View {
 
         VStack(alignment: .leading, spacing: 14) {
             header
-            VStack(spacing: gap) {
-                HStack(spacing: gap) {
-                    tile(0, size: CGSize(width: big, height: big * 1.1), isMain: true)
-                    VStack(spacing: gap) {
-                        tile(1, size: CGSize(width: small, height: (big * 1.1 - gap) / 2))
-                        tile(2, size: CGSize(width: small, height: (big * 1.1 - gap) / 2))
-                    }
-                }
-                HStack(spacing: gap) {
-                    ForEach(3..<6, id: \.self) { tile($0, size: CGSize(width: small, height: small * 1.25)) }
-                }
-            }
-            .padding(.horizontal, hPad)
+            photoGrid(width: width, small: small, big: big)
+                .padding(.horizontal, hPad)
 
-            Text("Sıralamayı değiştirmek için fotoğrafı basılı tutup sürükle. İlk fotoğraf ana fotoğrafın. En fazla \(ProfilePhotoService.maxPhotos) fotoğraf ekleyebilirsin.")
-                .font(ABFont.body(12))
-                .foregroundStyle(ABColor.inkMuted)
-                .padding(.horizontal, hPad + 4)
+            if photos.count > 1 {
+                Text("Sıralamayı değiştirmek için fotoğrafı basılı tutup sürükle. İlk fotoğraf ana fotoğrafın.")
+                    .font(ABFont.body(12))
+                    .foregroundStyle(ABColor.inkMuted)
+                    .padding(.horizontal, hPad + 4)
+            }
         }
         .onChange(of: pickerItems) { _, items in
             guard !items.isEmpty else { return }
@@ -80,6 +76,38 @@ struct ProfilePhotosSection: View {
             }
         }
         .padding(.horizontal, hPad + 4)
+    }
+
+    @ViewBuilder
+    private func photoGrid(width: CGFloat, small: CGFloat, big: CGFloat) -> some View {
+        let count = slotCount
+        let side = (big * 1.1 - gap) / 2
+        if count <= 1 {
+            tile(0, size: CGSize(width: width, height: 188), isMain: true)
+        } else if count == 2 {
+            HStack(spacing: gap) {
+                tile(0, size: CGSize(width: big, height: big * 1.1), isMain: true)
+                tile(1, size: CGSize(width: small, height: big * 1.1))
+            }
+        } else {
+            VStack(spacing: gap) {
+                HStack(spacing: gap) {
+                    tile(0, size: CGSize(width: big, height: big * 1.1), isMain: true)
+                    VStack(spacing: gap) {
+                        tile(1, size: CGSize(width: small, height: side))
+                        tile(2, size: CGSize(width: small, height: side))
+                    }
+                }
+                if count > 3 {
+                    HStack(spacing: gap) {
+                        ForEach(3..<count, id: \.self) { index in
+                            tile(index, size: CGSize(width: small, height: small * 1.25))
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+        }
     }
 
     // MARK: Tiles
@@ -127,14 +155,24 @@ struct ProfilePhotosSection: View {
                 .overlay { ProgressView().tint(ABColor.lavenderSoft) }
         } else {
             PhotosPicker(selection: $pickerItems, maxSelectionCount: max(1, remaining), matching: .images) {
-                shape.fill(ABColor.veil.opacity(0.04))
-                    .overlay(shape.strokeBorder(style: StrokeStyle(lineWidth: 1.2, dash: [5, 5])).foregroundStyle(ABColor.lavenderSoft.opacity(0.6)))
+                shape.fill(ABColor.veil.opacity(0.05))
+                    .overlay(shape.strokeBorder(ABColor.lavenderSoft.opacity(0.35), lineWidth: 1))
                     .overlay {
-                        VStack(spacing: 6) {
-                            Image(systemName: "plus").font(.system(size: isMain ? 26 : 18, weight: .light))
-                            if isMain { Text("Fotoğraf ekle").font(ABFont.body(12.5, weight: .medium)) }
+                        VStack(spacing: isMain ? 10 : 0) {
+                            Image(systemName: "plus")
+                                .font(.system(size: isMain ? 22 : 18, weight: .light))
+                                .foregroundStyle(ABColor.lavenderSoft)
+                                .frame(width: isMain ? 52 : 36, height: isMain ? 52 : 36)
+                                .background(Circle().fill(ABColor.lavender.opacity(0.16)))
+                            if isMain {
+                                Text("Fotoğraf ekle")
+                                    .font(ABFont.body(16, weight: .medium))
+                                    .foregroundStyle(ABColor.ink)
+                                Text("İlki ana fotoğrafın olur.")
+                                    .font(ABFont.body(13))
+                                    .foregroundStyle(ABColor.inkMuted)
+                            }
                         }
-                        .foregroundStyle(ABColor.lavenderSoft)
                     }
                     .frame(width: size.width, height: size.height)
             }
