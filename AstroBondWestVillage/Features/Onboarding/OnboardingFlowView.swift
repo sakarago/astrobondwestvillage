@@ -6,7 +6,6 @@ final class OnboardingViewModel {
     var displayName = ""
     var gender: Gender = .preferNotSay
     var seeking: Set<Gender> = [.woman, .man]
-    var cartoonAvatar: CartoonAvatar?
     var birthDate = Calendar.current.date(byAdding: .year, value: -25, to: Date()) ?? Date()
     var timeKnown = false
     var hour = 12
@@ -23,7 +22,6 @@ final class OnboardingViewModel {
 
     var canContinueName: Bool {
         displayName.trimmingCharacters(in: .whitespacesAndNewlines).count >= 2
-            && cartoonAvatar != nil
     }
 
     func selectCity(_ newCity: CityOption) {
@@ -46,8 +44,7 @@ final class OnboardingViewModel {
                 minute: minute,
                 city: city,
                 district: district,
-                genderPrefs: Array(seeking),
-                cartoonAvatarId: cartoonAvatar?.rawValue ?? CartoonAvatar.m01.rawValue
+                genderPrefs: Array(seeking)
             )
             return true
         } catch {
@@ -143,8 +140,6 @@ struct OnboardingFlowView: View {
                         }
                     }
                 }
-
-                CartoonAvatarPicker(gender: model.gender, selection: $model.cartoonAvatar)
             }
             .padding(22)
             .crystalPlate(cornerRadius: 28)

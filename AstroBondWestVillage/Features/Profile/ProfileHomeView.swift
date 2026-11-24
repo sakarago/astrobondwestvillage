@@ -240,7 +240,6 @@ struct ProfileHomeView: View {
                 PersonAvatar(
                     name: displayName,
                     photoURL: snapshot?.photoURL,
-                    cartoonAvatarId: snapshot?.cartoonAvatarId,
                     sunSign: sign,
                     unlocked: true,
                     size: 60

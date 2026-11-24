@@ -15,7 +15,6 @@ struct ProfileSnapshot: Equatable, Sendable {
     var moonSign: ZodiacSign?
     var risingSign: ZodiacSign?
     var photoURL: String?
-    var cartoonAvatarId: String?
     var birthDate: Date?
     var hasBirthData: Bool
     var timeKnown: Bool
@@ -65,7 +64,6 @@ final class ProfileService: Sendable {
             let moonSign: String?
             let risingSign: String?
             let photoURL: String?
-            let cartoonAvatarId: String?
             enum CodingKeys: String, CodingKey {
                 case id, age, gender, city, bio
                 case displayName = "display_name"
@@ -73,7 +71,6 @@ final class ProfileService: Sendable {
                 case moonSign = "moon_sign"
                 case risingSign = "rising_sign"
                 case photoURL = "profile_photo_url"
-                case cartoonAvatarId = "cartoon_avatar_id"
             }
         }
         struct BirthRow: Decodable {
@@ -100,7 +97,7 @@ final class ProfileService: Sendable {
 
         do {
             let profiles: [Row] = try await client.from("profiles")
-                .select("id,display_name,age,gender,bio,city,sun_sign,moon_sign,rising_sign,profile_photo_url,cartoon_avatar_id")
+                .select("id,display_name,age,gender,bio,city,sun_sign,moon_sign,rising_sign,profile_photo_url")
                 .eq("id", value: userId)
                 .execute()
                 .value
@@ -133,7 +130,6 @@ final class ProfileService: Sendable {
                 moonSign: ZodiacSign.fromEnglishName(p.moonSign),
                 risingSign: ZodiacSign.fromEnglishName(p.risingSign),
                 photoURL: p.photoURL,
-                cartoonAvatarId: p.cartoonAvatarId,
                 birthDate: birthDate,
                 hasBirthData: !births.isEmpty && !p.displayName.trimmingCharacters(in: .whitespaces).isEmpty,
                 timeKnown: births.first?.timeKnown ?? false,
@@ -158,8 +154,7 @@ final class ProfileService: Sendable {
         birthDate: Date?,
         timeKnown: Bool,
         hour: Int,
-        minute: Int,
-        cartoonAvatarId: String? = nil
+        minute: Int
     ) async throws {
         let cal = Calendar.current
         let age: Int
@@ -179,7 +174,6 @@ final class ProfileService: Sendable {
             let bio: String
             let city: String
             let sun_sign: String
-            let cartoon_avatar_id: String?
         }
 
         do {
@@ -189,8 +183,7 @@ final class ProfileService: Sendable {
                     age: age,
                     bio: bio,
                     city: city.name,
-                    sun_sign: sun.englishName,
-                    cartoon_avatar_id: cartoonAvatarId
+                    sun_sign: sun.englishName
                 ))
                 .eq("id", value: userId)
                 .execute()
@@ -279,8 +272,7 @@ final class ProfileService: Sendable {
         minute: Int,
         city: CityOption,
         district: District,
-        genderPrefs: [Gender],
-        cartoonAvatarId: String
+        genderPrefs: [Gender]
     ) async throws -> NatalChart {
         let cal = Calendar.current
         let age = max(18, cal.dateComponents([.year], from: birthDate, to: Date()).year ?? 18)
@@ -303,7 +295,6 @@ final class ProfileService: Sendable {
             let sun_sign: String
             let moon_sign: String
             let rising_sign: String
-            let cartoon_avatar_id: String
         }
         struct BirthUpsert: Encodable {
             let user_id: String
@@ -341,8 +332,7 @@ final class ProfileService: Sendable {
                     city: city.name,
                     sun_sign: sun.englishName,
                     moon_sign: sun.englishName,
-                    rising_sign: sun.englishName,
-                    cartoon_avatar_id: cartoonAvatarId
+                    rising_sign: sun.englishName
                 )
             ).execute()
 

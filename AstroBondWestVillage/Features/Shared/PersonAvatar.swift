@@ -3,7 +3,6 @@ import SwiftUI
 struct PersonAvatar: View {
     var name: String
     var photoURL: String?
-    var cartoonAvatarId: String? = nil
     var sunSign: ZodiacSign?
     var unlocked: Bool
     var size: CGFloat = 52
@@ -48,11 +47,7 @@ struct PersonAvatar: View {
 
     @ViewBuilder
     private var fallbackFace: some View {
-        if let cartoon = CartoonAvatar.from(id: cartoonAvatarId) {
-            CartoonAvatarView(avatar: cartoon, size: size)
-        } else {
-            initials
-        }
+        initials
     }
 
     private var initials: some View {

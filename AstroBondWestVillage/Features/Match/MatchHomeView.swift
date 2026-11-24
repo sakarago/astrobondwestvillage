@@ -29,7 +29,6 @@ final class MatchViewModel {
     var myRising: ZodiacSign?
     var myName: String = "Sen"
     var myPhotoURL: String?
-    var myCartoonAvatarId: String?
     var myChart: NatalChart?
     var theirChart: NatalChart?
 
@@ -64,7 +63,6 @@ final class MatchViewModel {
                 myName = snap.displayName
             }
             myPhotoURL = snap.photoURL
-            myCartoonAvatarId = snap.cartoonAvatarId
         }
         myChart = try? await ChartService.shared.ensureOwnChart(userId: userId)
         if let chart = myChart {
@@ -167,7 +165,6 @@ final class MatchViewModel {
                 otherUserId: card.id,
                 otherName: card.displayName,
                 otherPhotoURL: card.photoURL,
-                otherCartoonAvatarId: card.cartoonAvatarId,
                 otherSunSign: card.sunSign,
                 lastMessage: "Astro Bond açıldı. İlk mesajı sen at!",
                 lastMessageAt: Date(),
@@ -401,7 +398,6 @@ struct MatchHomeView: View {
                     mySeed: session.user?.id ?? "self",
                     myName: model.myName,
                     myPhotoURL: model.myPhotoURL,
-                    myCartoonAvatarId: model.myCartoonAvatarId,
                     mySun: model.mySun,
                     myMoon: model.myMoon,
                     myRising: model.myRising,
@@ -654,7 +650,6 @@ struct MatchHomeView: View {
                         card: match,
                         myName: model.myName,
                         myPhotoURL: model.myPhotoURL,
-                        myCartoonAvatarId: model.myCartoonAvatarId,
                         mySun: model.mySun,
                         report: report
                     )
@@ -709,7 +704,6 @@ struct MatchHomeView: View {
                                 PersonAvatar(
                                     name: rec.displayName,
                                     photoURL: rec.photoURL,
-                                    cartoonAvatarId: rec.cartoonAvatarId,
                                     sunSign: rec.sunSign,
                                     unlocked: false,
                                     size: 52
@@ -955,8 +949,7 @@ struct MatchHomeView: View {
             moonSign: nil,
             risingSign: nil,
             bio: "",
-            photoURL: rec.photoURL,
-            cartoonAvatarId: rec.cartoonAvatarId
+            photoURL: rec.photoURL
         )
     }
 

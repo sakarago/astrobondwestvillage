@@ -14,7 +14,6 @@ final class ChatViewModel {
     var myRising: ZodiacSign?
     var myName: String = "Sen"
     var myPhotoURL: String?
-    var myCartoonAvatarId: String?
     var showBondSummary = false
     var myChart: NatalChart?
 
@@ -36,8 +35,7 @@ final class ChatViewModel {
             moonSign: nil,
             risingSign: nil,
             bio: "",
-            photoURL: conversation.otherPhotoURL,
-            cartoonAvatarId: conversation.otherCartoonAvatarId
+            photoURL: conversation.otherPhotoURL
         )
     }
 
@@ -59,7 +57,6 @@ final class ChatViewModel {
                 myName = snap.displayName
             }
             myPhotoURL = snap.photoURL
-            myCartoonAvatarId = snap.cartoonAvatarId
         }
         myChart = try? await ChartService.shared.ensureOwnChart(userId: myUserId)
     }
@@ -128,7 +125,6 @@ struct ChatView: View {
                     mySeed: session.user?.id ?? "self",
                     myName: model.myName,
                     myPhotoURL: model.myPhotoURL,
-                    myCartoonAvatarId: model.myCartoonAvatarId,
                     mySun: model.mySun,
                     myMoon: model.myMoon,
                     myRising: model.myRising,
@@ -348,7 +344,6 @@ struct ChatView: View {
                         PersonAvatar(
                             name: model.conversation.otherName,
                             photoURL: model.conversation.otherPhotoURL,
-                            cartoonAvatarId: model.conversation.otherCartoonAvatarId,
                             sunSign: model.conversation.otherSunSign,
                             unlocked: model.photoUnlocked,
                             size: 54
@@ -537,7 +532,6 @@ struct ChatView: View {
                         otherUserId: model.conversation.otherUserId,
                         otherName: model.conversation.otherName,
                         otherPhotoURL: model.conversation.otherPhotoURL,
-                        otherCartoonAvatarId: model.conversation.otherCartoonAvatarId,
                         otherSunSign: model.conversation.otherSunSign,
                         lastMessage: text,
                         lastMessageAt: Date(),

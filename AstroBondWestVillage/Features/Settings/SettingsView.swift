@@ -212,7 +212,6 @@ private struct EditProfileSettingsView: View {
     @State private var timeKnown = false
     @State private var hour = 12
     @State private var minute = 0
-    @State private var cartoonAvatar: CartoonAvatar?
     @State private var isSaving = false
     @State private var error: String?
 
@@ -270,14 +269,6 @@ private struct EditProfileSettingsView: View {
                         .padding(.vertical, 8)
                     }
 
-                    settingsInner {
-                        CartoonAvatarPicker(
-                            gender: snapshot?.gender ?? .preferNotSay,
-                            selection: $cartoonAvatar
-                        )
-                        .padding(.vertical, 8)
-                    }
-
                     if let error {
                         Text(error).font(ABFont.body(13)).foregroundStyle(Color(hex: "#C69A9A"))
                     }
@@ -315,7 +306,6 @@ private struct EditProfileSettingsView: View {
         timeKnown = snapshot.timeKnown
         hour = snapshot.timeHour
         minute = snapshot.timeMinute
-        cartoonAvatar = CartoonAvatar.from(id: snapshot.cartoonAvatarId)
     }
 
     private func save() async {
@@ -337,8 +327,7 @@ private struct EditProfileSettingsView: View {
                 birthDate: birthDate,
                 timeKnown: timeKnown,
                 hour: hour,
-                minute: minute,
-                cartoonAvatarId: cartoonAvatar?.rawValue
+                minute: minute
             )
             session.noteChartRegenerated()
             if let snap = try await profiles.fetchSnapshot(userId: id) {

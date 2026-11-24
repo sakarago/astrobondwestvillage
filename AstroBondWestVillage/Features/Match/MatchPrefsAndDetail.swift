@@ -179,7 +179,6 @@ struct MatchDetailSheet: View {
     var mySeed: String = "self"
     var myName: String = "Sen"
     var myPhotoURL: String? = nil
-    var myCartoonAvatarId: String? = nil
     let mySun: ZodiacSign?
     var myMoon: ZodiacSign? = nil
     var myRising: ZodiacSign? = nil
@@ -231,7 +230,7 @@ struct MatchDetailSheet: View {
                 VStack(spacing: 18) {
                     SynastrySummaryHeader(
                         card: card, myName: myName, myPhotoURL: myPhotoURL,
-                        myCartoonAvatarId: myCartoonAvatarId, mySun: mySun, report: report
+                        mySun: mySun, report: report
                     )
                     bondProfileSection
                     wheelSection

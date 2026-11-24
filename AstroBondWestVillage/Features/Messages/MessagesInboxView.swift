@@ -135,7 +135,6 @@ struct MessagesInboxView: View {
                                     PersonAvatar(
                                         name: conv.otherName,
                                         photoURL: conv.otherPhotoURL,
-                                        cartoonAvatarId: conv.otherCartoonAvatarId,
                                         sunSign: conv.otherSunSign,
                                         unlocked: false,
                                         size: 64
@@ -197,7 +196,6 @@ struct MessagesInboxView: View {
             PersonAvatar(
                 name: conv.otherName,
                 photoURL: conv.otherPhotoURL,
-                cartoonAvatarId: conv.otherCartoonAvatarId,
                 sunSign: conv.otherSunSign,
                 unlocked: false,
                 size: 58

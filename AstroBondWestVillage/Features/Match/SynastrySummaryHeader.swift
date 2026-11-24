@@ -8,7 +8,6 @@ struct SynastrySummaryHeader: View {
     let card: MatchCard
     var myName: String = "Sen"
     var myPhotoURL: String? = nil
-    var myCartoonAvatarId: String? = nil
     let mySun: ZodiacSign?
     let report: BondStory.Report
 
@@ -44,11 +43,11 @@ struct SynastrySummaryHeader: View {
     private var coupleHeader: some View {
         HStack(alignment: .top, spacing: 4) {
             personColumn(name: myName, sign: mySun, tint: mineTint) {
-                PersonAvatar(name: myName, photoURL: myPhotoURL, cartoonAvatarId: myCartoonAvatarId, sunSign: mySun, unlocked: true, size: 52)
+                PersonAvatar(name: myName, photoURL: myPhotoURL, sunSign: mySun, unlocked: true, size: 52)
             }
             bondSeal
             personColumn(name: card.displayName, sign: card.sunSign, tint: theirTint) {
-                PersonAvatar(name: card.displayName, photoURL: card.photoURL, cartoonAvatarId: card.cartoonAvatarId, sunSign: card.sunSign, unlocked: false, size: 52)
+                PersonAvatar(name: card.displayName, photoURL: card.photoURL, sunSign: card.sunSign, unlocked: false, size: 52)
             }
         }
     }
