@@ -271,58 +271,103 @@ final class MatchViewModel {
     }
 }
 
-/// Idle Eşleşme: a finger lifts a few millimeters off the glass, then presses the center.
+/// Idle Eşleşme: the hand from the match mockup, in its original violet.
+/// It waits below and right of the label, travels to the star, clicks it, then pulls back.
 private struct MatchSpinCoach: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var pressing = false
 
-    private let amberBright = Color(hex: "#FFD36B")
+    /// Fingertip position inside the `match_tap_hand` image.
+    private let fingertip = UnitPoint(x: 0.103, y: 0.099)
+    private let handWidth: CGFloat = 88
+    private let handHeight: CGFloat = 106
+    /// Fingertip positions, measured from the wheel center.
+    private let restPoint = CGPoint(x: 50, y: 36)
+    private let starPoint = CGPoint(x: 0, y: -8)
+    private let glow = Color(hex: "#B79BFF")
+
+    private struct Pose {
+        var tip: CGPoint
+        var scale: CGFloat = 1
+        var flash: Double = 0
+        /// 0 at the moment of contact, 1 once the ripple has faded out.
+        var ripple: Double = 1
+    }
 
     var body: some View {
-        let lifted = !pressing
-        ZStack {
-            Ellipse()
-                .fill(Color.black.opacity(pressing ? 0.5 : 0.14))
-                .frame(width: pressing ? 9 : 30, height: pressing ? 3.5 : 14)
-                .blur(radius: pressing ? 0.6 : 8)
-                .offset(x: pressing ? 1 : 16, y: pressing ? 4 : 20)
-
-            Circle()
-                .stroke(amberBright.opacity(pressing ? 0.8 : 0), lineWidth: 1)
-                .frame(width: 12, height: 12)
-                .scaleEffect(pressing ? 1.8 : 0.4)
-                .opacity(pressing ? 0.9 : 0)
-
-            Image(systemName: "hand.point.up.left.fill")
-                .font(.system(size: 22, weight: .regular))
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [Color(hex: "#FFF6D8"), Color(hex: "#F0C36A"), Color(hex: "#C4843A")],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-                .shadow(color: Color(hex: "#8A5520").opacity(lifted ? 0.35 : 0.9), radius: 0, x: lifted ? 3 : 1, y: lifted ? 4 : 1.5)
-                .scaleEffect(lifted ? 1 : 0.94)
-                .rotation3DEffect(
-                    .degrees(lifted ? 58 : 0),
-                    axis: (x: 0.55, y: -0.45, z: 0),
-                    anchor: UnitPoint(x: 0.22, y: 0.18),
-                    perspective: 0.95
-                )
-                .offset(x: lifted ? 12 : 0, y: lifted ? 10 : 0)
+        Group {
+            if reduceMotion {
+                coach(Pose(tip: restPoint))
+            } else {
+                KeyframeAnimator(initialValue: Pose(tip: restPoint), repeating: true) { pose in
+                    coach(pose)
+                } keyframes: { _ in
+                    // Wait, approach, hover, click, release, pull back. Every track lasts 3.9 s.
+                    KeyframeTrack(\.tip) {
+                        LinearKeyframe(restPoint, duration: 0.8)
+                        CubicKeyframe(starPoint, duration: 1.1)
+                        LinearKeyframe(starPoint, duration: 0.9)
+                        CubicKeyframe(restPoint, duration: 1.1)
+                    }
+                    KeyframeTrack(\.scale) {
+                        LinearKeyframe(1, duration: 0.8)
+                        CubicKeyframe(1.12, duration: 1.1)
+                        CubicKeyframe(0.86, duration: 0.22)
+                        LinearKeyframe(0.86, duration: 0.2)
+                        SpringKeyframe(1.06, duration: 0.48, spring: .bouncy)
+                        CubicKeyframe(1, duration: 1.1)
+                    }
+                    KeyframeTrack(\.flash) {
+                        LinearKeyframe(0, duration: 2.04)
+                        LinearKeyframe(1, duration: 0.1)
+                        CubicKeyframe(0, duration: 0.8)
+                        LinearKeyframe(0, duration: 0.96)
+                    }
+                    KeyframeTrack(\.ripple) {
+                        LinearKeyframe(1, duration: 2.14)
+                        MoveKeyframe(0)
+                        LinearKeyframe(1, duration: 1.0)
+                        LinearKeyframe(1, duration: 0.76)
+                    }
+                }
+            }
         }
-        .offset(x: 6, y: 4)
         .allowsHitTesting(false)
-        .onAppear {
-            guard !reduceMotion else {
-                pressing = true
-                return
+    }
+
+    private func coach(_ pose: Pose) -> some View {
+        ZStack {
+            // Light burst and ripples where the finger makes contact.
+            ZStack {
+                Circle()
+                    .fill(RadialGradient(colors: [.white, glow.opacity(0.7), .clear], center: .center, startRadius: 0, endRadius: 30))
+                    .frame(width: 60, height: 60)
+                    .scaleEffect(0.6 + 0.4 * pose.flash)
+                    .opacity(pose.flash)
+                ripple(progress: pose.ripple, size: 70)
+                ripple(progress: pose.ripple, size: 108)
             }
-            withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) {
-                pressing = true
-            }
+            .offset(x: starPoint.x, y: starPoint.y)
+
+            Image("match_tap_hand")
+                .resizable()
+                .interpolation(.high)
+                .frame(width: handWidth, height: handHeight)
+                .shadow(color: glow.opacity(0.45), radius: 5)
+                .scaleEffect(pose.scale, anchor: fingertip)
+                .offset(
+                    x: pose.tip.x + handWidth * (0.5 - fingertip.x),
+                    y: pose.tip.y + handHeight * (0.5 - fingertip.y)
+                )
         }
+    }
+
+    private func ripple(progress: Double, size: CGFloat) -> some View {
+        Circle()
+            .stroke(glow, lineWidth: 1.5)
+            .frame(width: size, height: size)
+            .scaleEffect(0.15 + 0.85 * progress)
+            .opacity(1 - progress)
+            .shadow(color: glow, radius: 4)
     }
 }
 
