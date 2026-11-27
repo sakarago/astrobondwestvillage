@@ -12,6 +12,7 @@ struct AstroBondWestVillageApp: App {
         WindowGroup {
             RootView()
                 .environment(session)
+                .task { await DailyMessageNotifier.refreshIfAuthorized() }
         }
     }
 }

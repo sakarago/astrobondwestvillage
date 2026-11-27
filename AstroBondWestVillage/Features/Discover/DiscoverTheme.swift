@@ -1,3 +1,4 @@
+import StoreKit
 import UserNotifications
 import SwiftUI
 
@@ -297,20 +298,53 @@ struct TarotCardFace: View {
 }
 
 enum DailyMessageNotifier {
+    /// TEMPORARY: repeats hourly in TestFlight and development builds. Set to `false` to revert.
+    /// Keep `refreshIfAuthorized()` when reverting; it replaces the hourly reminder on testers' phones.
+    private static let hourlyTest = true
+
     /// Schedules a gentle daily "your card is waiting" notification (09:00). Asks permission once.
     static func scheduleDaily() {
-        let center = UNUserNotificationCenter.current()
-        center.requestAuthorization(options: [.alert, .sound]) { granted, _ in
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { granted, _ in
             guard granted else { return }
-            let content = UNMutableNotificationContent()
-            content.title = "AstroBond"
-            content.body = "Bugünün mesajı seni bekliyor ✨ Kartını seç; evrenin bugün sana söylediği şeyi keşfet."
-            content.sound = .default
-            var comps = DateComponents(); comps.hour = 9; comps.minute = 0
-            let trigger = UNCalendarNotificationTrigger(dateMatching: comps, repeats: true)
-            center.removePendingNotificationRequests(withIdentifiers: ["daily.message"])
-            center.add(UNNotificationRequest(identifier: "daily.message", content: content, trigger: trigger))
+            Task { await schedule() }
         }
+    }
+
+    /// Reapplies the schedule on app launch, only if notifications are already allowed. Never prompts.
+    static func refreshIfAuthorized() async {
+        let settings = await UNUserNotificationCenter.current().notificationSettings()
+        guard settings.authorizationStatus == .authorized else { return }
+        await schedule()
+    }
+
+    private static func schedule() async {
+        let content = UNMutableNotificationContent()
+        content.title = "AstroBond"
+        content.body = "Bugünün mesajı seni bekliyor ✨ Kartını seç; evrenin bugün sana söylediği şeyi keşfet."
+        content.sound = .default
+        var comps = DateComponents()
+        if hourlyTest, await isTestBuild() {
+            // Minute only, so it repeats every hour. The first one arrives in 1 to 2 minutes.
+            comps.minute = (Calendar.current.component(.minute, from: Date()) + 2) % 60
+        } else {
+            comps.hour = 9
+            comps.minute = 0
+        }
+        let trigger = UNCalendarNotificationTrigger(dateMatching: comps, repeats: true)
+        let center = UNUserNotificationCenter.current()
+        center.removePendingNotificationRequests(withIdentifiers: ["daily.message"])
+        try? await center.add(UNNotificationRequest(identifier: "daily.message", content: content, trigger: trigger))
+    }
+
+    /// True for development and TestFlight installs, false for App Store installs.
+    private static func isTestBuild() async -> Bool {
+        #if DEBUG
+        return true
+        #else
+        guard let result = try? await AppTransaction.shared,
+              case .verified(let transaction) = result else { return false }
+        return transaction.environment == .sandbox
+        #endif
     }
 }
 
